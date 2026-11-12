@@ -1511,6 +1511,77 @@ mod tests {
         assert_eq!(effect.children().collect::<Vec<_>>(), ["cobblemon:shine"]);
     }
 
+    /// What a Cobblemon 1.8.1 server sent a client, as the client's log wrote it: a shiny Pikachu
+    /// that comes out, then `/bedrockparticle` on that Pikachu and at a place.
+    const SHINY: &[u8] = include_bytes!("../tests/fixtures/snowstorm_entity_particle_shiny.bin");
+    const ON_ENTITY: &[u8] =
+        include_bytes!("../tests/fixtures/snowstorm_entity_particle_command.bin");
+    const FLASH_AT: &[u8] = include_bytes!("../tests/fixtures/snowstorm_particle_flash.bin");
+    const SPARKLE_AT: &[u8] = include_bytes!("../tests/fixtures/snowstorm_particle_sparkle.bin");
+
+    /// `SpawnSnowstormEntityParticlePacket.encode`.
+    fn written(spawn: &SpawnEntityParticle) -> Vec<u8> {
+        let mut w = horizon_protocol::buf::Writer::new();
+        w.string(&spawn.effect);
+        w.i32(spawn.entity);
+        w.varint(spawn.locators.len() as i32);
+        for locator in &spawn.locators {
+            w.string(locator);
+        }
+        w.bool(spawn.target.is_some());
+        if let Some(target) = spawn.target {
+            w.i32(target);
+        }
+        w.bool(spawn.target_locators.is_some());
+        for locator in spawn.target_locators.iter().flatten() {
+            w.string(locator);
+        }
+        w.data
+    }
+
+    #[test]
+    fn the_ring_of_a_shiny_pokemon_is_read_to_its_last_byte() {
+        let spawn = SpawnEntityParticle::read(SHINY).unwrap();
+        assert_eq!(
+            spawn,
+            SpawnEntityParticle {
+                effect: "cobblemon:shiny_ring".into(),
+                entity: 6544,
+                // `Pokemon.sendOutWithAnimation`: the model's own locator, else its middle.
+                locators: vec!["shiny_particles".into(), "middle".into()],
+                target: None,
+                target_locators: None,
+            }
+        );
+        assert_eq!(written(&spawn), SHINY);
+        // The command names one locator.
+        let spawn = SpawnEntityParticle::read(ON_ENTITY).unwrap();
+        assert_eq!(
+            (spawn.effect.as_str(), spawn.entity, &spawn.locators[..]),
+            ("cobblemon:shiny_ring", 6509, &["middle".to_owned()][..])
+        );
+        assert_eq!((spawn.target, &spawn.target_locators), (None, &None));
+        assert_eq!(written(&spawn), ON_ENTITY);
+    }
+
+    #[test]
+    fn an_effect_at_a_place_is_read_to_its_last_byte() {
+        let spawn = SpawnParticle::read(FLASH_AT).unwrap();
+        assert_eq!(
+            spawn,
+            SpawnParticle {
+                effect: "cobblemon:pokeball/casual/sendflash".into(),
+                position: [-389.5, 119.2, -56.5]
+            }
+        );
+        // The identifier, then three doubles: nothing else.
+        assert_eq!(FLASH_AT.len(), 1 + spawn.effect.len() + 24);
+        let spawn = SpawnParticle::read(SPARKLE_AT).unwrap();
+        assert_eq!(spawn.effect, "cobblemon:pokeball/ballsparkle");
+        assert_eq!(spawn.position, [-389.5, 119.2, -56.5]);
+        assert_eq!(SPARKLE_AT.len(), 1 + spawn.effect.len() + 24);
+    }
+
     #[test]
     fn a_message_cut_short_or_with_too_many_locators_is_an_error() {
         let mut w = horizon_protocol::buf::Writer::new();

@@ -20,7 +20,7 @@
 //! goes to the next one it names); additive blending (an `add` effect is blended as the others); and
 //! what `storm` leaves out.
 use super::super::super::Game;
-use super::{Assets, files};
+use super::Assets;
 use cobblelegacy_cobblemon::{
     snowstorm::{
         Effect, Facing, Material, SPAWN_ENTITY_PARTICLE, SPAWN_PARTICLE, SpawnEntityParticle,
@@ -33,7 +33,7 @@ use horizon_client::hud::POKEMON_SLOT_SIZE;
 use horizon_client::mesher::Vertex;
 use std::{
     collections::{HashMap, HashSet},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, mpsc},
     time::{Duration, Instant},
 };
@@ -237,26 +237,57 @@ impl Loader {
     }
 }
 
-/// `BedrockParticleOptionsRepository`: every `*.particle.json` under `bedrock/particles`, by the
-/// identifier it gives itself. A file of a root replaces the one a lower root has at the same path.
-fn read_effects(assets: &Assets) -> HashMap<String, Arc<Effect>> {
+/// Every `*.particle.json` under `dir`, whatever folder it is in: each Ball has its own
+/// `sendflash.particle.json`.
+fn effect_files(dir: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            effect_files(&path, out);
+        } else if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.ends_with(".particle.json"))
+        {
+            out.push(path);
+        }
+    }
+}
+
+/// The effect files of `folders`, the one that wins last: a file of a folder replaces the one an
+/// earlier folder has at the same path under it. Sorted by that path, so that of two files that claim
+/// one identifier the same one wins from run to run.
+fn effect_paths(folders: &[PathBuf]) -> Vec<PathBuf> {
     let mut paths: HashMap<PathBuf, PathBuf> = HashMap::new();
-    // `assets.assets` has the root that wins first.
-    for root in assets.assets.iter().rev() {
-        let folder = root.join("bedrock/particles");
-        let mut found = HashMap::new();
-        files(&folder, ".particle.json", &mut found);
-        for path in found.into_values() {
-            if let Ok(relative) = path.strip_prefix(&folder) {
+    for folder in folders {
+        let mut found = Vec::new();
+        effect_files(folder, &mut found);
+        for path in found {
+            if let Ok(relative) = path.strip_prefix(folder) {
                 paths.insert(relative.to_owned(), path);
             }
         }
     }
-    // By path, so that of two files that claim one identifier the same one wins from run to run.
-    let mut sorted: Vec<(&PathBuf, &PathBuf)> = paths.iter().collect();
+    let mut sorted: Vec<(PathBuf, PathBuf)> = paths.into_iter().collect();
     sorted.sort();
+    sorted.into_iter().map(|(_, path)| path).collect()
+}
+
+/// `BedrockParticleOptionsRepository`: every `*.particle.json` under `bedrock/particles`, by the
+/// identifier it gives itself.
+fn read_effects(assets: &Assets) -> HashMap<String, Arc<Effect>> {
+    // `assets.assets` has the root that wins first.
+    let folders: Vec<PathBuf> = assets
+        .assets
+        .iter()
+        .rev()
+        .map(|root| root.join("bedrock/particles"))
+        .collect();
     let mut effects = HashMap::new();
-    for (_, path) in sorted {
+    for path in &effect_paths(&folders) {
         let parsed = std::fs::read_to_string(path)
             .map_err(|e| e.to_string())
             .and_then(|json| Effect::parse(&json).map_err(|e| e.0));
@@ -1183,6 +1214,45 @@ mod tests {
         // Along its motion, its right is the way it goes.
         let along = facing(Facing::LookAtDirection, &quad(0.0), camera, 0.0, 0.0, to);
         assert!((along * Vec3::X - Vec3::Y).length() < 1.0e-4);
+    }
+
+    #[test]
+    fn effect_files_are_told_apart_by_their_folders_and_a_later_root_replaces_them() {
+        let root = std::env::temp_dir().join(format!(
+            "horizon-particles-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let write = |path: &str| {
+            let file = root.join(path);
+            std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(file, "{}").unwrap();
+        };
+        // Every Ball has a file of the same name; a pack redoes one of them and adds another.
+        write("mod/balls/pokeball/casual/sendflash.particle.json");
+        write("mod/balls/greatball/casual/sendflash.particle.json");
+        write("mod/balls/greatball/casual/notes.txt");
+        write("pack/balls/greatball/casual/sendflash.particle.json");
+        write("pack/fire_beam.particle.json");
+        let paths = effect_paths(&[root.join("mod"), root.join("pack"), root.join("absent")]);
+        let under: Vec<String> = paths
+            .iter()
+            .map(|path| {
+                path.strip_prefix(&root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect();
+        assert_eq!(
+            under,
+            [
+                "pack/balls/greatball/casual/sendflash.particle.json",
+                "mod/balls/pokeball/casual/sendflash.particle.json",
+                "pack/fire_beam.particle.json",
+            ]
+        );
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
