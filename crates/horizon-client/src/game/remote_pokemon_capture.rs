@@ -657,7 +657,7 @@ impl Game<'_> {
         let ticks = frame.seconds * 20.0;
         mob.age = ticks as u32;
         play(&mut mob, frame.shown);
-        let side = if reversed { -1.0 } else { 1.0 };
+        let side: f32 = if reversed { -1.0 } else { 1.0 };
         // The look is the world's, smaller than the model; the tile draws the model itself.
         let whole = 1.0 / WORLD_SCALE;
         let by = 5.0 * frame.size;
