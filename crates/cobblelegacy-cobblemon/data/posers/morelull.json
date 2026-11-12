@@ -1,0 +1,39 @@
+{
+  "portraitScale": 5,
+  "portraitTranslation": [0, -5, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.bedrock('morelull', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('morelull', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.bedrock('morelull', 'ground_idle')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('morelull', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "morelull", "position": [0, -0.35, 0]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.bedrock('morelull', 'ground_idle')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('morelull', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "morelull", "position": [0, -0.35, 0]}
+      ]
+    }
+  },
+  "profileScale": 1,
+  "profileTranslation": [0, 0.25, 0],
+  "rootBone": "morelull"
+}

@@ -1,0 +1,49 @@
+{
+  "portraitScale": 3,
+  "portraitTranslation": [-0.4, -3.1, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('wishiwashi_solo', 'water_sleep')"],
+      "isTouchingWater": true,
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.bedrock('wishiwashi_solo', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "WALK"],
+      "quirks": ["q.bedrock_quirk('wishiwashi_solo', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.bedrock('wishiwashi_solo', 'ground_walk')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY"],
+      "quirks": ["q.bedrock_quirk('wishiwashi_solo', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "floating": {
+      "animations": ["q.bedrock('wishiwashi_solo', 'water_idle')"],
+      "poseName": "floating",
+      "poseTypes": ["PROFILE", "PORTRAIT", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('wishiwashi_solo', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swimming": {
+      "animations": ["q.bedrock('wishiwashi_solo', 'water_swim')"],
+      "poseName": "swimming",
+      "poseTypes": ["SWIM"],
+      "quirks": ["q.bedrock_quirk('wishiwashi_solo', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.2, 0],
+  "rootBone": "wishiwashi_solo"
+}

@@ -1,0 +1,62 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('dartrix_hisui_bias', 'cry')"
+  },
+  "portraitScale": 1.26,
+  "portraitTranslation": [-0.23, 1.14, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.bedrock('dartrix_hisui_bias', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "FLOAT", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "wings_open"},
+        {"isVisible": true, "part": "wings_closed"}
+      ]
+    },
+    "hover": {
+      "animations": [
+        "q.bedrock('dartrix_hisui_bias', 'ground_idle')",
+        "q.sine_wing_flap(0.6, 0.9, -0.17453286, 'z', 'wing_left_open', 'wing_right_open')"
+      ],
+      "poseName": "hover",
+      "poseTypes": ["HOVER"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": true, "part": "wings_open"},
+        {"isVisible": false, "part": "wings_closed"}
+      ]
+    },
+    "fly": {
+      "animations": [
+        "q.bedrock('dartrix_hisui_bias', 'ground_idle')",
+        "q.sine_wing_flap(0.9, 0.9, -0.24434601, 'z', 'wing_left_open', 'wing_right_open')"
+      ],
+      "poseName": "fly",
+      "poseTypes": ["FLY"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": true, "part": "wings_open"},
+        {"isVisible": false, "part": "wings_closed"}
+      ]
+    },
+    "walk": {
+      "animations": ["q.bedrock('dartrix_hisui_bias', 'ground_idle')", "q.biped_walk(0.75, 0.7, 'leg_left', 'leg_right')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "wings_open"},
+        {"isVisible": true, "part": "wings_closed"}
+      ]
+    }
+  },
+  "profileScale": 0.55000013,
+  "profileTranslation": [0, 0.8800000000000001, 0],
+  "rootBone": "dartrix_hisui_bias"
+}

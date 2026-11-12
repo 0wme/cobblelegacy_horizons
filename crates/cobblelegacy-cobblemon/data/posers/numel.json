@@ -1,0 +1,41 @@
+{
+  "portraitScale": 1.8,
+  "portraitTranslation": [-0.6, -0.25, 0],
+  "poses": {
+    "sleep": {
+      "animations": ["q.bedrock('numel', 'sleep')"],
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 0, 70, -45, 45, -45)", "q.bedrock('numel', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('numel', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 0, 70, -45, 45, -45)", "q.bedrock('numel', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('numel', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 0, 70, -45, 45, -45)", "q.bedrock('numel', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.9,
+  "profileTranslation": [0, 0.35, 0],
+  "rootBone": "numel"
+}

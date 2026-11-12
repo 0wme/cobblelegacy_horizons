@@ -1,0 +1,60 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('klefki', 'cry')"
+  },
+  "portraitScale": 1.65,
+  "portraitTranslation": [0.06, 1.35, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('klefki', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT", "SLEEP"],
+      "quirks": ["q.bedrock_quirk('klefki', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('klefki', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "SLEEP"],
+      "quirks": ["q.bedrock_quirk('klefki', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('klefki', 'ground_idle')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('klefki', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('klefki', 'ground_idle')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('klefki', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "klefki", "position": [25, 0, 0]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('klefki', 'ground_idle')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('klefki', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "klefki", "position": [-25, 0, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.59,
+  "profileTranslation": [0, 0.95, 0],
+  "rootBone": "klefki"
+}

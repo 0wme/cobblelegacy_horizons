@@ -1,0 +1,64 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('squirtle', 'cry')",
+    "faint": "q.bedrock_stateful('dusclops', 'faint')"
+  },
+  "portraitScale": 1.6,
+  "portraitTranslation": [-0.2, 1.1, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('dusclops', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.bedrock('dusclops', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND"],
+      "quirks": ["q.bedrock_quirk('dusclops', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.bedrock('dusclops', 'ground_walk')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('dusclops', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "hover": {
+      "animations": ["q.bedrock('dusclops', 'air_idle')"],
+      "isBattle": false,
+      "poseName": "hover",
+      "poseTypes": ["PROFILE", "PORTRAIT", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('dusclops', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "fly": {
+      "animations": ["q.bedrock('dusclops', 'air_fly')"],
+      "isBattle": false,
+      "poseName": "fly",
+      "poseTypes": ["FLY", "SWIM", "WALK"],
+      "quirks": ["q.bedrock_quirk('dusclops', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.bedrock('dusclops', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('dusclops', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.6,
+  "profileTranslation": [0, 0.8, 0],
+  "rootBone": "dusclops"
+}

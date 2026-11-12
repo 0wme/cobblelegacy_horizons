@@ -1,0 +1,46 @@
+{
+  "portraitScale": 2.2,
+  "portraitTranslation": [-0.05, -0.8, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('emolga', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('emolga', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('emolga', 'ground_idle')",
+        "q.biped_walk(1, 0.7, 'foot_left', 'foot_right')",
+        "q.bimanual_swing(1, 0.7, 'arm_left', 'arm_right')"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "SWIM"],
+      "quirks": ["q.bedrock_quirk('emolga', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "hovering": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('emolga', 'air_idle')"],
+      "poseName": "hovering",
+      "poseTypes": ["HOVER"],
+      "quirks": ["q.bedrock_quirk('emolga', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "flying": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('emolga', 'air_fly')"],
+      "poseName": "flying",
+      "poseTypes": ["FLY"],
+      "quirks": ["q.bedrock_quirk('emolga', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.6, 0],
+  "rootBone": "emolga"
+}

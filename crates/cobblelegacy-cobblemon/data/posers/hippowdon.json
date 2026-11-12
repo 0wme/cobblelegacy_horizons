@@ -1,0 +1,183 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('hippowdon', 'cry')"
+  },
+  "portraitScale": 0.6,
+  "portraitTranslation": [-0.63, 0.73, 0],
+  "poses": {
+    "sleep": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('hippowdon', 'sleep')"],
+      "condition": "!q.is_standing_on_blocks(2, 'minecraft:sand')",
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "sand"},
+        {"isVisible": false, "part": "redsand"}
+      ]
+    },
+    "sleepsand": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('hippowdon', 'sand_sleep')"],
+      "condition": "q.is_standing_on_blocks(2, 'minecraft:red_sand')",
+      "poseName": "sleepsand",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "sand"},
+        {"isVisible": false, "part": "redsand"}
+      ]
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('hippowdon', 'ground_idle')"],
+      "condition": "!q.is_standing_on_blocks(2, 'minecraft:sand', 'minecraft:red_sand')",
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND", "HOVER", "FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('hippowdon', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('hippowdon', 'quirk_idle', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "sand"},
+        {"isVisible": false, "part": "redsand"}
+      ]
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('hippowdon', 'ground_walk')"],
+      "condition": "!q.is_standing_on_blocks(2, 'minecraft:sand', 'minecraft:red_sand')",
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('hippowdon', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "sand"},
+        {"isVisible": false, "part": "redsand"}
+      ]
+    },
+    "standingsand": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('hippowdon', 'sand_idle')"],
+      "condition": "q.is_standing_on_blocks(2, 'minecraft:sand')",
+      "isBattle": false,
+      "namedAnimations": {
+        "cry": "q.bedrock_stateful('hippowdon', 'sand_cry')"
+      },
+      "poseName": "standingsand",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('hippowdon', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('hippowdon', 'quirk_idle', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "sand"},
+        {"isVisible": false, "part": "redsand"}
+      ]
+    },
+    "standingredsand": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('hippowdon', 'sand_idle')"],
+      "condition": "q.is_standing_on_blocks(2, 'minecraft:red_sand')",
+      "isBattle": false,
+      "poseName": "standingredsand",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('hippowdon', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('hippowdon', 'quirk_idle', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "sand"},
+        {"isVisible": false, "part": "redsand"}
+      ]
+    },
+    "walksand": {
+      "animations": ["q.bedrock('hippowdon', 'sand_swim')"],
+      "condition": "q.is_standing_on_blocks(2, 'minecraft:sand')",
+      "namedAnimations": {
+        "cry": "q.bedrock_stateful('hippowdon', 'sand_cry')"
+      },
+      "poseName": "walksand",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('hippowdon', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "sand"},
+        {"isVisible": false, "part": "redsand"}
+      ]
+    },
+    "walkredsand": {
+      "animations": ["q.bedrock('hippowdon', 'sand_swim')"],
+      "condition": "q.is_standing_on_blocks(2, 'minecraft:red_sand')",
+      "poseName": "walkredsand",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('hippowdon', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "sand"},
+        {"isVisible": false, "part": "redsand"}
+      ]
+    },
+    "battleidle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('hippowdon', 'battle_idle')"],
+      "condition": "!q.is_standing_on_blocks(2, 'minecraft:sand', 'minecraft:red_sand')",
+      "isBattle": true,
+      "namedAnimations": {
+        "cry": "q.bedrock_stateful('hippowdon', 'battle_cry')"
+      },
+      "poseName": "battleidle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('hippowdon', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "sand"},
+        {"isVisible": false, "part": "redsand"}
+      ]
+    },
+    "battleidlesand": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('hippowdon', 'sand_battle_idle')"],
+      "condition": "q.is_standing_on_blocks(2, 'minecraft:sand')",
+      "isBattle": true,
+      "namedAnimations": {
+        "cry": "q.bedrock_stateful('hippowdon', 'sand_battle_cry')"
+      },
+      "poseName": "battleidlesand",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('hippowdon', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": true, "part": "sand"},
+        {"isVisible": false, "part": "redsand"}
+      ]
+    },
+    "battleidleredsand": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('hippowdon', 'sand_battle_idle')"],
+      "condition": "q.is_standing_on_blocks(2, 'minecraft:red_sand')",
+      "isBattle": true,
+      "namedAnimations": {
+        "cry": "q.bedrock_stateful('hippowdon', 'sand_battle_cry')"
+      },
+      "poseName": "battleidleredsand",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('hippowdon', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "sand"},
+        {"isVisible": true, "part": "redsand"}
+      ]
+    }
+  },
+  "profileScale": 0.4,
+  "profileTranslation": [-0.1, 1, 0],
+  "rootBone": "hippowdon"
+}

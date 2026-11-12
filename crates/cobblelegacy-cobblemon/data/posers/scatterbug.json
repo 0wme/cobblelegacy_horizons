@@ -1,0 +1,69 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('scatterbug', 'cry')"
+  },
+  "portraitScale": 2.6,
+  "portraitTranslation": [-0.2, -1.9, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('scatterbug', 'sleep')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('scatterbug', 'faint')"
+      },
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('scatterbug', 'ground_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('scatterbug', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": [
+        "q.bedrock_quirk('scatterbug', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('scatterbug', 'quirk', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('scatterbug', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('scatterbug', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('scatterbug', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.bedrock('scatterbug', 'ground_idle')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('scatterbug', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "scatterbug", "position": [2.4, 0, 0]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.bedrock('scatterbug', 'ground_idle')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('scatterbug', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "scatterbug", "position": [-2.4, 0, 0]}
+      ]
+    }
+  },
+  "profileScale": 1.2,
+  "profileTranslation": [0, 0.05, 0],
+  "rootBone": "scatterbug"
+}

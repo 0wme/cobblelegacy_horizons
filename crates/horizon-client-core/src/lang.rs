@@ -99,6 +99,16 @@ pub fn install_crate_files(files: &'static [&'static [(&'static str, &'static st
     let _ = CRATE_FILES.set(files);
 }
 
+/// Folders whose lang files join every language loaded from then on, over the sources it is loaded
+/// from, the last folder winning: the resources of a mod the server runs, which reach the game no
+/// other way (CobbleLegacy's fork: Cobblemon's, for the names of its Pokémon).
+static EXTRA_ROOTS: std::sync::OnceLock<Vec<std::path::PathBuf>> = std::sync::OnceLock::new();
+
+/// Installs the folders above, each one holding an `assets` folder. Only the first call counts.
+pub fn install_extra_roots(roots: Vec<std::path::PathBuf>) {
+    let _ = EXTRA_ROOTS.set(roots);
+}
+
 /// The crates' entries for language `code` (through [`bundled_code`]'s variants) that the
 /// engine's own `horizon` file for it doesn't have: on a key both have, the engine wins.
 fn read_crate_files(files: &[&[(&str, &str)]], code: &str, map: &mut HashMap<String, String>) {
@@ -488,7 +498,24 @@ impl Language {
     /// override).
     pub fn load(sources: &[&dyn ResourceSource], code: &str) -> Self {
         let crate_files = CRATE_FILES.get().copied().unwrap_or_default();
-        Self::load_with(sources, code, crate_files)
+        let extra = EXTRA_ROOTS.get().map(Vec::as_slice).unwrap_or_default();
+        Self::load_over(sources, extra, code, crate_files)
+    }
+
+    /// [`Language::load_with`], the folders of `extra` read as sources after `sources`
+    /// ([`install_extra_roots`]).
+    fn load_over(
+        sources: &[&dyn ResourceSource],
+        extra: &[std::path::PathBuf],
+        code: &str,
+        crate_files: &[&[(&str, &str)]],
+    ) -> Self {
+        if extra.is_empty() {
+            return Self::load_with(sources, code, crate_files);
+        }
+        let mut all = sources.to_vec();
+        all.extend(extra.iter().map(|root| root as &dyn ResourceSource));
+        Self::load_with(&all, code, crate_files)
     }
 
     /// [`Language::load`] with these crates' lang files.
@@ -691,6 +718,62 @@ mod tests {
             self.0.get(path).cloned()
         }
     }
+    /// CobbleLegacy's fork: a mod's folders (Cobblemon's resources, the server's pack under them) give
+    /// their namespaces' text to the language, English under the language chosen, the last folder
+    /// over the first, and all of them over the game's own sources.
+    #[test]
+    fn extra_roots_add_their_lang_files_over_the_sources() {
+        let dir = std::env::temp_dir().join(format!("horizon-lang-extra-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let write = |root: &str, code: &str, json: &str| {
+            let folder = dir.join(root).join("assets/cobblemon/lang");
+            std::fs::create_dir_all(&folder).unwrap();
+            std::fs::write(folder.join(format!("{code}.json")), json).unwrap();
+        };
+        write(
+            "mod",
+            "en_us",
+            r#"{"cobblemon.species.bulbasaur.name": "Bulbasaur", "cobblemon.label.lv": "Lv. %1$s", "menu.quit": "Leave"}"#,
+        );
+        write(
+            "mod",
+            "fr_fr",
+            r#"{"cobblemon.species.bulbasaur.name": "Bulbizarre"}"#,
+        );
+        write(
+            "pack",
+            "fr_fr",
+            r#"{"cobblemon.species.bulbasaur.name": "Bulbi"}"#,
+        );
+        let game = Mem(HashMap::from([(
+            "assets/minecraft/lang/en_us.json".to_owned(),
+            br#"{"menu.quit": "Quit Game"}"#.to_vec(),
+        )]));
+        let load =
+            |extra: &[std::path::PathBuf], code| Language::load_over(&[&game], extra, code, &[]);
+        let (pack, mods) = (dir.join("pack"), dir.join("mod"));
+        // Without the folders, the game's own text alone.
+        let plain = load(&[], "fr_fr");
+        assert_eq!(plain.get("cobblemon.species.bulbasaur.name"), None);
+        assert_eq!(plain.get("menu.quit"), Some("Quit Game"));
+        let en = load(&[pack.clone(), mods.clone()], "en_us");
+        assert_eq!(
+            en.get("cobblemon.species.bulbasaur.name"),
+            Some("Bulbasaur")
+        );
+        let fr = load(&[pack.clone(), mods.clone()], "fr_fr");
+        assert_eq!(
+            fr.get("cobblemon.species.bulbasaur.name"),
+            Some("Bulbizarre")
+        );
+        // What the language chosen lacks stays in English.
+        assert_eq!(fr.get("cobblemon.label.lv"), Some("Lv. %1$s"));
+        // The last folder wins, here the pack.
+        let fr = load(&[mods, pack], "fr_fr");
+        assert_eq!(fr.get("cobblemon.species.bulbasaur.name"), Some("Bulbi"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn bundled_horizon_strings_follow_the_language() {
         // No prepared resources at all: the namespace is compiled in.

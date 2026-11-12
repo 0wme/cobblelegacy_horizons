@@ -1,0 +1,45 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('kirlia', 'cry')"
+  },
+  "portraitScale": 2.6,
+  "portraitTranslation": [0, 0, 0],
+  "poses": {
+    "sleep": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('kirlia', 'sleep')"],
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('kirlia', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('kirlia', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('kirlia', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('kirlia', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battleidle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('kirlia', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battleidle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('kirlia', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.6, 0],
+  "rootBone": "kirlia"
+}

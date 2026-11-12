@@ -6026,6 +6026,10 @@ impl Game<'_> {
             self.gui_layer("minecraft:boss_overlay", &mut batch, |g, batch| {
                 g.draw_boss_bars(batch);
             });
+            // CobbleLegacy: a Cobblemon server's party, down the left edge (`PartyOverlay`).
+            self.gui_layer("cobblemon:party_overlay", &mut batch, |g, batch| {
+                g.draw_pokemon_party(batch);
+            });
             self.draw_extras(&mut batch);
         }
         if show_hud {
@@ -10544,8 +10548,11 @@ impl Game<'_> {
                     // MouseHandler.onScroll: the hotbar (or the spectator
                     // menu) takes the wheel only when no screen is open; a
                     // book, lectern, sign or prompt drawn over gameplay is one.
+                    // CobbleLegacy: a Cobblemon server's party takes the wheel while its throwing
+                    // key is held.
                     if self.hotbar_takes_wheel()
                         && !self.native_wheel_event(d)
+                        && !self.pokemon_party_wheel(d)
                         && let Some((wheel, (horizontal_steps, vertical_steps))) = self
                             .mouse
                             .on_scroll(raw_x, raw_y, discrete, wheel_sensitivity)

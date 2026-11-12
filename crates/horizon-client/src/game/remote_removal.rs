@@ -32,6 +32,7 @@ impl Game<'_> {
                 r.stepped.remove(&id);
                 r.head_lerps.remove(&id);
                 r.pending_items.remove(&id);
+                r.pokemon.forget(id);
             }
         }
         let removed: horizon_client::fast_hash::FxHashSet<u32> = if ids.len() > 1 {

@@ -1,0 +1,69 @@
+{
+  "animations": {
+    "cry": "q.in_battle ? q.bedrock_stateful('typhlosion_hisuian', 'battle_cry') : q.bedrock_stateful('typhlosion_hisuian', 'cry')"
+  },
+  "portraitScale": 1.4,
+  "portraitTranslation": [-0.45, 2.37, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('typhlosion_hisuian', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "fire_main"},
+        {"isVisible": false, "part": "fire_orb_right1"},
+        {"isVisible": false, "part": "fire_orb_middle1"},
+        {"isVisible": false, "part": "fire_orb_left1"}
+      ]
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, 0, 45, -45)", "q.bedrock('typhlosion_hisuian', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('typhlosion_hisuian', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "fire_main"},
+        {"isVisible": false, "part": "fire_orb_right1"},
+        {"isVisible": false, "part": "fire_orb_middle1"},
+        {"isVisible": false, "part": "fire_orb_left1"}
+      ]
+    },
+    "walking": {
+      "animations": ["q.look('head', 1, 1, 70, 0, 45, -45)", "q.bedrock('typhlosion_hisuian', 'ground_walk')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('typhlosion_hisuian', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "fire_main"},
+        {"isVisible": false, "part": "fire_orb_right1"},
+        {"isVisible": false, "part": "fire_orb_middle1"},
+        {"isVisible": false, "part": "fire_orb_left1"}
+      ]
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, 0, 45, -45)", "q.bedrock('typhlosion_hisuian', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('typhlosion_hisuian', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": true, "part": "fire_main"},
+        {"isVisible": true, "part": "fire_orb_right1"},
+        {"isVisible": true, "part": "fire_orb_middle1"},
+        {"isVisible": true, "part": "fire_orb_left1"}
+      ]
+    }
+  },
+  "profileScale": 0.5,
+  "profileTranslation": [0, 1, 0],
+  "rootBone": "typhlosion"
+}

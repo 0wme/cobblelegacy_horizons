@@ -1,0 +1,54 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('samurott', 'cry')"
+  },
+  "portraitScale": 1.5,
+  "portraitTranslation": [-0.91, 1.62, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('samurott', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["NONE", "STAND", "PORTRAIT", "PROFILE"],
+      "quirks": ["q.bedrock_quirk('samurott', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "seamitar_hand_right"},
+        {"isVisible": false, "part": "seamitar_hand_left"}
+      ]
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('samurott', 'battle_pose')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('samurott', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "seamitar_hand_right"},
+        {"isVisible": false, "part": "seamitar_hand_left"}
+      ]
+    },
+    "walking": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('samurott', 'ground_idle')",
+        "q.quadruped_walk(0.8, 0.8, 'leg_front_left', 'leg_front_right', 'leg_back_left', 'leg_back_right')"
+      ],
+      "poseName": "walking",
+      "poseTypes": ["SWIM", "WALK"],
+      "quirks": ["q.bedrock_quirk('samurott', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "seamitar_hand_right"},
+        {"isVisible": false, "part": "seamitar_hand_left"}
+      ]
+    }
+  },
+  "profileScale": 0.6,
+  "profileTranslation": [0, 0.8, 0],
+  "rootBone": "samurott"
+}

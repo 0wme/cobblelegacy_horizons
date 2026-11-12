@@ -1,0 +1,88 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('petilil', 'cry')"
+  },
+  "portraitScale": 1.52,
+  "portraitTranslation": [0.1, -0.25, 0],
+  "poses": {
+    "sleep": {
+      "animations": ["q.bedrock('petilil', 'sleep')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('petilil', 'faint')"
+      },
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "quirks": ["q.bedrock_quirk('petilil', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 0.9, 0.9, 70, -45, 45, -45)", "q.bedrock('petilil', 'ground_idle')"],
+      "isBattle": false,
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('petilil', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": [
+        "q.bedrock_quirk('petilil', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('petilil', 'idle_quirk', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 0.9, 0.9, 70, -45, 45, -45)", "q.bedrock('petilil', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('petilil', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": [
+        "q.bedrock_quirk('petilil', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('petilil', 'idle_quirk', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 0.9, 0.9, 70, -45, 45, -45)", "q.bedrock('petilil', 'battle_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('petilil', 'faint')"
+      },
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('petilil', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('petilil', 'idle_quirk', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('petilil', 'ground_idle')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('petilil', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "petilil", "position": [3, 0, 0]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('petilil', 'ground_idle')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('petilil', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "petilil", "position": [-3, 0, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.5, 0],
+  "rootBone": "petilil"
+}

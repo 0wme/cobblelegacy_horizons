@@ -29,6 +29,8 @@ horizon-threads = { path = "../horizon-threads" }
 horizon-hdr = { path = "../horizon-hdr" }
 horizon-world = { path = "../horizon-world" }
 horizon-protocol = { path = "../horizon-protocol" }
+# CobbleLegacy's fork: a Cobblemon server's own messages (its Pokémon), MPL-2.0.
+cobblelegacy-cobblemon = { path = "../cobblelegacy-cobblemon" }
 # server.properties, eula.txt and the user lists, shared with horizon-server.
 horizon-server-files = { path = "../horizon-server-files" }
 # The dedicated server's anticheat, off unless server.toml's [anticheat] turns it on (docs/anticheat.md).

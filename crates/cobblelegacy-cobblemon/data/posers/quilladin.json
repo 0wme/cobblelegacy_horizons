@@ -1,0 +1,35 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('quilladin', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.3, 0.1, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('torso', 1, 1, 70, -45, 45, -45)", "q.bedrock('quilladin', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('quilladin', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('torso', 1, 1, 70, -45, 45, -45)", "q.bedrock('quilladin', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('quilladin', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SLEEP": {
+      "animations": ["q.bedrock('quilladin', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.7,
+  "profileTranslation": [0, 0.7, 0],
+  "rootBone": "quilladin"
+}

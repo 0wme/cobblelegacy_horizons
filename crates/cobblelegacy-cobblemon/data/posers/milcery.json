@@ -1,0 +1,36 @@
+{
+  "portraitScale": 3,
+  "portraitTranslation": [-0.15, -2.8, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('milcery', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND", "HOVER", "FLOAT", "WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('milcery', 'ground_idle')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "milcery", "position": [4, 0, 0]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('milcery', 'ground_idle')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "milcery", "position": [-4, 0, 0]}
+      ]
+    }
+  },
+  "profileScale": 1,
+  "profileTranslation": [0, 0.2, 0],
+  "rootBone": "milcery"
+}

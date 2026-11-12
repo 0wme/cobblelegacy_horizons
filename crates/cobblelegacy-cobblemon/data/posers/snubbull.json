@@ -1,0 +1,42 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('snubbull', 'cry')"
+  },
+  "portraitScale": 1.8,
+  "portraitTranslation": [-0.2, -0.3, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('snubbull', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('snubbull', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('snubbull', 'ground_walk')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('snubbull', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.65,
+  "profileTranslation": [0, 0.76, 0],
+  "rootBone": "snubbull"
+}

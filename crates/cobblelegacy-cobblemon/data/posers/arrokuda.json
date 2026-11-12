@@ -1,0 +1,82 @@
+{
+  "portraitScale": 3,
+  "portraitTranslation": [-0.7, -3.2, 0],
+  "poses": {
+    "sleeping": {
+      "animations": ["q.bedrock('arrokuda', 'sleep')"],
+      "isTouchingWater": false,
+      "poseName": "sleeping",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "water_sleeping": {
+      "animations": ["q.bedrock('arrokuda', 'water_sleep')"],
+      "isTouchingWater": true,
+      "poseName": "water_sleeping",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.bedrock('arrokuda', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND"],
+      "quirks": [
+        "q.bedrock_quirk('arrokuda', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('arrokuda', 'ground_quirk', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('arrokuda', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('arrokuda', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "floating": {
+      "animations": ["q.bedrock('arrokuda', 'water_idle')"],
+      "poseName": "floating",
+      "poseTypes": ["FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swimming": {
+      "animations": ["q.bedrock('arrokuda', 'water_swim')"],
+      "poseName": "swimming",
+      "poseTypes": ["SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.bedrock('arrokuda', 'battle_idle')"],
+      "isBattle": true,
+      "isTouchingWater": false,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('arrokuda', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('arrokuda', 'ground_quirk', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "water_battle_idle": {
+      "animations": ["q.bedrock('arrokuda', 'water_battle_idle')"],
+      "isBattle": true,
+      "isTouchingWater": true,
+      "poseName": "water_battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('arrokuda', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.5, 0],
+  "rootBone": "arrokuda"
+}

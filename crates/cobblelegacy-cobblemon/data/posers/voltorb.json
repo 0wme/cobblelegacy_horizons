@@ -1,0 +1,27 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('voltorb', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.2, -1.2, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.bedrock('voltorb', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('voltorb', 'blink', 8, 30, 1)"],
+      "transformTicks": 0,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('voltorb', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 0,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 1.1,
+  "profileTranslation": [0, 0.1, 0],
+  "rootBone": "voltorb"
+}

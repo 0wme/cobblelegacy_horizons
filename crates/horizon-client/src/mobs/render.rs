@@ -264,6 +264,10 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
             m.skin.as_deref().unwrap_or(&m.kind.texture).into(),
         );
     }
+    // A Pokémon's type holds its species' own model and texture (no layer is named "main" there).
+    if m.species() == S::Pokemon {
+        return ("main".into(), m.kind.texture.as_str().into());
+    }
     match m.species() {
         S::Llama | S::TraderLlama => {
             let name = if m.species() == S::Llama {
@@ -601,7 +605,7 @@ pub fn body_color(m: &Mob, alpha: f32) -> u32 {
 pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
     use Species as S;
     let mut v = Vec::new();
-    if avatar(m) {
+    if avatar(m) || m.species() == S::Pokemon {
         return v;
     }
     let white = 0xFFFF_FFFF;

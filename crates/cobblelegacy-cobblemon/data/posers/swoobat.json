@@ -1,0 +1,47 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('swoobat', 'cry')"
+  },
+  "portraitScale": 1.88,
+  "portraitTranslation": [-0.6, 0.68, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('swoobat', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "FLOAT", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "hovering": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('swoobat', 'air_idle')",
+        "q.sine_wing_flap(0.6, 0.9, -0.17453286, 'y', 'left_wing', 'right_wing')"
+      ],
+      "poseName": "hovering",
+      "poseTypes": ["HOVER"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "swoobat", "position": [0, -4, 0]}
+      ]
+    },
+    "walk": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('swoobat', 'air_fly')",
+        "q.sine_wing_flap(0.9, 0.9, -0.24434601, 'y', 'left_wing', 'right_wing')"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "swoobat", "position": [0, -4, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.63,
+  "profileTranslation": [-0.05, 0.75, 0],
+  "rootBone": "swoobat"
+}

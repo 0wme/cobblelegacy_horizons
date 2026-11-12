@@ -1,0 +1,51 @@
+{
+  "portraitScale": 0.5,
+  "portraitTranslation": [-0.4, 0.8, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('wishiwashi_school', 'water_sleep')"],
+      "isTouchingWater": true,
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.bedrock('wishiwashi_school', 'water_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "WALK", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "wishiwashi_school", "position": [0, -8, 0]}
+      ]
+    },
+    "walking": {
+      "animations": ["q.bedrock('wishiwashi_school', 'water_swim')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "wishiwashi_school", "position": [0, -8, 0]}
+      ]
+    },
+    "floating": {
+      "animations": ["q.bedrock('wishiwashi_school', 'water_idle')"],
+      "poseName": "floating",
+      "poseTypes": ["FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swimming": {
+      "animations": ["q.bedrock('wishiwashi_school', 'water_swim')"],
+      "poseName": "swimming",
+      "poseTypes": ["SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.2,
+  "profileTranslation": [0, 1, 0],
+  "rootBone": "wishiwashi_school"
+}

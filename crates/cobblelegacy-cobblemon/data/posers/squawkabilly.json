@@ -1,0 +1,76 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('squawkabilly', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.2, -0.2, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('squawkabilly', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND"],
+      "quirks": ["q.bedrock_quirk('squawkabilly', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('squawkabilly', 'ground_idle')",
+        "q.sine_wing_flap(-0.08726643, 0.4, -0.34906572, 'z', 'wing_left', 'wing_right')"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('squawkabilly', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "hovering": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.sine_wing_flap(0.9, 0.9, -0.17453286, 'z', 'wing_left', 'wing_right')"
+      ],
+      "poseName": "hovering",
+      "poseTypes": ["FLOAT", "HOVER"],
+      "quirks": ["q.bedrock_quirk('squawkabilly', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "flying": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.sine_wing_flap(0.9, 0.9, -0.24434601, 'z', 'wing_left', 'wing_right')"
+      ],
+      "poseName": "flying",
+      "poseTypes": ["FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('squawkabilly', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('squawkabilly', 'ground_idle')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('squawkabilly', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "squawkabilly", "position": [-1, 0, 0]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('squawkabilly', 'ground_idle')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('squawkabilly', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "squawkabilly", "position": [1, 0, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.85,
+  "profileTranslation": [0, 0.51, 0],
+  "rootBone": "squawkabilly"
+}

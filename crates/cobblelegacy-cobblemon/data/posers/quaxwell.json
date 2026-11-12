@@ -1,0 +1,66 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('quaxwell', 'cry')"
+  },
+  "portraitScale": 1.8,
+  "portraitTranslation": [-0.2, 1.4, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('quaxwell', 'sleep')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('quaxwell', 'faint')"
+      },
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('quaxwell', 'ground_idle')"],
+      "isBattle": false,
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('quaxwell', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('quaxwell', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('quaxwell', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('quaxwell', 'faint')"
+      },
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('quaxwell', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "floating": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('quaxwell', 'water_idle')"],
+      "isTouchingWater": true,
+      "poseName": "floating",
+      "poseTypes": ["FLOAT", "SWIM"],
+      "quirks": ["q.bedrock_quirk('quaxwell', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('quaxwell', 'battle_idle')"],
+      "isBattle": true,
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('quaxwell', 'faint')"
+      },
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('quaxwell', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.5,
+  "profileTranslation": [0, 1, 0],
+  "rootBone": "quaxwell"
+}

@@ -1,0 +1,88 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('wooper', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.15, -0.65, 0],
+  "poses": {
+    "sleep": {
+      "animations": ["q.bedrock('wooper', 'sleep')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('wooper', 'faint')"
+      },
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('wooper', 'ground_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('wooper', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('wooper', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('wooper', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('wooper', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY"],
+      "quirks": ["q.bedrock_quirk('wooper', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "FLOAT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('wooper', 'water_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('wooper', 'faint')"
+      },
+      "poseName": "FLOAT",
+      "poseTypes": ["FLOAT"],
+      "quirks": ["q.bedrock_quirk('wooper', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SWIM": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('wooper', 'water_swim')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('wooper', 'faint')"
+      },
+      "poseName": "SWIM",
+      "poseTypes": ["SWIM"],
+      "quirks": ["q.bedrock_quirk('wooper', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('wooper', 'ground_idle')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('wooper', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "wooper", "position": [2.5, 0, 0]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('wooper', 'ground_idle')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('wooper', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "wooper", "position": [-2.5, 0, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.9,
+  "profileTranslation": [0, 0.4, 0],
+  "rootBone": "wooper"
+}

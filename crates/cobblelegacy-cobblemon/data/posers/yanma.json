@@ -1,0 +1,32 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('yanma', 'cry')"
+  },
+  "portraitScale": 2.1,
+  "portraitTranslation": [-0.6, -1, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('yanma', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "yanma", "position": [0, -4, 0]}
+      ]
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('yanma', 'ground_idle')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "yanma", "position": [0, -4, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.75,
+  "profileTranslation": [0, 0.5, 0],
+  "rootBone": "yanma"
+}

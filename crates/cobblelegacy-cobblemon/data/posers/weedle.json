@@ -1,0 +1,60 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('weedle', 'cry')",
+    "faint": "q.bedrock_stateful('weedle', 'faint')"
+  },
+  "portraitScale": 2.2,
+  "portraitTranslation": [-0.31, -1.83, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('weedle', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('weedle', 'ground_idle2')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('weedle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('weedle', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('weedle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.bedrock('weedle', 'ground_idle')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('weedle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "weedle", "position": [3.8, 0, 0]},
+        {"part": "weedle", "position": [0, 0, -3]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.bedrock('weedle', 'ground_idle')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('weedle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "weedle", "position": [-3.8, 0, 0]},
+        {"part": "weedle", "position": [0, 0, -3]}
+      ]
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0.1, 0.6, 0],
+  "rootBone": "weedle"
+}

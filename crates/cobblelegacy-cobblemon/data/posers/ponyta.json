@@ -1,0 +1,36 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('ponyta', 'cry')",
+    "faint": "q.bedrock_stateful('ponyta', 'faint')"
+  },
+  "portraitScale": 3,
+  "portraitTranslation": [-0.6, -0.2, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('ponyta', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('ponyta', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('ponyta', 'blink', 8, 30, 1)", "q.bedrock_quirk('ponyta', 'quirk1', 60, 360, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('ponyta', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('ponyta', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.9,
+  "profileTranslation": [0, 0.43, 0],
+  "rootBone": "ponyta"
+}

@@ -2568,16 +2568,51 @@ fn link(target: &Path, at: &Path) -> std::io::Result<()> {
 }
 #[cfg(not(unix))]
 fn link(target: &Path, at: &Path) -> std::io::Result<()> {
-    if target.is_dir() {
-        fs::create_dir_all(at)?;
-        for entry in fs::read_dir(target)?.flatten() {
-            link(&entry.path(), &at.join(entry.file_name()))?;
-        }
-        Ok(())
-    } else {
-        link_file(target, at, |target, at| fs::hard_link(target, at))
+    if !target.is_dir() {
+        return link_file(target, at, |target, at| fs::hard_link(target, at));
     }
+    // The folders on this thread, then their files' links shared between threads: a link is a call
+    // of its own here, the base has 28,000, and one after the other they took twenty minutes on a
+    // machine whose antivirus looks at each (CobbleLegacy's fork; three minutes so shared).
+    let mut files = Vec::new();
+    let mut folders = vec![(target.to_owned(), at.to_owned())];
+    while let Some((from, to)) = folders.pop() {
+        fs::create_dir_all(&to)?;
+        for entry in fs::read_dir(&from)?.flatten() {
+            let (from, to) = (entry.path(), to.join(entry.file_name()));
+            if from.is_dir() {
+                folders.push((from, to));
+            } else {
+                files.push((from, to));
+            }
+        }
+    }
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let threads = horizon_threads::worker_count().clamp(1, LINK_THREADS);
+    std::thread::scope(|scope| {
+        let workers: Vec<_> = (0..threads)
+            .map(|_| {
+                scope.spawn(|| -> std::io::Result<()> {
+                    loop {
+                        let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        let Some((from, to)) = files.get(i) else {
+                            return Ok(());
+                        };
+                        link_file(from, to, |from, to| fs::hard_link(from, to))?;
+                    }
+                })
+            })
+            .collect();
+        workers.into_iter().try_for_each(|w| {
+            w.join()
+                .unwrap_or_else(|_| Err(std::io::Error::other("a link thread panicked")))
+        })
+    })
 }
+
+/// Threads linking the base's files into the overlay where a folder cannot be linked whole ([`link`]).
+#[cfg(not(unix))]
+const LINK_THREADS: usize = 16;
 /// A file of the overlay where symlinks need a privilege: a hard link to the base's file, which costs a name where
 /// a copy costs the file's bytes (the base is ~28,000 files, 0.6 GiB), or a copy when no link can be made (another
 /// volume, a filesystem without links, the NTFS limit on links to one file). A link shares the base file's data,
@@ -3229,7 +3264,14 @@ fn stamp(base: &Path, mods: &[ContentMod]) -> Result<String> {
         ))
     };
     let mut parts = vec!["horizon mod content 1".to_owned()];
-    parts.push(meta(&std::env::current_exe()?)?);
+    // A developer's loop (CobbleLegacy's fork): `HORIZON_MOD_CONTENT_BUILD` names the build in the
+    // executable's place, so a game linked again does not make its root again (a quarter of an hour
+    // with a large mod on Windows) while the code that makes roots is what it was. Whoever sets it
+    // answers for changing it with that code: the atelier's scripts give it a digest of these sources.
+    match std::env::var("HORIZON_MOD_CONTENT_BUILD") {
+        Ok(build) if !build.is_empty() => parts.push(format!("build {build}")),
+        _ => parts.push(meta(&std::env::current_exe()?)?),
+    }
     let base = std::path::absolute(base)?;
     parts.push(
         String::from_utf8_lossy(&fs::read(base.join("horizon-resources.json"))?).into_owned(),

@@ -1,0 +1,31 @@
+{
+  "portraitScale": 1.65,
+  "portraitTranslation": [-0.1, -0.8, 0],
+  "poses": {
+    "standing": {
+      "animations": [],
+      "poseName": "standing",
+      "poseTypes": [
+        "STAND",
+        "WALK",
+        "SLEEP",
+        "HOVER",
+        "FLY",
+        "FLOAT",
+        "SWIM",
+        "GLIDE",
+        "SHOULDER_LEFT",
+        "SHOULDER_RIGHT",
+        "PROFILE",
+        "PORTRAIT",
+        "OPEN",
+        "NONE"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 1,
+  "profileTranslation": [0, 0.2, 0],
+  "rootBone": "pyukumuku"
+}

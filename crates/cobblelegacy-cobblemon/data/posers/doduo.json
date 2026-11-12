@@ -1,0 +1,50 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('doduo', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.1, 0.35, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('doduo', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.bedrock('doduo', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('doduo', 'blink1', 8, 30, 1)", "q.bedrock_quirk('doduo', 'blink2', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.bedrock('doduo', 'ground_walk')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('doduo', 'blink1', 8, 30, 1)", "q.bedrock_quirk('doduo', 'blink2', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.bedrock('doduo', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('doduo', 'blink1', 8, 30, 1)",
+        "q.bedrock_quirk('doduo', 'blink2', 8, 30, 1)",
+        "q.bedrock_quirk('doduo', 'bite_quirk1', 5, 20, 1)",
+        "q.bedrock_quirk('doduo', 'bite_quirk2', 5, 20, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.85,
+  "profileTranslation": [0, 0.5, 0],
+  "rootBone": "doduo"
+}

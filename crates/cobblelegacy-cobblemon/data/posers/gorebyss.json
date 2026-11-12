@@ -1,0 +1,30 @@
+{
+  "portraitScale": 2.5,
+  "portraitTranslation": [-1.2, -2.1, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('gorebyss', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "WALK"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "floating": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('gorebyss', 'water_idle')"],
+      "poseName": "floating",
+      "poseTypes": ["PROFILE", "PORTRAIT", "FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swimming": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('gorebyss', 'water_idle')"],
+      "poseName": "swimming",
+      "poseTypes": ["SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.2, 0],
+  "rootBone": "gorebyss"
+}

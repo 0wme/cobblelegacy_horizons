@@ -1,0 +1,29 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('infernape', 'cry')",
+    "faint": "q.bedrock_stateful('infernape', 'faint')"
+  },
+  "portraitScale": 1.8,
+  "portraitTranslation": [-0.65, 1.55, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('infernape', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('infernape', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('infernape', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('infernape', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.5,
+  "profileTranslation": [0, 1, 0],
+  "rootBone": "infernape"
+}

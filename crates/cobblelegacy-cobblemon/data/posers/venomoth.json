@@ -1,0 +1,85 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('venomoth', 'cry')"
+  },
+  "portraitScale": 1.8,
+  "portraitTranslation": [-0.46, 0.1, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('venomoth', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "quirks": [
+        "q.bedrock_quirk('venomoth', 'quirk1', 8, 30, 1)",
+        "q.bedrock_quirk('venomoth', 'quirk_sleep', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.bedrock('venomoth', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": [
+        "q.bedrock_quirk('venomoth', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('venomoth', 'quirk1', 8, 30, 1)",
+        "q.bedrock_quirk('venomoth', 'quirk2', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('venomoth', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "SWIM"],
+      "quirks": [
+        "q.bedrock_quirk('venomoth', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('venomoth', 'quirk1', 8, 30, 1)",
+        "q.bedrock_quirk('venomoth', 'quirk2', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "hover": {
+      "animations": ["q.bedrock('venomoth', 'air_idle')"],
+      "poseName": "hover",
+      "poseTypes": ["HOVER"],
+      "quirks": [
+        "q.bedrock_quirk('venomoth', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('venomoth', 'quirk1', 8, 30, 1)",
+        "q.bedrock_quirk('venomoth', 'quirk2', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "fly": {
+      "animations": ["q.bedrock('venomoth', 'air_fly')"],
+      "poseName": "fly",
+      "poseTypes": ["FLY"],
+      "quirks": [
+        "q.bedrock_quirk('venomoth', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('venomoth', 'quirk1', 8, 30, 1)",
+        "q.bedrock_quirk('venomoth', 'quirk2', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.bedrock('venomoth', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('venomoth', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('venomoth', 'quirk1', 8, 30, 1)",
+        "q.bedrock_quirk('venomoth', 'quirk2', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.6, 0],
+  "rootBone": "venomoth"
+}

@@ -1,0 +1,26 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('zoroark', 'cry')"
+  },
+  "portraitScale": 1.49,
+  "portraitTranslation": [-0.89, 2.09, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('zoroark', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('zoroark', 'ground_walk')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.44,
+  "profileTranslation": [0, 1.08, -6],
+  "rootBone": "zoroark"
+}

@@ -1,0 +1,28 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('electrode_hisuian', 'cry')"
+  },
+  "portraitScale": 1.5,
+  "portraitTranslation": [-0.4, -0.3, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.bedrock('electrode_hisuian', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('electrode_hisuian', 'blink', 8, 30, 1)"],
+      "transformTicks": 0,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('electrode_hisuian', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('electrode_hisuian', 'blink', 8, 30, 1)"],
+      "transformTicks": 0,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.5, 0],
+  "rootBone": "electrode_hisuian"
+}

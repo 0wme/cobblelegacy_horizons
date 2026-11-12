@@ -1,0 +1,2969 @@
+{
+  "about": "What tools/cobblelegacy/posers_from_kotlin.py made of each poser Cobblemon 1.8.1 builds in code. `dropped` is what the JSON format could not say and so is not in the poser's file, with the Kotlin it came from and, where there was a choice to make, the choice; `notes` is what was written in a way worth knowing about. A poser is `complete` when nothing was dropped, `partial` when something was, and `superseded` when Cobblemon has a poser file of the same name, which it loads over the class: no file is written for that one, and `converts` says how it would have gone.",
+  "posers": {
+    "aggron": {
+      "class": "AggronModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/AggronModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "aipom": {
+      "class": "AipomModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/AipomModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "alomomola": {
+      "class": "AlomomolaModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/AlomomolaModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0594_alomomola/alomomola.json"
+    },
+    "ambipom": {
+      "class": "AmbipomModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/AmbipomModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "ampharos": {
+      "class": "AmpharosModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/AmpharosModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "anorith": {
+      "class": "AnorithModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/AnorithModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "archen": {
+      "class": "ArchenModel",
+      "dropped": [
+        {
+          "choice": "pose kept without this requirement: it asks for the absence of something a wild Pok\u00e9mon out of battle is not usually doing, so the pose is what it shows anyway",
+          "kind": "condition_inexpressible",
+          "kotlin": "(it.getEntity() as? PokemonEntity)?.isFalling() != true",
+          "line": 66,
+          "reason": "`PokemonEntity.isFalling()`: no key of `PoseAdapter` and no MoLang query asks it",
+          "what": "condition",
+          "where": "pose `standing`"
+        },
+        {
+          "choice": "pose kept without this requirement: it asks for the absence of something a wild Pok\u00e9mon out of battle is not usually doing, so the pose is what it shows anyway",
+          "kind": "condition_inexpressible",
+          "kotlin": "(it.getEntity() as? PokemonEntity)?.isFalling() != true",
+          "line": 77,
+          "reason": "`PokemonEntity.isFalling()`: no key of `PoseAdapter` and no MoLang query asks it",
+          "what": "condition",
+          "where": "pose `walking`"
+        },
+        {
+          "choice": "pose left out: a pose kept without that requirement would be picked where the class picks another",
+          "kind": "condition_inexpressible",
+          "kotlin": "registerPose(\n            poseName = \"falling\",\n            poseTypes = PoseType.STATIONARY_POSES,\n            quirks = arrayOf(blink),\n            condition = { (it.getEntity() as? PokemonEntity)?.isFalling() == true },\n            transformTicks = 10,\n            animations = arrayOf(\n                bedrock(\"archen\", \"chicken_fall\")\n            )\n        )",
+          "line": 121,
+          "reason": "its condition asks for `(it.getEntity() as? PokemonEntity)?.isFalling() == true`: `PokemonEntity.isFalling()`: no key of `PoseAdapter` and no MoLang query asks it",
+          "what": "pose",
+          "where": "pose `falling`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/ArchenModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "arctovish": {
+      "class": "ArctovishModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/ArctovishModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "arctozolt": {
+      "class": "ArctozoltModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/ArctozoltModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "armaldo": {
+      "class": "ArmaldoModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/ArmaldoModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "aron": {
+      "class": "AronModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/AronModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "arrokuda": {
+      "class": "ArrokudaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/ArrokudaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "aurorus": {
+      "class": "AurorusModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/AurorusModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "avalugg": {
+      "class": "AvaluggModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/AvaluggModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "barboach": {
+      "class": "BarboachModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/BarboachModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "barraskewda": {
+      "class": "BarraskewdaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/BarraskewdaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "bayleef": {
+      "class": "BayleefModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/BayleefModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "beartic": {
+      "class": "BearticModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/BearticModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "beedrill": {
+      "class": "BeedrillModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/BeedrillModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "bellossom": {
+      "class": "BellossomModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/BellossomModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "bergmite": {
+      "class": "BergmiteModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/BergmiteModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "bewear": {
+      "class": "BewearModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/BewearModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "bibarel": {
+      "class": "BibarelModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/BibarelModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "boldore": {
+      "class": "BoldoreModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/BoldoreModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "boltund": {
+      "class": "BoltundModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/BoltundModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "bonsly": {
+      "class": "BonslyModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/BonslyModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "bounsweet": {
+      "class": "BounsweetModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/BounsweetModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "breloom": {
+      "class": "BreloomModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/BreloomModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "budew": {
+      "class": "BudewModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/BudewModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "buizel": {
+      "class": "BuizelModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/BuizelModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "buneary": {
+      "class": "BunearyModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/BunearyModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0427_buneary/buneary.json"
+    },
+    "bunnelby": {
+      "class": "BunnelbyModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/BunnelbyModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "butterfree": {
+      "class": "ButterfreeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/ButterfreeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "carbink": {
+      "class": "CarbinkModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/CarbinkModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "carnivine": {
+      "class": "CarnivineModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/CarnivineModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "caterpie": {
+      "class": "CaterpieModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/CaterpieModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "centiskorch": {
+      "class": "CentiskorchModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/CentiskorchModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "cetitan": {
+      "class": "CetitanModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/CetitanModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "cetoddle": {
+      "class": "CetoddleModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/CetoddleModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "charcadet": {
+      "class": "CharcadetModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/CharcadetModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "chesnaught": {
+      "class": "ChesnaughtModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/ChesnaughtModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "chespin": {
+      "class": "ChespinModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/ChespinModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "chikorita": {
+      "class": "ChikoritaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/ChikoritaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "chimchar": {
+      "class": "ChimcharModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/ChimcharModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "clamperl": {
+      "class": "ClamperlModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/ClamperlModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "clodsire": {
+      "class": "ClodsireModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/ClodsireModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "combee": {
+      "class": "CombeeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/CombeeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "comfey": {
+      "class": "ComfeyModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/ComfeyModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "conkeldurr": {
+      "class": "ConkeldurrModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/ConkeldurrModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "copperajah": {
+      "class": "CopperajahModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/CopperajahModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "crabominable": {
+      "class": "CrabominableModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/CrabominableModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "crabrawler": {
+      "class": "CrabrawlerModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/CrabrawlerModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "cradily": {
+      "class": "CradilyModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/CradilyModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "crocalor": {
+      "class": "CrocalorModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/CrocalorModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "croconaw": {
+      "class": "CroconawModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/CroconawModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "cryogonal": {
+      "class": "CryogonalModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/CryogonalModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "cubchoo": {
+      "class": "CubchooModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/CubchooModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "cubone": {
+      "class": "CuboneModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/CuboneModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "cufant": {
+      "class": "CufantModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/CufantModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "cyndaquil": {
+      "class": "CyndaquilModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/CyndaquilModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "cyndaquil_hisui_bias": {
+      "class": "CyndaquilHisuiBiasModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/CyndaquilHisuiBiasModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "dachsbun": {
+      "class": "DachsbunModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/DachsbunModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "dartrix": {
+      "class": "DartrixModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/DartrixModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "dartrix_hisui_bias": {
+      "class": "DartrixHisuiBiasModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/DartrixHisuiBiasModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "decidueye": {
+      "class": "DecidueyeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/DecidueyeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "decidueye_hisuian": {
+      "class": "DecidueyeHisuianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/DecidueyeHisuianModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "deerling": {
+      "class": "DeerlingModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/DeerlingModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "dodrio": {
+      "class": "DodrioModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/DodrioModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "doduo": {
+      "class": "DoduoModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/DoduoModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "donphan": {
+      "class": "DonphanModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/DonphanModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "dracovish": {
+      "class": "DracovishModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/DracovishModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "dracozolt": {
+      "class": "DracozoltModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/DracozoltModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "dragalge": {
+      "class": "DragalgeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/DragalgeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "drakloak": {
+      "class": "DrakloakModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/DrakloakModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0886_drakloak/drakloak.json"
+    },
+    "dreepy": {
+      "class": "DreepyModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/DreepyModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0885_dreepy/dreepy.json"
+    },
+    "drifloon": {
+      "class": "DrifloonModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/DrifloonModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "dubwool": {
+      "class": "DubwoolModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/DubwoolModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "durant": {
+      "class": "DurantModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/DurantModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "dusclops": {
+      "class": "DusclopsModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/DusclopsModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "duskull": {
+      "class": "DuskullModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/DuskullModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "eiscue": {
+      "class": "EiscueModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/EiscueModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "ekans": {
+      "class": "EkansModel",
+      "dropped": [
+        {
+          "kind": "wave_animation",
+          "kotlin": "WaveAnimation(\n                    waveFunction = sineFunction(\n                        period = 8F,\n                        amplitude = 0.8F\n                    ),\n                    basedOnLimbSwing = true,\n                    oscillationsScalar = 5F,\n                    head = head,\n                    rotationAxis = Y_AXIS,\n                    motionAxis = X_AXIS,\n                    moveHead = false,\n                    headLength = 16F,\n                    segments = arrayOf(\n                        tailSegment,\n                        tail2Segment,\n                        tail3Segment,\n                        tail4Segment,\n                        tail5Segment,\n                        tail6Segment\n                    )\n                )",
+          "line": 70,
+          "reason": "`WaveAnimation` (a chain of parts bent along a wave): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `normal`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/EkansModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "electabuzz": {
+      "class": "ElectabuzzModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/ElectabuzzModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "electivire": {
+      "class": "ElectivireModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/ElectivireModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "electrode": {
+      "class": "ElectrodeModel",
+      "dropped": [
+        {
+          "kind": "on_transitioned_into",
+          "kotlin": "{ it?.reset() }",
+          "line": 51,
+          "reason": "what a pose does once the model has moved into it: a JSON pose has no such thing (`PoseAdapter` leaves `onTransitionedInto` empty)",
+          "what": "onTransitionedInto",
+          "where": "pose `walk`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/ElectrodeModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "electrode_hisuian": {
+      "class": "ElectrodeHisuianModel",
+      "dropped": [
+        {
+          "kind": "on_transitioned_into",
+          "kotlin": "{ it?.reset() }",
+          "line": 49,
+          "reason": "what a pose does once the model has moved into it: a JSON pose has no such thing (`PoseAdapter` leaves `onTransitionedInto` empty)",
+          "what": "onTransitionedInto",
+          "where": "pose `walk`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/ElectrodeHisuianModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "elekid": {
+      "class": "ElekidModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/ElekidModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "emolga": {
+      "class": "EmolgaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/EmolgaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "exeggcute": {
+      "class": "ExeggcuteModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/ExeggcuteModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "exeggutor": {
+      "class": "ExeggutorModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/ExeggutorModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "exploud": {
+      "class": "ExploudModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/ExploudModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "farfetchd": {
+      "class": "FarfetchdModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/FarfetchdModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "farfetchd_galarian": {
+      "class": "FarfetchdGalarianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/FarfetchdGalarianModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "fidough": {
+      "class": "FidoughModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/FidoughModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "flaaffy": {
+      "class": "FlaaffyModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/FlaaffyModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "flittle": {
+      "class": "FlittleModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/FlittleModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "floatzel": {
+      "class": "FloatzelModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/FloatzelModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "frillish": {
+      "class": "FrillishModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/FrillishModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "froakie": {
+      "class": "FroakieModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/FroakieModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "frogadier": {
+      "class": "FrogadierModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/FrogadierModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "fuecoco": {
+      "class": "FuecocoModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/FuecocoModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "gallade": {
+      "class": "GalladeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/GalladeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "gardevoir": {
+      "class": "GardevoirModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/GardevoirModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "gengar": {
+      "class": "GengarModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/GengarModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "geodude": {
+      "class": "GeodudeModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/GeodudeModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0074_geodude/geodude.json"
+    },
+    "gigalith": {
+      "class": "GigalithModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/GigalithModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "gimmighoulchest": {
+      "class": "GimmighoulChestModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/GimmighoulChestModel.kt",
+      "notes": [
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "(it.getEntity() as? PokemonEntity)?.ownerUUID != null",
+          "line": 54,
+          "note": "`ownerUUID == null`, which is what `q.is_wild` answers for a Pok\u00e9mon entity: written as the MoLang condition `q.has_entity ? !q.is_wild : 0.0`",
+          "where": "pose `standing`"
+        },
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "(it.getEntity() as? PokemonEntity)?.ownerUUID == null",
+          "line": 65,
+          "note": "`ownerUUID == null`, which is what `q.is_wild` answers for a Pok\u00e9mon entity: written as the MoLang condition `q.has_entity ? q.is_wild : 1.0`",
+          "where": "pose `closed`"
+        }
+      ],
+      "status": "complete"
+    },
+    "gligar": {
+      "class": "GligarModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/GligarModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "glimmet": {
+      "class": "GlimmetModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/GlimmetModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "glimmora": {
+      "class": "GlimmoraModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/GlimmoraModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "gliscor": {
+      "class": "GliscorModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/GliscorModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "gloom": {
+      "class": "GloomModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/GloomModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "golduck": {
+      "class": "GolduckModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/GolduckModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "golem": {
+      "class": "GolemModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/GolemModel.kt",
+      "notes": [
+        {
+          "kind": "animation_cobblemon_lacks",
+          "note": "`q.bedrock('golem', 'test')`: the group `golem` has no `animation.golem.test`. Cobblemon throws as it builds this model (`BedrockAnimationRepository.getAnimation`), so it never draws with this poser",
+          "where": "pose `standing`"
+        },
+        {
+          "kind": "animation_cobblemon_lacks",
+          "note": "`q.bedrock('golem', 'test')`: the group `golem` has no `animation.golem.test`. Cobblemon throws as it builds this model (`BedrockAnimationRepository.getAnimation`), so it never draws with this poser",
+          "where": "pose `walk`"
+        }
+      ],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0076_golem/golem.json"
+    },
+    "golisopod": {
+      "class": "GolisopodModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/GolisopodModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "goomy_hisui_bias": {
+      "class": "GoomyHisuiBiasModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/GoomyHisuiBiasModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "gorebyss": {
+      "class": "GorebyssModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/GorebyssModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "gourgeist": {
+      "class": "GourgeistModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/GourgeistModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0711_gourgeist/gourgeist.json"
+    },
+    "granbull": {
+      "class": "GranbullModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/GranbullModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "greninja": {
+      "class": "GreninjaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/GreninjaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "grimmsnarl": {
+      "class": "GrimmsnarlModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/GrimmsnarlModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "grookey": {
+      "class": "GrookeyModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/GrookeyModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "grotle": {
+      "class": "GrotleModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/GrotleModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "gurdurr": {
+      "class": "GurdurrModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/GurdurrModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "hakamo-o": {
+      "class": "HakamoOModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/HakamoOModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "hariyama": {
+      "class": "HariyamaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/HariyamaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "herdier": {
+      "class": "HerdierModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/HerdierModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "hippopotas": {
+      "class": "HippopotasModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/HippopotasModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "hippowdon": {
+      "class": "HippowdonModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/HippowdonModel.kt",
+      "notes": [
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "it.getEntity()?.isStandingOn(setOf(\"minecraft:sand\")) != true",
+          "line": 64,
+          "note": "`Entity.isStandingOn`, which is what `q.is_standing_on_blocks` asks: written as the MoLang condition `!q.is_standing_on_blocks(2, 'minecraft:sand')`",
+          "where": "pose `sleep`"
+        },
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "it.getEntity()?.isStandingOn(setOf(\"minecraft:red_sand\")) == true",
+          "line": 78,
+          "note": "`Entity.isStandingOn`, which is what `q.is_standing_on_blocks` asks: written as the MoLang condition `q.is_standing_on_blocks(2, 'minecraft:red_sand')`",
+          "where": "pose `sleepsand`"
+        },
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "it.getEntity()?.isStandingOn(setOf(\"minecraft:sand\", \"minecraft:red_sand\")) != true",
+          "line": 92,
+          "note": "`Entity.isStandingOn`, which is what `q.is_standing_on_blocks` asks: written as the MoLang condition `!q.is_standing_on_blocks(2, 'minecraft:sand', 'minecraft:red_sand')`",
+          "where": "pose `standing`"
+        },
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "it.getEntity()?.isStandingOn(setOf(\"minecraft:sand\", \"minecraft:red_sand\")) != true",
+          "line": 107,
+          "note": "`Entity.isStandingOn`, which is what `q.is_standing_on_blocks` asks: written as the MoLang condition `!q.is_standing_on_blocks(2, 'minecraft:sand', 'minecraft:red_sand')`",
+          "where": "pose `walk`"
+        },
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "it.getEntity()?.isStandingOn(setOf(\"minecraft:sand\")) == true",
+          "line": 123,
+          "note": "`Entity.isStandingOn`, which is what `q.is_standing_on_blocks` asks: written as the MoLang condition `q.is_standing_on_blocks(2, 'minecraft:sand')`",
+          "where": "pose `standingsand`"
+        },
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "it.getEntity()?.isStandingOn(setOf(\"minecraft:red_sand\")) == true",
+          "line": 138,
+          "note": "`Entity.isStandingOn`, which is what `q.is_standing_on_blocks` asks: written as the MoLang condition `q.is_standing_on_blocks(2, 'minecraft:red_sand')`",
+          "where": "pose `standingredsand`"
+        },
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "it.getEntity()?.isStandingOn(setOf(\"minecraft:sand\")) == true",
+          "line": 152,
+          "note": "`Entity.isStandingOn`, which is what `q.is_standing_on_blocks` asks: written as the MoLang condition `q.is_standing_on_blocks(2, 'minecraft:sand')`",
+          "where": "pose `walksand`"
+        },
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "it.getEntity()?.isStandingOn(setOf(\"minecraft:red_sand\")) == true",
+          "line": 166,
+          "note": "`Entity.isStandingOn`, which is what `q.is_standing_on_blocks` asks: written as the MoLang condition `q.is_standing_on_blocks(2, 'minecraft:red_sand')`",
+          "where": "pose `walkredsand`"
+        },
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "it.getEntity()?.isStandingOn(setOf(\"minecraft:sand\", \"minecraft:red_sand\")) != true",
+          "line": 180,
+          "note": "`Entity.isStandingOn`, which is what `q.is_standing_on_blocks` asks: written as the MoLang condition `!q.is_standing_on_blocks(2, 'minecraft:sand', 'minecraft:red_sand')`",
+          "where": "pose `battleidle`"
+        },
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "it.getEntity()?.isStandingOn(setOf(\"minecraft:sand\")) == true",
+          "line": 195,
+          "note": "`Entity.isStandingOn`, which is what `q.is_standing_on_blocks` asks: written as the MoLang condition `q.is_standing_on_blocks(2, 'minecraft:sand')`",
+          "where": "pose `battleidlesand`"
+        },
+        {
+          "kind": "condition_in_molang",
+          "kotlin": "it.getEntity()?.isStandingOn(setOf(\"minecraft:red_sand\")) == true",
+          "line": 210,
+          "note": "`Entity.isStandingOn`, which is what `q.is_standing_on_blocks` asks: written as the MoLang condition `q.is_standing_on_blocks(2, 'minecraft:red_sand')`",
+          "where": "pose `battleidleredsand`"
+        }
+      ],
+      "status": "complete"
+    },
+    "hitmonchan": {
+      "class": "HitmonchanModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/HitmonchanModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "hitmonlee": {
+      "class": "HitmonleeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/HitmonleeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "hitmontop": {
+      "class": "HitmontopModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/HitmontopModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "hoothoot": {
+      "class": "HoothootModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/HoothootModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "huntail": {
+      "class": "HuntailModel",
+      "dropped": [
+        {
+          "kind": "wave_animation",
+          "kotlin": "WaveAnimation(\n                    waveFunction = sineFunction(\n                        period = 8F,\n                        amplitude = 0.8F\n                    ),\n                    basedOnLimbSwing = true,\n                    oscillationsScalar = 5F,\n                    head = head,\n                    rotationAxis = ModelPartTransformation.Y_AXIS,\n                    motionAxis = ModelPartTransformation.X_AXIS,\n                    moveHead = false,\n                    headLength = 16F,\n                    segments = arrayOf(\n                        tailSegment,\n                        tail2Segment,\n                        tail3Segment,\n                        tail4Segment,\n                        tail5Segment,\n                        tail6Segment\n                    )\n                )",
+          "line": 57,
+          "reason": "`WaveAnimation` (a chain of parts bent along a wave): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `standing`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/HuntailModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "illumise": {
+      "class": "IllumiseModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/IllumiseModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "impidimp": {
+      "class": "ImpidimpModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/ImpidimpModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "infernape": {
+      "class": "InfernapeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/InfernapeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "ironleaves": {
+      "class": "IronleavesModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/IronleavesModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "jangmo-o": {
+      "class": "JangmoOModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/JangmoOModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "jellicent": {
+      "class": "JellicentModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/JellicentModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "kabuto": {
+      "class": "KabutoModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/KabutoModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "kabutops": {
+      "class": "KabutopsModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/KabutopsModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "kirlia": {
+      "class": "KirliaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/KirliaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "klang": {
+      "class": "KlangModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/KlangModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0600_klang/klang.json"
+    },
+    "kleavor": {
+      "class": "KleavorModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/KleavorModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0900_kleavor/kleavor.json"
+    },
+    "klefki": {
+      "class": "KlefkiModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/KlefkiModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "klink": {
+      "class": "KlinkModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/KlinkModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0599_klink/klink.json"
+    },
+    "klinklang": {
+      "class": "KlinklangModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/KlinklangModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0601_klinklang/klinklang.json"
+    },
+    "koffing": {
+      "class": "KoffingModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/KoffingModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0109_koffing/koffing.json"
+    },
+    "komala": {
+      "class": "KomalaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/KomalaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "kommo-o": {
+      "class": "KommoOModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/KommoOModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "krabby": {
+      "class": "KrabbyModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/KrabbyModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "kricketot": {
+      "class": "KricketotModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/KricketotModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "kricketune": {
+      "class": "KricketuneModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/KricketuneModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "lairon": {
+      "class": "LaironModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/LaironModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "larvitar": {
+      "class": "LarvitarModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/LarvitarModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "lickitung": {
+      "class": "LickitungModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/LickitungModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "lileep": {
+      "class": "LileepModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/LileepModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "lilligant": {
+      "class": "LilligantModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/LilligantModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "lilligant_hisuian": {
+      "class": "LilligantHisuianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/LilligantHisuianModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "lillipup": {
+      "class": "LillipupModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/LillipupModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "linoone": {
+      "class": "LinooneModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/LinooneModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "linoone_galarian": {
+      "class": "LinooneGalarianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/LinooneGalarianModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "lombre": {
+      "class": "LombreModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/LombreModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "lopunny": {
+      "class": "LopunnyModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/LopunnyModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0428_lopunny/lopunny.json"
+    },
+    "lotad": {
+      "class": "LotadModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/LotadModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "loudred": {
+      "class": "LoudredModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/LoudredModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "ludicolo": {
+      "class": "LudicoloModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/LudicoloModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "luxio": {
+      "class": "LuxioModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/LuxioModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "luxray": {
+      "class": "LuxrayModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/LuxrayModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "mabosstiff": {
+      "class": "MabosstiffModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/MabosstiffModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "machamp": {
+      "class": "MachampModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/MachampModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "machoke": {
+      "class": "MachokeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/MachokeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "machop": {
+      "class": "MachopModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/MachopModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "magcargo": {
+      "class": "MagcargoModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/MagcargoModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "magcargo_shiny": {
+      "class": "MagcargoShinyModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/MagcargoShinyModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "makuhita": {
+      "class": "MakuhitaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/MakuhitaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "mamoswine": {
+      "class": "MamoswineModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/MamoswineModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0473_mamoswine/mamoswine.json"
+    },
+    "mankey": {
+      "class": "MankeyModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/MankeyModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "mareep": {
+      "class": "MareepModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/MareepModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "marowak": {
+      "class": "MarowakModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/MarowakModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "maschiff": {
+      "class": "MaschiffModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/MaschiffModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "masquerain": {
+      "class": "MasquerainModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/MasquerainModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "meganium": {
+      "class": "MeganiumModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/MeganiumModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "meowth": {
+      "class": "MeowthModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/MeowthModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "meowth_alolan": {
+      "class": "MeowthAlolanModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/MeowthAlolanModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "meowth_galarian": {
+      "class": "MeowthGalarianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/MeowthGalarianModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "metapod": {
+      "class": "MetapodModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/MetapodModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "mightyena": {
+      "class": "MightyenaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/MightyenaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "milcery": {
+      "class": "MilceryModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/MilceryModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "miltank": {
+      "class": "MiltankModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/MiltankModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "misdreavus": {
+      "class": "MisdreavusModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/MisdreavusModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "mismagius": {
+      "class": "MismagiusModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/MismagiusModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "monferno": {
+      "class": "MonfernoModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/MonfernoModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "morelull": {
+      "class": "MorelullModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/MorelullModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "morgrem": {
+      "class": "MorgremModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/MorgremModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "mudbray": {
+      "class": "MudbrayModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/MudbrayModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "naganadel": {
+      "class": "NaganadelModel",
+      "dropped": [
+        {
+          "kind": "function_animation",
+          "kotlin": "rootPart.translation(function = sineFunction(amplitude = -3F, period = 0.9F), axis = Y_AXIS) { state, _, _ ->\n                    state.animationSeconds\n                }",
+          "line": 52,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `standing`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "rootPart.translation(function = sineFunction(amplitude = -3F, period = 0.9F), axis = Y_AXIS) { state, _, _ -> state.animationSeconds }",
+          "line": 69,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walk`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/NaganadelModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "natu": {
+      "class": "NatuModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/NatuModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "nidoqueen": {
+      "class": "NidoqueenModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/NidoqueenModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "nidorino": {
+      "class": "NidorinoModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/NidorinoModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "numel": {
+      "class": "NumelModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/NumelModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "obstagoon": {
+      "class": "ObstagoonModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/ObstagoonModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "oddish": {
+      "class": "OddishModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/OddishModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "overqwil": {
+      "class": "OverqwilModel",
+      "dropped": [
+        {
+          "kind": "wave_animation",
+          "kotlin": "WaveAnimation(\n                    waveFunction = sineFunction(\n                        period = 8F,\n                        amplitude = 0.4F\n                    ),\n                    basedOnLimbSwing = true,\n                    oscillationsScalar = 8F,\n                    head = head,\n                    rotationAxis = ModelPartTransformation.Y_AXIS,\n                    motionAxis = ModelPartTransformation.X_AXIS,\n                    headLength = 0.1F,\n                    segments = arrayOf(\n                        wtail\n                    )\n                )",
+          "line": 60,
+          "reason": "`WaveAnimation` (a chain of parts bent along a wave): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walk`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/OverqwilModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "paras": {
+      "class": "ParasModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/ParasModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "patrat": {
+      "class": "PatratModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/PatratModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "pelipper": {
+      "class": "PelipperModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/PelipperModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "perrserker": {
+      "class": "PerrserkerModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/PerrserkerModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "persian": {
+      "class": "PersianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/PersianModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "persian_alolan": {
+      "class": "PersianAlolanModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/PersianAlolanModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "petilil": {
+      "class": "PetililModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/PetililModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "petilil_hisui_bias": {
+      "class": "PetililHisuiBiasModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/PetililHisuiBiasModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "phanpy": {
+      "class": "PhanpyModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/PhanpyModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "phantump": {
+      "class": "PhantumpModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/PhantumpModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "pidove": {
+      "class": "PidoveModel",
+      "converts": "partial",
+      "dropped": [
+        {
+          "kind": "function_animation",
+          "kotlin": "rootPart.translation(\n                    function = parabolaFunction(\n                        peak = -4F,\n                        period = 0.4F\n                    ),\n                    timeVariable = { state, _, _ -> state.animationSeconds },\n                    axis = ModelPartTransformation.Y_AXIS\n                )",
+          "line": 104,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "head.translation(\n                    function = sineFunction(\n                        amplitude = (-20F).toRadians(),\n                        period = 1F,\n                        verticalShift = (-10F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.X_AXIS,\n                    timeVariable = { state, _, _ -> state.animationSeconds }\n                )",
+          "line": 112,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "leftLeg.rotation(\n                    function = parabolaFunction(\n                        tightness = -20F,\n                        phaseShift = 0F,\n                        verticalShift = (30F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.X_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 121,
+          "reason": "`RotationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "rightLeg.rotation(\n                    function = parabolaFunction(\n                        tightness = -20F,\n                        phaseShift = 0F,\n                        verticalShift = (30F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.X_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 130,
+          "reason": "`RotationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "tail.rotation(\n                    function = sineFunction(\n                        amplitude = (-5F).toRadians(),\n                        period = 1F\n                    ),\n                    axis = ModelPartTransformation.X_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 139,
+          "reason": "`RotationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "rightWing.translation(\n                    function = parabolaFunction(\n                        tightness = -10F,\n                        phaseShift = 30F,\n                        verticalShift = (25F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.Y_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 157,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "leftWing.translation(\n                    function = parabolaFunction(\n                        tightness = -10F,\n                        phaseShift = 30F,\n                        verticalShift = (25F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.Y_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 166,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/PidoveModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0519_pidove/pidove.json"
+    },
+    "piloswine": {
+      "class": "PiloswineModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/PiloswineModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0221_piloswine/piloswine.json"
+    },
+    "pineco": {
+      "class": "PinecoModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/PinecoModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "pinsir": {
+      "class": "PinsirModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/PinsirModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0127_pinsir/pinsir.json"
+    },
+    "piplup": {
+      "class": "PiplupModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/PiplupModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "poipole": {
+      "class": "PoipoleModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/PoipoleModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "politoed": {
+      "class": "PolitoedModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/PolitoedModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "poliwag": {
+      "class": "PoliwagModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/PoliwagModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "ponyta": {
+      "class": "PonytaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/PonytaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "ponyta_galarian": {
+      "class": "PonytaGalarianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/PonytaGalarianModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "poochyena": {
+      "class": "PoochyenaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/PoochyenaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "primeape": {
+      "class": "PrimeapeModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/PrimeapeModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0057_primeape/primeape.json"
+    },
+    "psyduck": {
+      "class": "PsyduckModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/PsyduckModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "pumpkaboo": {
+      "class": "PumpkabooModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/PumpkabooModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0710_pumpkaboo/pumpkaboo.json"
+    },
+    "pupitar": {
+      "class": "PupitarModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/PupitarModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "pyukumuku": {
+      "class": "PyukumukuModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/PyukumukuModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "quagsire": {
+      "class": "QuagsireModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/QuagsireModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "quaquaval": {
+      "class": "QuaquavalModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/QuaquavalModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "quaxwell": {
+      "class": "QuaxwellModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/QuaxwellModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "quilava": {
+      "class": "QuilavaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/QuilavaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "quilava_hisui_bias": {
+      "class": "QuilavaHisuiBiasModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/QuilavaHisuiBiasModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "quilladin": {
+      "class": "QuilladinModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/QuilladinModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "qwilfish": {
+      "class": "QwilfishModel",
+      "dropped": [
+        {
+          "kind": "wave_animation",
+          "kotlin": "WaveAnimation(\n                    waveFunction = sineFunction(\n                        period = 8F,\n                        amplitude = 0.4F\n                    ),\n                    basedOnLimbSwing = true,\n                    oscillationsScalar = 8F,\n                    head = head,\n                    rotationAxis = ModelPartTransformation.Y_AXIS,\n                    motionAxis = ModelPartTransformation.X_AXIS,\n                    headLength = 0.1F,\n                    segments = arrayOf(\n                        wtail\n                    )\n                )",
+          "line": 60,
+          "reason": "`WaveAnimation` (a chain of parts bent along a wave): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walk`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/QwilfishModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "qwilfish_hisuian": {
+      "class": "QwilfishHisuianModel",
+      "dropped": [
+        {
+          "kind": "wave_animation",
+          "kotlin": "WaveAnimation(\n                    waveFunction = sineFunction(\n                        period = 8F,\n                        amplitude = 0.4F\n                    ),\n                    basedOnLimbSwing = true,\n                    oscillationsScalar = 8F,\n                    head = head,\n                    rotationAxis = ModelPartTransformation.Y_AXIS,\n                    motionAxis = ModelPartTransformation.X_AXIS,\n                    headLength = 0.1F,\n                    segments = arrayOf(\n                        wtail\n                    )\n                )",
+          "line": 60,
+          "reason": "`WaveAnimation` (a chain of parts bent along a wave): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walk`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/QwilfishHisuianModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "ralts": {
+      "class": "RaltsModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/RaltsModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "rapidash": {
+      "class": "RapidashModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/RapidashModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "rapidash_galarian": {
+      "class": "RapidashGalarianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/RapidashGalarianModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "raticate": {
+      "class": "RaticateModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/RaticateModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "raticate_alolan": {
+      "class": "RaticateAlolanModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/RaticateAlolanModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "rillaboom": {
+      "class": "RillaboomModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/RillaboomModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "roggenrola": {
+      "class": "RoggenrolaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/RoggenrolaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "roselia": {
+      "class": "RoseliaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/RoseliaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "roserade": {
+      "class": "RoseradeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/RoseradeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "rowlet": {
+      "class": "RowletModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/RowletModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "rowlet_hisui_bias": {
+      "class": "RowletHisuiBiasModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/RowletHisuiBiasModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "salandit": {
+      "class": "SalanditModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/SalanditModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "salazzle": {
+      "class": "SalazzleModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/SalazzleModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "samurott": {
+      "class": "SamurottModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/SamurottModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "samurott_hisuian": {
+      "class": "SamurottHisuianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/SamurottHisuianModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "sandslash": {
+      "class": "SandslashModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/SandslashModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "sawsbuck": {
+      "class": "SawsbuckModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/SawsbuckModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "scatterbug": {
+      "class": "ScatterbugModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/ScatterbugModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "sentret": {
+      "class": "SentretModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/SentretModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "serperior": {
+      "class": "SerperiorModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/SerperiorModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0497_serperior/serperior.json"
+    },
+    "servine": {
+      "class": "ServineModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/ServineModel.kt",
+      "notes": [
+        {
+          "kind": "animation_cobblemon_lacks",
+          "note": "`q.bedrock('servine', 'sleep')`: the group `servine` has no `animation.servine.sleep`. Cobblemon throws as it builds this model (`BedrockAnimationRepository.getAnimation`), so it never draws with this poser",
+          "where": "pose `SLEEP`"
+        },
+        {
+          "kind": "animation_cobblemon_lacks",
+          "note": "`q.bedrock('servine', 'ground_walk')`: the group `servine` has no `animation.servine.ground_walk`. Cobblemon throws as it builds this model (`BedrockAnimationRepository.getAnimation`), so it never draws with this poser",
+          "where": "pose `walking`"
+        }
+      ],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0496_servine/servine.json"
+    },
+    "shieldon": {
+      "class": "ShieldonModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/ShieldonModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "shiinotic": {
+      "class": "ShiinoticModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/ShiinoticModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "shinx": {
+      "class": "ShinxModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/ShinxModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "shroomish": {
+      "class": "ShroomishModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/ShroomishModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "shuckle": {
+      "class": "ShuckleModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/ShuckleModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "sirfetchd": {
+      "class": "SirfetchdModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/SirfetchdModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "sizzlipede": {
+      "class": "SizzlipedeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/SizzlipedeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "skeledirge": {
+      "class": "SkeledirgeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/SkeledirgeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "skrelp": {
+      "class": "SkrelpModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/SkrelpModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "slugma": {
+      "class": "SlugmaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/SlugmaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "slugma_shiny": {
+      "class": "SlugmaShinyModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/SlugmaShinyModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "snivy": {
+      "class": "SnivyModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/SnivyModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0495_snivy/snivy.json"
+    },
+    "snubbull": {
+      "class": "SnubbullModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/SnubbullModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "spewpa": {
+      "class": "SpewpaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/SpewpaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "spiritomb": {
+      "class": "SpiritombModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/SpiritombModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "squawkabilly": {
+      "class": "SquawkabillyModel",
+      "dropped": [
+        {
+          "kind": "function_animation",
+          "kotlin": "rootPart.translation(\n                    function = parabolaFunction(\n                        peak = -4F,\n                        period = 0.4F\n                    ),\n                    timeVariable = { state, _, _ -> state.animationSeconds },\n                    axis = ModelPartTransformation.Y_AXIS\n                )",
+          "line": 75,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walk`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "head.translation(\n                    function = sineFunction(\n                        amplitude = (-20F).toRadians(),\n                        period = 1F,\n                        verticalShift = (-10F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.X_AXIS,\n                    timeVariable = { state, _, _ -> state.animationSeconds }\n                )",
+          "line": 83,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walk`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "leftLeg.rotation(\n                    function = parabolaFunction(\n                        tightness = -20F,\n                        phaseShift = 0F,\n                        verticalShift = (30F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.X_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 92,
+          "reason": "`RotationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walk`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "rightLeg.rotation(\n                    function = parabolaFunction(\n                        tightness = -20F,\n                        phaseShift = 0F,\n                        verticalShift = (30F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.X_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 101,
+          "reason": "`RotationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walk`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "tail.rotation(\n                    function = sineFunction(\n                        amplitude = (-5F).toRadians(),\n                        period = 1F\n                    ),\n                    axis = ModelPartTransformation.X_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 110,
+          "reason": "`RotationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walk`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "rightWing.translation(\n                    function = parabolaFunction(\n                        tightness = -10F,\n                        phaseShift = 30F,\n                        verticalShift = (25F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.Y_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 128,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walk`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "leftWing.translation(\n                    function = parabolaFunction(\n                        tightness = -10F,\n                        phaseShift = 30F,\n                        verticalShift = (25F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.Y_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 137,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walk`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/SquawkabillyModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "squirtle": {
+      "class": "SquirtleModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/SquirtleModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "stantler": {
+      "class": "StantlerModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/StantlerModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "steenee": {
+      "class": "SteeneeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/SteeneeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "stoutland": {
+      "class": "StoutlandModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/StoutlandModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "stufful": {
+      "class": "StuffulModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/StuffulModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "sudowoodo": {
+      "class": "SudowoodoModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/SudowoodoModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "surskit": {
+      "class": "SurskitModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/SurskitModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "swinub": {
+      "class": "SwinubModel",
+      "converts": "complete",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/SwinubModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0220_swinub/swinub.json"
+    },
+    "swoobat": {
+      "class": "SwoobatModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/SwoobatModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "tandemaus": {
+      "class": "TandemausModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/TandemausModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "tangela": {
+      "class": "TangelaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/TangelaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "tangrowth": {
+      "class": "TangrowthModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/TangrowthModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "thwackey": {
+      "class": "ThwackeyModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/ThwackeyModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "timburr": {
+      "class": "TimburrModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/TimburrModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "tirtouga": {
+      "class": "TirtougaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/TirtougaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "torterra": {
+      "class": "TorterraModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/TorterraModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "torterra_cherry": {
+      "class": "TorterraCherryModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/TorterraCherryModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "totodile": {
+      "class": "TotodileModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/TotodileModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "tranquill": {
+      "class": "TranquillModel",
+      "converts": "partial",
+      "dropped": [
+        {
+          "kind": "function_animation",
+          "kotlin": "rootPart.translation(\n                    function = parabolaFunction(\n                        peak = -4F,\n                        period = 0.4F\n                    ),\n                    timeVariable = { state, _, _ -> state.animationSeconds },\n                    axis = ModelPartTransformation.Y_AXIS\n                )",
+          "line": 104,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "head.translation(\n                    function = sineFunction(\n                        amplitude = (-20F).toRadians(),\n                        period = 1F,\n                        verticalShift = (-10F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.X_AXIS,\n                    timeVariable = { state, _, _ -> state.animationSeconds }\n                )",
+          "line": 112,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "leftLeg.rotation(\n                    function = parabolaFunction(\n                        tightness = -20F,\n                        phaseShift = 0F,\n                        verticalShift = (30F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.X_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 121,
+          "reason": "`RotationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "rightLeg.rotation(\n                    function = parabolaFunction(\n                        tightness = -20F,\n                        phaseShift = 0F,\n                        verticalShift = (30F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.X_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 130,
+          "reason": "`RotationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "tail.rotation(\n                    function = sineFunction(\n                        amplitude = (-5F).toRadians(),\n                        period = 1F\n                    ),\n                    axis = ModelPartTransformation.X_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 139,
+          "reason": "`RotationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "rightWing.translation(\n                    function = parabolaFunction(\n                        tightness = -10F,\n                        phaseShift = 30F,\n                        verticalShift = (25F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.Y_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 157,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        },
+        {
+          "kind": "function_animation",
+          "kotlin": "leftWing.translation(\n                    function = parabolaFunction(\n                        tightness = -10F,\n                        phaseShift = 30F,\n                        verticalShift = (25F).toRadians()\n                    ),\n                    axis = ModelPartTransformation.Y_AXIS,\n                    timeVariable = { _, _, ageInTicks -> ageInTicks / 20 },\n                )",
+          "line": 166,
+          "reason": "`TranslationFunctionPoseAnimation` (a part moved along a wave function by a time lambda): no MoLang function makes one",
+          "what": "animation",
+          "where": "pose `walking`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/TranquillModel.kt",
+      "notes": [],
+      "status": "superseded",
+      "superseded by": "common/src/main/resources/assets/cobblemon/bedrock/pokemon/posers/0520_tranquill/tranquill.json"
+    },
+    "trapinch": {
+      "class": "TrapinchModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/TrapinchModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "tsareena": {
+      "class": "TsareenaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/TsareenaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "turtwig": {
+      "class": "TurtwigModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/TurtwigModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "typhlosion": {
+      "class": "TyphlosionModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/TyphlosionModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "typhlosion_hisuian": {
+      "class": "TyphlosionHisuianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/TyphlosionHisuianModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "tyrunt": {
+      "class": "TyruntModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/TyruntModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "unfezant": {
+      "class": "UnfezantModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/UnfezantModel.kt",
+      "notes": [
+        {
+          "kind": "animation_cobblemon_lacks",
+          "note": "`q.bedrock('unfezant', 'ground_idle')`: no animation group is called `unfezant`. Cobblemon throws as it builds this model (`BedrockAnimationRepository.getAnimation`), so it never draws with this poser",
+          "where": "pose `stand`"
+        },
+        {
+          "kind": "animation_cobblemon_lacks",
+          "note": "`q.bedrock('unfezant', 'ground_idle')`: no animation group is called `unfezant`. Cobblemon throws as it builds this model (`BedrockAnimationRepository.getAnimation`), so it never draws with this poser",
+          "where": "pose `walk`"
+        },
+        {
+          "kind": "animation_cobblemon_lacks",
+          "note": "`q.bedrock('unfezant', 'air_idle')`: no animation group is called `unfezant`. Cobblemon throws as it builds this model (`BedrockAnimationRepository.getAnimation`), so it never draws with this poser",
+          "where": "pose `floating`"
+        },
+        {
+          "kind": "animation_cobblemon_lacks",
+          "note": "`q.bedrock('unfezant', 'air_idle')`: no animation group is called `unfezant`. Cobblemon throws as it builds this model (`BedrockAnimationRepository.getAnimation`), so it never draws with this poser",
+          "where": "pose `flying`"
+        }
+      ],
+      "status": "complete"
+    },
+    "venomoth": {
+      "class": "VenomothModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/VenomothModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "venonat": {
+      "class": "VenonatModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/VenonatModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "vespiquen": {
+      "class": "VespiquenModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/VespiquenModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "vibrava": {
+      "class": "VibravaModel",
+      "dropped": [
+        {
+          "kind": "wing_flap_not_a_sine",
+          "kotlin": "wingFrame1.wingFlap(\n                                flapFunction = triangleFunction(period = 0.08F, amplitude = 0.6F),\n                                timeVariable = { state, _, _ -> state.animationSeconds },\n                                axis = ModelPartTransformation.Z_AXIS\n                        )",
+          "line": 85,
+          "reason": "a wing flap over `triangleFunction`: `q.sine_wing_flap` only flaps along a sine",
+          "what": "animation",
+          "where": "pose `walk`"
+        },
+        {
+          "kind": "wing_flap_not_a_sine",
+          "kotlin": "wingFrame2.wingFlap(\n                                flapFunction = triangleFunction(period = 0.1F, amplitude = 0.4F),\n                                timeVariable = { state, _, _ -> 0.01F + state.animationSeconds },\n                                axis = ModelPartTransformation.Z_AXIS\n                        )",
+          "line": 90,
+          "reason": "a wing flap over `triangleFunction`: `q.sine_wing_flap` only flaps along a sine",
+          "what": "animation",
+          "where": "pose `walk`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/VibravaModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "vileplume": {
+      "class": "VileplumeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/VileplumeModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "vivillon": {
+      "class": "VivillonModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/VivillonModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "volbeat": {
+      "class": "VolbeatModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/VolbeatModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "voltorb": {
+      "class": "VoltorbModel",
+      "dropped": [
+        {
+          "kind": "on_transitioned_into",
+          "kotlin": "{ it?.reset() }",
+          "line": 49,
+          "reason": "what a pose does once the model has moved into it: a JSON pose has no such thing (`PoseAdapter` leaves `onTransitionedInto` empty)",
+          "what": "onTransitionedInto",
+          "where": "pose `walk`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/VoltorbModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "voltorb_hisuian": {
+      "class": "VoltorbHisuianModel",
+      "dropped": [
+        {
+          "kind": "on_transitioned_into",
+          "kotlin": "{ it?.reset() }",
+          "line": 48,
+          "reason": "what a pose does once the model has moved into it: a JSON pose has no such thing (`PoseAdapter` leaves `onTransitionedInto` empty)",
+          "what": "onTransitionedInto",
+          "where": "pose `walk`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/VoltorbHisuianModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "walkingwake": {
+      "class": "WalkingwakeModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen9/WalkingwakeModel.kt",
+      "notes": [
+        {
+          "kind": "fits_without_an_entity",
+          "kotlin": "{ it.isInWater }",
+          "line": 75,
+          "note": "isTouchingWater: true in a pose that the party and summary screens can ask for. Without an entity (a model drawn in a screen) the class says the condition fails and `PoseAdapter` says it holds",
+          "where": "pose `waterstanding`"
+        }
+      ],
+      "status": "complete"
+    },
+    "wartortle": {
+      "class": "WartortleModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/WartortleModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "watchog": {
+      "class": "WatchogModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/WatchogModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "weedle": {
+      "class": "WeedleModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen1/WeedleModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "whiscash": {
+      "class": "WhiscashModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/WhiscashModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "whismur": {
+      "class": "WhismurModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/WhismurModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "wimpod": {
+      "class": "WimpodModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/WimpodModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "wingull": {
+      "class": "WingullModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/WingullModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "wishiwashi_schooling": {
+      "class": "WishiwashiSchoolingModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/WishiwashiSchoolingModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "wishiwashi_solo": {
+      "class": "WishiwashiSoloModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen7/WishiwashiSoloModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "woobat": {
+      "class": "WoobatModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/WoobatModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "wooloo": {
+      "class": "WoolooModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/WoolooModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "wooper": {
+      "class": "WooperModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/WooperModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "wooper_paldean": {
+      "class": "WooperPaldeanModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/WooperPaldeanModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "xatu": {
+      "class": "XatuModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/XatuModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "xerneas": {
+      "class": "XerneasModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen6/XerneasModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "yamper": {
+      "class": "YamperModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen8/YamperModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "yanma": {
+      "class": "YanmaModel",
+      "dropped": [
+        {
+          "kind": "wing_flap_not_a_sine",
+          "kotlin": "wingFrame1.wingFlap(\n                    flapFunction = triangleFunction(period = 0.1F, amplitude = 0.4F),\n                    timeVariable = { state, _, _ -> state.animationSeconds },\n                    axis = Z_AXIS\n                )",
+          "line": 60,
+          "reason": "a wing flap over `triangleFunction`: `q.sine_wing_flap` only flaps along a sine",
+          "what": "animation",
+          "where": "pose `standing`"
+        },
+        {
+          "kind": "wing_flap_not_a_sine",
+          "kotlin": "wingFrame2.wingFlap(\n                    flapFunction = triangleFunction(period = 0.1F, amplitude = 0.4F),\n                    timeVariable = { state, _, _ -> 0.01F + state.animationSeconds },\n                    axis = Z_AXIS\n                )",
+          "line": 65,
+          "reason": "a wing flap over `triangleFunction`: `q.sine_wing_flap` only flaps along a sine",
+          "what": "animation",
+          "where": "pose `standing`"
+        },
+        {
+          "kind": "wing_flap_not_a_sine",
+          "kotlin": "wingFrame1.wingFlap(\n                    flapFunction = triangleFunction(period = 0.1F, amplitude = 0.4F),\n                    timeVariable = { state, _, _ -> state.animationSeconds },\n                    axis = Z_AXIS\n                )",
+          "line": 82,
+          "reason": "a wing flap over `triangleFunction`: `q.sine_wing_flap` only flaps along a sine",
+          "what": "animation",
+          "where": "pose `walk`"
+        },
+        {
+          "kind": "wing_flap_not_a_sine",
+          "kotlin": "wingFrame2.wingFlap(\n                    flapFunction = triangleFunction(period = 0.1F, amplitude = 0.4F),\n                    timeVariable = { state, _, _ -> 0.01F + state.animationSeconds },\n                    axis = Z_AXIS\n                )",
+          "line": 87,
+          "reason": "a wing flap over `triangleFunction`: `q.sine_wing_flap` only flaps along a sine",
+          "what": "animation",
+          "where": "pose `walk`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen2/YanmaModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "yanmega": {
+      "class": "YanmegaModel",
+      "dropped": [
+        {
+          "kind": "wing_flap_not_a_sine",
+          "kotlin": "wingFrame1.wingFlap(\n                    flapFunction = triangleFunction(period = 0.1F, amplitude = 0.5F),\n                    timeVariable = { state, _, _ -> state.animationSeconds },\n                    axis = ModelPartTransformation.Z_AXIS\n                )",
+          "line": 71,
+          "reason": "a wing flap over `triangleFunction`: `q.sine_wing_flap` only flaps along a sine",
+          "what": "animation",
+          "where": "pose `walk`"
+        },
+        {
+          "kind": "wing_flap_not_a_sine",
+          "kotlin": "wingFrame2.wingFlap(\n                    flapFunction = triangleFunction(period = 0.1F, amplitude = 0.5F),\n                    timeVariable = { state, _, _ -> 0.01F + state.animationSeconds },\n                    axis = ModelPartTransformation.Z_AXIS\n                )",
+          "line": 76,
+          "reason": "a wing flap over `triangleFunction`: `q.sine_wing_flap` only flaps along a sine",
+          "what": "animation",
+          "where": "pose `walk`"
+        },
+        {
+          "kind": "wing_flap_not_a_sine",
+          "kotlin": "wingFrame1.wingFlap(\n                    flapFunction = triangleFunction(period = 0.1F, amplitude = 0.5F),\n                    timeVariable = { state, _, _ -> state.animationSeconds },\n                    axis = ModelPartTransformation.Z_AXIS\n                )",
+          "line": 94,
+          "reason": "a wing flap over `triangleFunction`: `q.sine_wing_flap` only flaps along a sine",
+          "what": "animation",
+          "where": "pose `hovering`"
+        },
+        {
+          "kind": "wing_flap_not_a_sine",
+          "kotlin": "wingFrame2.wingFlap(\n                    flapFunction = triangleFunction(period = 0.1F, amplitude = 0.5F),\n                    timeVariable = { state, _, _ -> 0.01F + state.animationSeconds },\n                    axis = ModelPartTransformation.Z_AXIS\n                )",
+          "line": 99,
+          "reason": "a wing flap over `triangleFunction`: `q.sine_wing_flap` only flaps along a sine",
+          "what": "animation",
+          "where": "pose `hovering`"
+        },
+        {
+          "kind": "wing_flap_not_a_sine",
+          "kotlin": "wingFrame1.wingFlap(\n                    flapFunction = triangleFunction(period = 0.1F, amplitude = 0.5F),\n                    timeVariable = { state, _, _ -> state.animationSeconds },\n                    axis = ModelPartTransformation.Z_AXIS\n                )",
+          "line": 116,
+          "reason": "a wing flap over `triangleFunction`: `q.sine_wing_flap` only flaps along a sine",
+          "what": "animation",
+          "where": "pose `flying`"
+        },
+        {
+          "kind": "wing_flap_not_a_sine",
+          "kotlin": "wingFrame2.wingFlap(\n                    flapFunction = triangleFunction(period = 0.1F, amplitude = 0.5F),\n                    timeVariable = { state, _, _ -> 0.01F + state.animationSeconds },\n                    axis = ModelPartTransformation.Z_AXIS\n                )",
+          "line": 121,
+          "reason": "a wing flap over `triangleFunction`: `q.sine_wing_flap` only flaps along a sine",
+          "what": "animation",
+          "where": "pose `flying`"
+        }
+      ],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen4/YanmegaModel.kt",
+      "notes": [],
+      "status": "partial"
+    },
+    "zigzagoon": {
+      "class": "ZigzagoonModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/ZigzagoonModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "zigzagoon_galarian": {
+      "class": "ZigzagoonGalarianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen3/ZigzagoonGalarianModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "zoroark": {
+      "class": "ZoroarkModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/ZoroarkModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "zoroark_hisuian": {
+      "class": "ZoroarkHisuianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/ZoroarkHisuianModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "zorua": {
+      "class": "ZoruaModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/ZoruaModel.kt",
+      "notes": [],
+      "status": "complete"
+    },
+    "zorua_hisuian": {
+      "class": "ZoruaHisuianModel",
+      "dropped": [],
+      "file": "common/src/main/kotlin/com/cobblemon/mod/common/client/render/models/blockbench/pokemon/gen5/ZoruaHisuianModel.kt",
+      "notes": [],
+      "status": "complete"
+    }
+  },
+  "summary": {
+    "classes no poser name is registered for": ["MunchlaxModel", "NinetalesModel", "VulpixModel"],
+    "complete": 297,
+    "dropped from the written posers, by kind": {
+      "condition_inexpressible": 3,
+      "function_animation": 9,
+      "on_transitioned_into": 4,
+      "wave_animation": 5,
+      "wing_flap_not_a_sine": 12
+    },
+    "model classes": 339,
+    "not converted": 0,
+    "partial": 15,
+    "posers": 336,
+    "superseded by a poser file of Cobblemon's, not written": 24,
+    "written": 312,
+    "written posers with something dropped, by kind": {
+      "condition_inexpressible": 1,
+      "function_animation": 2,
+      "on_transitioned_into": 4,
+      "wave_animation": 5,
+      "wing_flap_not_a_sine": 3
+    }
+  }
+}

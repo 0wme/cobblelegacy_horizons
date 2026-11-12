@@ -1,0 +1,50 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('skrelp', 'cry')"
+  },
+  "portraitScale": 2.4,
+  "portraitTranslation": [-0.1, 0, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.bedrock('skrelp', 'water_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('skrelp', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('skrelp', 'water_idle')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('skrelp', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.bedrock('skrelp', 'water_idle')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('skrelp', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "skrelp", "position": [2, 0, 0]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.bedrock('skrelp', 'water_idle')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('skrelp', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "skrelp", "position": [-2, 0, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.9,
+  "profileTranslation": [0, 0.6, 0],
+  "rootBone": "skrelp"
+}

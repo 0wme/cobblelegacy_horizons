@@ -1,0 +1,74 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('golisopod', 'cry')"
+  },
+  "portraitScale": 1,
+  "portraitTranslation": [-0.76, 1.4, 0],
+  "poses": {
+    "sleeping": {
+      "animations": ["q.bedrock('golisopod', 'sleep')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('golisopod', 'faint')"
+      },
+      "poseName": "sleeping",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('golisopod', 'ground_idle')"],
+      "isBattle": false,
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('golisopod', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND"],
+      "quirks": ["q.bedrock_quirk('golisopod', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('golisopod', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('golisopod', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('golisopod', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "floating": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('golisopod', 'water_idle')"],
+      "poseName": "floating",
+      "poseTypes": ["FLOAT"],
+      "quirks": ["q.bedrock_quirk('golisopod', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swimming": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('golisopod', 'water_swim')"],
+      "poseName": "swimming",
+      "poseTypes": ["SWIM"],
+      "quirks": ["q.bedrock_quirk('golisopod', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('golisopod', 'battle_idle')"],
+      "isBattle": true,
+      "isUnderWater": false,
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('golisopod', 'faint')"
+      },
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('golisopod', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.45,
+  "profileTranslation": [0, 1, 0],
+  "rootBone": "golisopod"
+}

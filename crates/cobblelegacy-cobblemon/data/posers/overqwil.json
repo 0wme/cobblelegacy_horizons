@@ -1,0 +1,28 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('overqwil', 'cry')"
+  },
+  "portraitScale": 1.99,
+  "portraitTranslation": [-0.65, 0.87, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.bedrock('overqwil', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('overqwil', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('overqwil', 'ground_idle')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('overqwil', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.62,
+  "profileTranslation": [-0.02, 0.95, 0],
+  "rootBone": "overqwil"
+}

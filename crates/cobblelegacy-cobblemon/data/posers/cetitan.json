@@ -1,0 +1,46 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('cetitan', 'cry')",
+    "faint": "q.bedrock_stateful('cetitan', 'faint')"
+  },
+  "portraitScale": 0.55,
+  "portraitTranslation": [-0.4, 1, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('cetitan', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.bedrock('cetitan', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('cetitan', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.bedrock('cetitan', 'ground_walk')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('cetitan', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.bedrock('cetitan', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('cetitan', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.4,
+  "profileTranslation": [-0.1, 1.1, -6],
+  "rootBone": "cetitan"
+}

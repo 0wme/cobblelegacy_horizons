@@ -1,0 +1,28 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('pupitar', 'cry')"
+  },
+  "portraitScale": 1.01,
+  "portraitTranslation": [0.18, 0.54, 0],
+  "poses": {
+    "standing": {
+      "animations": [],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('pupitar', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('pupitar', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.74,
+  "profileTranslation": [0.09, 0.7, 0],
+  "rootBone": "pupitar"
+}

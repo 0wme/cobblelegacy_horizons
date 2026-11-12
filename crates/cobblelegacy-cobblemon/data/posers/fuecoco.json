@@ -1,0 +1,44 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('fuecoco', 'cry')"
+  },
+  "portraitScale": 1.6,
+  "portraitTranslation": [-0.2, -0.2, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('fuecoco', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 0, 70, -45, 45, -45)", "q.bedrock('fuecoco', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('fuecoco', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.look('head', 1, 0, 70, -45, 45, -45)", "q.bedrock('fuecoco', 'ground_walk')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('fuecoco', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 0, 70, -45, 45, -45)", "q.bedrock('fuecoco', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('fuecoco', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.65,
+  "profileTranslation": [0, 0.75, 0],
+  "rootBone": "fuecoco"
+}

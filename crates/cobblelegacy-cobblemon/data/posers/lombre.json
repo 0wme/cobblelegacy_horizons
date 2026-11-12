@@ -1,0 +1,93 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('lombre', 'cry')"
+  },
+  "portraitScale": 2.4,
+  "portraitTranslation": [-0.15, -0.55, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('lombre', 'ground_idle')"],
+      "isTouchingWater": false,
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('lombre', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND"],
+      "quirks": ["q.bedrock_quirk('lombre', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "waterstanding": {
+      "animations": ["q.bedrock('lombre', 'water_idle')"],
+      "isTouchingWater": true,
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('lombre', 'faint')"
+      },
+      "poseName": "waterstanding",
+      "poseTypes": ["STAND"],
+      "quirks": ["q.bedrock_quirk('lombre', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "lombre", "position": [0, 1, 0]}
+      ]
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('lombre', 'ground_walk')"],
+      "isTouchingWater": false,
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('lombre', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('lombre', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "waterwalk": {
+      "animations": ["q.bedrock('lombre', 'water_swim')"],
+      "isTouchingWater": true,
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('lombre', 'faint')"
+      },
+      "poseName": "waterwalk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('lombre', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "lombre", "position": [0, 1, 0]}
+      ]
+    },
+    "floating": {
+      "animations": ["q.bedrock('lombre', 'water_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('lombre', 'faint')"
+      },
+      "poseName": "floating",
+      "poseTypes": ["FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swim": {
+      "animations": ["q.bedrock('lombre', 'water_swim')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('lombre', 'faint')"
+      },
+      "poseName": "swim",
+      "poseTypes": ["SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "sleep": {
+      "animations": ["q.bedrock('lombre', 'sleep')"],
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.9,
+  "profileTranslation": [0, 0.44, 0],
+  "rootBone": "lombre"
+}

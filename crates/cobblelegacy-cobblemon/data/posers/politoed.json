@@ -1,0 +1,37 @@
+{
+  "portraitScale": 2.4,
+  "portraitTranslation": [-0.04, -0.55, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('politoed', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('politoed', 'ground_idle')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "float": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('politoed', 'water_idle')"],
+      "poseName": "float",
+      "poseTypes": ["FLOAT", "HOVER"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swim": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('politoed', 'water_swim')"],
+      "poseName": "swim",
+      "poseTypes": ["SWIM", "FLY"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 1.1,
+  "profileTranslation": [0, 0.1, 0],
+  "rootBone": "politoed"
+}

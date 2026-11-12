@@ -1,0 +1,26 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('tangela', 'cry')"
+  },
+  "portraitScale": 2.2,
+  "portraitTranslation": [-0.1, -1.6, 0],
+  "poses": {
+    "standing": {
+      "animations": [],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.biped_walk(0.4, 1, 'leftfoot', 'rightfoot')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 1.2,
+  "profileTranslation": [0, -0.09, 0],
+  "rootBone": "tangela"
+}

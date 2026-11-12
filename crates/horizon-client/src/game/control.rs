@@ -1385,6 +1385,9 @@ impl Game<'_> {
     fn control_key_up(&mut self, key: KeyCode) {
         self.keys.release(&key, Source::Agent);
         self.keys.release(&key, Source::Keyboard);
+        // CobbleLegacy: as a key let go at the window (`mapped_key`), for a Cobblemon server's
+        // throwing key, which acts then.
+        self.pokemon_party_key_released(key);
     }
 
     fn screen_name(&self) -> &'static str {
@@ -1616,6 +1619,8 @@ impl Game<'_> {
             "name_tags": self
                 .eye_position()
                 .map(|e| self.shown_name_tags(glam::DVec3::from_array(e))),
+            // CobbleLegacy: the player's party on a Cobblemon server, as its overlay shows it.
+            "pokemon_party": self.pokemon_party_status(),
         });
         status["lod"] = lod;
         let (target, sampled) = self.lod.as_ref().map_or((0, 0), |lod| lod.progress());

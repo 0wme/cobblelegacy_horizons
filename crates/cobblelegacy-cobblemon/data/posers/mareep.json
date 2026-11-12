@@ -1,0 +1,61 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('mareep', 'cry')"
+  },
+  "portraitScale": 2.3,
+  "portraitTranslation": [-0.5, -1.2, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('mareep', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": "q.has_aspect('sheared') == false", "part": "wool"}
+      ]
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('mareep', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('mareep', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": "q.has_aspect('sheared') == false", "part": "wool"}
+      ]
+    },
+    "walk": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        {"animation": "q.bedrock('mareep', 'ground_walk')", "condition": "q.has_aspect('sheared') == false"},
+        {"animation": "q.bedrock('mareep', 'ground_walk_sheared')", "condition": "q.has_aspect('sheared')"}
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('mareep', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": "q.has_aspect('sheared') == false", "part": "wool"}
+      ]
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('mareep', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('mareep', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": "q.has_aspect('sheared') == false", "part": "wool"}
+      ]
+    }
+  },
+  "profileScale": 0.9,
+  "profileTranslation": [0, 0.4, 0],
+  "rootBone": "mareep"
+}

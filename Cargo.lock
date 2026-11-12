@@ -543,6 +543,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cobblelegacy-cobblemon"
+version = "0.1.0"
+dependencies = [
+ "horizon-protocol",
+ "horizon-world",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "cobs"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1431,6 +1441,7 @@ dependencies = [
  "ab_glyph",
  "bytemuck",
  "chrono",
+ "cobblelegacy-cobblemon",
  "crc32fast",
  "dunce",
  "flate2",

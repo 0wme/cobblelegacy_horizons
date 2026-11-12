@@ -1,0 +1,38 @@
+{
+  "portraitScale": 1.65,
+  "portraitTranslation": [-0.15, -0.6, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.bedrock('pineco', 'ground_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('pineco', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('pineco', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('pineco', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('pineco', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('pineco', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SLEEP": {
+      "animations": ["q.bedrock('pineco', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.58, 0],
+  "rootBone": "pineco"
+}

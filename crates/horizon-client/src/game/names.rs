@@ -221,7 +221,7 @@ impl Game<'_> {
                 let width = tag
                     .lines
                     .iter()
-                    .map(|(text, _)| self.gui.atlas.font.width_text(text) * NAME_TAG_UNIT * 0.5)
+                    .map(|(text, _)| self.gui.atlas.font.width_text(text) * tag.unit * 0.5)
                     .fold(0.0, f32::max);
                 (tag.at.to_array().map(f64::to_bits), width)
             })
@@ -376,6 +376,7 @@ impl Game<'_> {
                         light: l,
                         discrete,
                         marks: Marks::default(),
+                        unit: NAME_TAG_UNIT,
                     });
                 }
                 continue;
@@ -425,9 +426,12 @@ impl Game<'_> {
                 light: l,
                 discrete,
                 marks,
+                unit: NAME_TAG_UNIT,
             });
         }
         drop(player_ids);
+        // CobbleLegacy's fork: a Cobblemon server's Pokémon, named by the mod's own rule.
+        self.pokemon_name_tags(camera, alpha, &mut tags);
         // Armor stands name themselves: an invisible one with a visible name
         // is a hologram (its model is skipped, its name tag is not).
         for a in &self.armor_stands {
@@ -527,6 +531,7 @@ impl Game<'_> {
                 light: l,
                 discrete: false,
                 marks: Marks::default(),
+                unit: NAME_TAG_UNIT,
             });
         }
         // ItemFrameRenderer.shouldShowName/getNameTag: only the targeted
@@ -590,10 +595,27 @@ impl Game<'_> {
                     ),
                     discrete: false,
                     marks: Marks::default(),
+                    unit: NAME_TAG_UNIT,
                 });
             }
         }
         tags
+    }
+    /// The camera's facing, its right and its up (`Camera.rotation()`), turned
+    /// round in third-person front view: what a name tag is laid along.
+    pub(super) fn view_axes(&self) -> [glam::DVec3; 3] {
+        let (view_yaw, view_pitch) = match self.posed_rotation {
+            // The frame's camera, already turned round in front view.
+            Some(rotation) => rotation,
+            None if self.camera_type == super::perspective::CameraType::ThirdPersonFront => {
+                (self.yaw + 180.0, -self.pitch)
+            }
+            None => (self.yaw, self.pitch),
+        };
+        let forward = glam::DVec3::from_array(view_vector(view_yaw, view_pitch));
+        let right = forward.cross(glam::DVec3::Y).normalize_or_zero();
+        let up = right.cross(forward).normalize_or_zero();
+        [forward, right, up]
     }
     /// `SubmitNodeCollection.submitNameTag`: a discrete name is drawn once,
     /// faded, on its background; any other in full over the world, its faded
@@ -630,7 +652,7 @@ impl Game<'_> {
                     true,
                     0,
                     light,
-                    NAME_TAG_UNIT,
+                    tag.unit,
                     out,
                     tag.marks,
                     Some(&mut layouts),
@@ -648,7 +670,7 @@ impl Game<'_> {
                 false,
                 0,
                 light,
-                NAME_TAG_UNIT,
+                tag.unit,
                 out,
                 tag.marks,
                 Some(&mut layouts),
@@ -661,7 +683,7 @@ impl Game<'_> {
                 true,
                 2,
                 0,
-                NAME_TAG_UNIT,
+                tag.unit,
                 see_through,
                 tag.marks,
                 Some(&mut layouts),
@@ -720,19 +742,9 @@ impl Game<'_> {
     ) -> Vec<horizon_client::font::Patch> {
         // Options.getBackgroundOpacity(0.25) black, as ARGB.color.
         const BACKGROUND: u32 = 0x3F00_0000;
-        // The camera's facing (Camera.rotation()), turned round in third-person
-        // front view, so the text reads the right way from where it is seen.
-        let (view_yaw, view_pitch) = match self.posed_rotation {
-            // The frame's camera, already turned round in front view.
-            Some(rotation) => rotation,
-            None if self.camera_type == super::perspective::CameraType::ThirdPersonFront => {
-                (self.yaw + 180.0, -self.pitch)
-            }
-            None => (self.yaw, self.pitch),
-        };
-        let forward = glam::DVec3::from_array(view_vector(view_yaw, view_pitch));
-        let right = forward.cross(glam::DVec3::Y).normalize_or_zero();
-        let up = right.cross(forward).normalize_or_zero();
+        // Along the camera's facing, so the text reads the right way from where
+        // it is seen.
+        let [forward, right, up] = self.view_axes();
         let away = forward.as_vec3() * 0.002;
         let mut batch = HudBatch::new([1, 1]);
         let last = lines.len().saturating_sub(1);
@@ -924,13 +936,15 @@ pub(super) fn cosmetic_lift(top: f32, scale: f32) -> f64 {
 }
 
 /// A name tag: where it hangs, its lines (text, lift), the packed light at
-/// the entity and whether it is discrete.
-struct NameTag {
-    at: glam::DVec3,
-    lines: Vec<(Text, f64)>,
-    light: u8,
-    discrete: bool,
-    marks: Marks,
+/// the entity, whether it is discrete, and the world size of one of its text
+/// pixels ([`NAME_TAG_UNIT`] for every tag of vanilla's).
+pub(super) struct NameTag {
+    pub(super) at: glam::DVec3,
+    pub(super) lines: Vec<(Text, f64)>,
+    pub(super) light: u8,
+    pub(super) discrete: bool,
+    pub(super) marks: Marks,
+    pub(super) unit: f32,
 }
 
 /// What a hook draws by a player's name (`horizon_hooks::players::NameDecoration`): a mark

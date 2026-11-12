@@ -1,0 +1,42 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('metapod', 'cry')",
+    "faint": "q.bedrock_stateful('metapod', 'faint')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.15, -1.25, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('metapod', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.bedrock('metapod', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": [
+        "STAND",
+        "WALK",
+        "HOVER",
+        "FLY",
+        "FLOAT",
+        "SWIM",
+        "GLIDE",
+        "SHOULDER_LEFT",
+        "SHOULDER_RIGHT",
+        "PROFILE",
+        "PORTRAIT",
+        "OPEN",
+        "NONE"
+      ],
+      "quirks": ["q.bedrock_quirk('metapod', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 1.1,
+  "profileTranslation": [0, 0.1, 0],
+  "rootBone": "metapod"
+}

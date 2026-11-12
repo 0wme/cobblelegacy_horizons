@@ -292,6 +292,16 @@ impl ApplicationHandler for Game<'_> {
         let attributes = winit::platform::wayland::WindowAttributesExtWayland::with_name(
             attributes, "horizon", "horizon",
         );
+        // Where the window opens (CobbleLegacy's fork): `HORIZON_WINDOW_POSITION=x,y`, in the desktop's
+        // physical pixels. A test run then opens on the screen kept for tests, never over a game being
+        // played on the main one.
+        let attributes = match std::env::var("HORIZON_WINDOW_POSITION").ok().and_then(|v| {
+            let (x, y) = v.split_once(',')?;
+            Some((x.trim().parse::<i32>().ok()?, y.trim().parse::<i32>().ok()?))
+        }) {
+            Some((x, y)) => attributes.with_position(winit::dpi::PhysicalPosition::new(x, y)),
+            None => attributes,
+        };
         // A game an agent started opens without the focus, as splitscreen's windows do: the
         // person keeps their keyboard and pointer until they click it (`unclaimed_window`).
         // X11 activates it anyway, and says so with a `Focused`.

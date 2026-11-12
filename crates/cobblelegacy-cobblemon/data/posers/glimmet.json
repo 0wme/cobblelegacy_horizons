@@ -1,0 +1,63 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('glimmet', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.5, 1.3, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('glimmet', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.bedrock('glimmet', 'ground_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('glimmet', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('glimmet', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('glimmet', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('glimmet', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('glimmet', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.bedrock('glimmet', 'ground_idle')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('glimmet', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "glimmet", "position": [8, 0, 0]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.bedrock('glimmet', 'ground_idle')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('glimmet', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "glimmet", "position": [-8, 0, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.7,
+  "profileTranslation": [0, 0.8, 0],
+  "rootBone": "glimmet"
+}

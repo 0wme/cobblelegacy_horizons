@@ -95,6 +95,9 @@ pub enum Species {
     ZombieNautilus,
     SulfurCube,
     Mannequin,
+    /// A Cobblemon server's Pokémon (CobbleLegacy's fork). No vanilla type: its types are made at run
+    /// time, one per species, each with its own model (`game/remote_pokemon.rs`).
+    Pokemon,
 }
 /// Baby bounding boxes (each class's BABY_DIMENSIONS).
 #[derive(Clone, Copy, Debug)]
@@ -1317,6 +1320,18 @@ pub const ALL: &[Def] = &[
         "entity/player/wide/steve",
         A::Humanoid { zombie_arms: false },
         ["", "entity.generic.hurt", "entity.generic.death"],
+        None,
+        Baby::None
+    ),
+    // A Pokémon: entity-types.json has no `minecraft:pokemon` row, so nothing is loaded from this; it
+    // only answers `def`.
+    def!(
+        Pokemon,
+        "pokemon",
+        "pokemon#main",
+        "entity/pokemon",
+        A::Own(super::own::NONE),
+        ["", "", ""],
         None,
         Baby::None
     ),

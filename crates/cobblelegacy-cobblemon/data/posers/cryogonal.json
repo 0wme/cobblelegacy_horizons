@@ -1,0 +1,38 @@
+{
+  "portraitScale": 1.4,
+  "portraitTranslation": [0.05, 0.61, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('cryogonal', 'ground_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('cryogonal', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('cryogonal', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SLEEP": {
+      "animations": ["q.bedrock('cryogonal', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('cryogonal', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('cryogonal', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('cryogonal', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.65,
+  "profileTranslation": [0, 0.9, 0],
+  "rootBone": "cryogonal"
+}

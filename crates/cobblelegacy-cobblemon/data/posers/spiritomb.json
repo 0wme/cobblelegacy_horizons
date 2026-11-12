@@ -1,0 +1,23 @@
+{
+  "portraitScale": 1.3,
+  "portraitTranslation": [-0.4, 0.3, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.bedrock('spiritomb', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('spiritomb', 'ground_idle')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.75,
+  "profileTranslation": [-0.2, 0.6, 0],
+  "rootBone": "spiritomb"
+}

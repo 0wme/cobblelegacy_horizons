@@ -1,0 +1,81 @@
+{
+  "portraitScale": 1.8,
+  "portraitTranslation": [-0.11, -0.77, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('combee', 'air_sleep')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('combee', 'faint')"
+      },
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "hover": {
+      "animations": ["q.bedrock('combee', 'air_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('combee', 'faint')"
+      },
+      "poseName": "hover",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND", "HOVER", "FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('combee', 'blink_right', 8, 30, 1)",
+        "q.bedrock_quirk('combee', 'blink_gender', 8, 30, 1)",
+        "q.bedrock_quirk('combee', 'blink_left', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "fly": {
+      "animations": ["q.bedrock('combee', 'air_fly')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('combee', 'faint')"
+      },
+      "poseName": "fly",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": [
+        "q.bedrock_quirk('combee', 'blink_right', 8, 30, 1)",
+        "q.bedrock_quirk('combee', 'blink_gender', 8, 30, 1)",
+        "q.bedrock_quirk('combee', 'blink_left', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.bedrock('combee', 'air_idle')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": [
+        "q.bedrock_quirk('combee', 'blink_right', 8, 30, 1)",
+        "q.bedrock_quirk('combee', 'blink_gender', 8, 30, 1)",
+        "q.bedrock_quirk('combee', 'blink_left', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "combee", "position": [4, 0, 0]},
+        {"part": "combee", "position": [0, 0, 8]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.bedrock('combee', 'air_idle')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": [
+        "q.bedrock_quirk('combee', 'blink_right', 8, 30, 1)",
+        "q.bedrock_quirk('combee', 'blink_gender', 8, 30, 1)",
+        "q.bedrock_quirk('combee', 'blink_left', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "combee", "position": [-4, 0, 0]},
+        {"part": "combee", "position": [0, 0, 8]}
+      ]
+    }
+  },
+  "profileScale": 0.9,
+  "profileTranslation": [0, 0.35, 0],
+  "rootBone": "combee"
+}

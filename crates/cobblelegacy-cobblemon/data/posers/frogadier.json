@@ -1,0 +1,66 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('frogadier', 'cry')",
+    "faint": "q.bedrock_stateful('frogadier', 'faint')"
+  },
+  "portraitScale": 1.9,
+  "portraitTranslation": [-0.1, 1.4, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('frogadier', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "quirks": ["q.bedrock_quirk('frogadier', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('frogadier', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND", "HOVER"],
+      "quirks": ["q.bedrock_quirk('frogadier', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('frogadier', 'ground_walk')"],
+      "isBattle": false,
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('frogadier', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swim_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('frogadier', 'water_idle')"],
+      "isBattle": false,
+      "poseName": "swim_idle",
+      "poseTypes": ["FLOAT", "HOVER"],
+      "quirks": ["q.bedrock_quirk('frogadier', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swim": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('frogadier', 'water_swim')"],
+      "isBattle": false,
+      "poseName": "swim",
+      "poseTypes": ["SWIM", "FLY"],
+      "quirks": ["q.bedrock_quirk('frogadier', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('frogadier', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('frogadier', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.7,
+  "profileTranslation": [0, 0.7, 0],
+  "rootBone": "frogadier"
+}

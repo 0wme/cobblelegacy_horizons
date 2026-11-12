@@ -1,0 +1,50 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('bunnelby', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.15, -0.3, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('bunnelby', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "quirks": [
+        "q.bedrock_quirk('bunnelby', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('bunnelby', 'quirk_sleep', 60, 120, 1)",
+        "q.bedrock_quirk('bunnelby', 'quirk_sleep2', 30, 120, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('bunnelby', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('bunnelby', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('bunnelby', 'ground_walk')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('bunnelby', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('bunnelby', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('bunnelby', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.6,
+  "profileTranslation": [0, 0.81, 0],
+  "rootBone": "bunnelby"
+}

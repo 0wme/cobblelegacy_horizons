@@ -1,0 +1,61 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('ludicolo', 'cry')"
+  },
+  "portraitScale": 2.4,
+  "portraitTranslation": [-0.4, -0.3, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('ludicolo', 'ground_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('ludicolo', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND"],
+      "quirks": ["q.bedrock_quirk('ludicolo', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('ludicolo', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('ludicolo', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('ludicolo', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "floating": {
+      "animations": ["q.bedrock('ludicolo', 'water_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('ludicolo', 'faint')"
+      },
+      "poseName": "floating",
+      "poseTypes": ["FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swim": {
+      "animations": ["q.bedrock('ludicolo', 'water_swim')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('ludicolo', 'faint')"
+      },
+      "poseName": "swim",
+      "poseTypes": ["SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "sleep": {
+      "animations": ["q.bedrock('ludicolo', 'sleep')"],
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.75,
+  "profileTranslation": [0, 0.6, 0],
+  "rootBone": "ludicolo"
+}

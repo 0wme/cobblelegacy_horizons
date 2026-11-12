@@ -9,6 +9,7 @@
 use crate::auth::AuthSession;
 use horizon_protocol::{
     PROTOCOL_VERSION,
+    adapter::fabric,
     connection::{ConnReader, ConnWriter, Connection, Counters},
     crypto::{generate_secret, offline_uuid, server_hash},
     packets::{Empty, configuration as cfg, handshake, login, play},
@@ -1082,6 +1083,8 @@ fn configure(
 ) -> Result<Dynamic, Reason> {
     let mut registries = Dynamic::default();
     let mut content_verified = false;
+    // A Fabric server's table of its own numbers, as its slices come (CobbleLegacy's fork).
+    let mut fabric_sync: Vec<u8> = Vec::new();
     let reply = |p: cfg::Serverbound| -> Result<(), Reason> {
         match writer.lock().unwrap().as_mut() {
             Some(w) => w
@@ -1116,6 +1119,63 @@ fn configure(
                     data: horizon_protocol::mod_list::encode(&horizon_protocol::mod_list::shared(
                         &horizon_protocol::mod_list::local(),
                     )),
+                }))?;
+            }
+            // An older server that runs Fabric lists its channels: asked for it, it sends the numbers
+            // of what its mods registered, which the adapter's tables do not have.
+            cfg::Clientbound::CustomPayload(p)
+                if p.channel == "minecraft:register"
+                    && reader.adapter().is_some()
+                    && p.data
+                        .split(|b| *b == 0)
+                        .any(|c| c == fabric::REGISTRY_SYNC_COMPLETE.as_bytes()) =>
+            {
+                reply(cfg::Serverbound::CustomPayload(cfg::CustomPayload {
+                    channel: "minecraft:register".into(),
+                    data: fabric::REGISTRY_SYNC.as_bytes().to_vec(),
+                }))?;
+            }
+            cfg::Clientbound::CustomPayload(p) if p.channel == fabric::REGISTRY_SYNC => {
+                if !p.data.is_empty() {
+                    fabric_sync.extend_from_slice(&p.data);
+                    continue;
+                }
+                // The empty slice ends the table. The server waits for the answer before it goes
+                // on, so its chunks come after the session knows its numbers.
+                match fabric::RegistrySync::read(&fabric_sync)
+                    .map_err(|e| e.to_string())
+                    .and_then(|sync| {
+                        crate::modded_server::from_resources(&sync, resources)
+                            .map_err(|e| e.to_string())
+                    }) {
+                    Ok((modded, summary)) => {
+                        log::info!(
+                            "Horizon: a Fabric server's own numbers: {} block states in all, {} mod blocks matched, {} not here{}; {} mod items matched, {} not here",
+                            modded.states,
+                            summary.blocks_matched,
+                            summary.blocks_missing,
+                            summary
+                                .unknown_block
+                                .as_ref()
+                                .map(|name| format!(
+                                    " (no state matched: the server report lacks {name})"
+                                ))
+                                .unwrap_or_default(),
+                            summary.items_matched,
+                            summary.items_missing
+                        );
+                        if let Some(session) = reader.adapter() {
+                            session.set_modded(modded);
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("Horizon: a Fabric server's own numbers could not be read: {e}")
+                    }
+                }
+                fabric_sync.clear();
+                reply(cfg::Serverbound::CustomPayload(cfg::CustomPayload {
+                    channel: fabric::REGISTRY_SYNC_COMPLETE.into(),
+                    data: Vec::new(),
                 }))?;
             }
             cfg::Clientbound::CustomPayload(p) => {

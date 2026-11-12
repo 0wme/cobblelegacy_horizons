@@ -1,0 +1,66 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('froakie', 'cry')",
+    "faint": "q.bedrock_stateful('froakie', 'faint')"
+  },
+  "portraitScale": 1.86,
+  "portraitTranslation": [-0.25, -0.51, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('froakie', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "quirks": ["q.bedrock_quirk('froakie', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('froakie', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND", "HOVER"],
+      "quirks": ["q.bedrock_quirk('froakie', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('froakie', 'ground_walk')"],
+      "isBattle": false,
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('froakie', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swim_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('froakie', 'water_idle')"],
+      "isBattle": false,
+      "poseName": "swim_idle",
+      "poseTypes": ["FLOAT", "HOVER"],
+      "quirks": ["q.bedrock_quirk('froakie', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swim": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('froakie', 'water_swim')"],
+      "isBattle": false,
+      "poseName": "swim",
+      "poseTypes": ["SWIM", "FLY"],
+      "quirks": ["q.bedrock_quirk('froakie', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('froakie', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('froakie', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.75,
+  "profileTranslation": [0, 0.56, 0],
+  "rootBone": "froakie"
+}

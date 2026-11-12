@@ -1,0 +1,26 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('gengar', 'cry')"
+  },
+  "portraitScale": 1.1,
+  "portraitTranslation": [-0.3, 0.55, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.bedrock('gengar', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.biped_walk(1, 0.9, 'leg_left', 'leg_right')", "q.bedrock('gengar', 'ground_idle')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.6,
+  "profileTranslation": [0, 0.77, 0],
+  "rootBone": "gengar"
+}

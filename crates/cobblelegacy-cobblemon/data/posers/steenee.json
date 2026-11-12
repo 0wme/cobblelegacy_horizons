@@ -1,0 +1,30 @@
+{
+  "portraitScale": 3,
+  "portraitTranslation": [-0.2, -0.5, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('steenee', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('steenee', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('steenee', 'ground_idle')",
+        "q.bimanual_swing(0.8, 0.7, 'arm_left1', 'arm_right')",
+        "q.biped_walk(0.8, 1, 'leg_left', 'leg_right')"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('steenee', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.95,
+  "profileTranslation": [0, 0.4, 0],
+  "rootBone": "steenee"
+}

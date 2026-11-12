@@ -1,0 +1,61 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('piplup', 'cry')"
+  },
+  "portraitScale": 2.2,
+  "portraitTranslation": [-0.1, -0.65, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('piplup', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('piplup', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND"],
+      "quirks": ["q.bedrock_quirk('piplup', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('piplup', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('piplup', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "float": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('piplup', 'water_idle')"],
+      "poseName": "float",
+      "poseTypes": ["FLOAT"],
+      "quirks": ["q.bedrock_quirk('piplup', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swim": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('piplup', 'water_swim')"],
+      "poseName": "swim",
+      "poseTypes": ["SWIM"],
+      "quirks": ["q.bedrock_quirk('piplup', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('piplup', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('piplup', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.85,
+  "profileTranslation": [0, 0.48, 0],
+  "rootBone": "piplup"
+}

@@ -1,0 +1,91 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('flittle', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [0, 0, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('flittle', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('flittle', 'ground_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('flittle', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND"],
+      "quirks": ["q.bedrock_quirk('flittle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('flittle', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('flittle', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('flittle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "hovering": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('flittle', 'air_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('flittle', 'faint')"
+      },
+      "poseName": "hovering",
+      "poseTypes": ["FLOAT", "HOVER"],
+      "quirks": ["q.bedrock_quirk('flittle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "flying": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('flittle', 'air_fly')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('flittle', 'faint')"
+      },
+      "poseName": "flying",
+      "poseTypes": ["FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('flittle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('flittle', 'ground_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('flittle', 'faint')"
+      },
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('flittle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "flittle", "position": [11, 6, 0]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.look('body', 1, 1, 70, -45, 45, -45)", "q.bedrock('flittle', 'ground_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('flittle', 'faint')"
+      },
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('flittle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "flittle", "position": [-11, 6, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.85,
+  "profileTranslation": [0, 0.65, 0],
+  "rootBone": "flittle"
+}

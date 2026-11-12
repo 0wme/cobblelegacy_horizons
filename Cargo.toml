@@ -50,6 +50,8 @@ members = [
     "crates/horizon-shader-api",
     "crates/horizon-release-sign",
     "crates/horizon-mod-deps",
+    # CobbleLegacy's fork: what a Cobblemon 1.8.1 server sends, read for the client (MPL-2.0).
+    "crates/cobblelegacy-cobblemon",
     "xtask",
 ]
 resolver = "2"

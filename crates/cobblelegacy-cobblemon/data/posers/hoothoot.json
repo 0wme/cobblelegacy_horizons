@@ -1,0 +1,67 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('hoothoot', 'cry')"
+  },
+  "portraitScale": 2.2,
+  "portraitTranslation": [-0.25, -0.9, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('hoothoot', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "stand": {
+      "animations": ["q.bedrock('hoothoot', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "stand",
+      "poseTypes": ["STAND", "PROFILE", "PORTRAIT"],
+      "quirks": [
+        "q.bedrock_quirk('hoothoot', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('hoothoot', 'quirk_foot', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "hover": {
+      "animations": ["q.bedrock('hoothoot', 'air_idle')"],
+      "poseName": "hover",
+      "poseTypes": ["HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('hoothoot', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "fly": {
+      "animations": ["q.bedrock('hoothoot', 'air_fly')"],
+      "poseName": "fly",
+      "poseTypes": ["FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('hoothoot', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('hoothoot', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('hoothoot', 'blink', 8, 30, 1)"],
+      "transformTicks": 5,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.bedrock('hoothoot', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('hoothoot', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('hoothoot', 'quirk_foot', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 1,
+  "profileTranslation": [0, 0.3, 0],
+  "rootBone": "hoothoot"
+}

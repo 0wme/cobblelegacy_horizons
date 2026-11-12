@@ -1,0 +1,43 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('tandemaus', 'cry')",
+    "faint": "q.bedrock_stateful('tandemaus', 'faint')"
+  },
+  "portraitScale": 1,
+  "portraitTranslation": [0.1, 0, 0],
+  "poses": {
+    "standing": {
+      "animations": [
+        "q.bedrock('tandemaus', 'ground_idle')",
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.look('head2', 1, 1, 70, -45, 45, -45)"
+      ],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": [
+        "q.bedrock_quirk('tandemaus', 'blink1', 8, 30, 1)",
+        "q.bedrock_quirk('tandemaus', 'blink2', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [
+        "q.bedrock('tandemaus', 'ground_walk')",
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.look('head2', 1, 1, 70, -45, 45, -45)"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": [
+        "q.bedrock_quirk('tandemaus', 'blink1', 8, 30, 1)",
+        "q.bedrock_quirk('tandemaus', 'blink2', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.4, 0],
+  "rootBone": "tandemaus"
+}

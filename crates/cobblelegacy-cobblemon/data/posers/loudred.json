@@ -1,0 +1,28 @@
+{
+  "portraitScale": 1.5,
+  "portraitTranslation": [-0.05, 0.15, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('torso', 1, 1, 70, -45, 45, -45)", "q.bedrock('loudred', 'idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [
+        "q.look('torso', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('loudred', 'idle')",
+        "q.biped_walk(0.6, 0.9, 'leg_left', 'leg_right')",
+        "q.bimanual_swing(0.6, 0.9, 'arm_left', 'arm_right')"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.65,
+  "profileTranslation": [0, 0.76, 0],
+  "rootBone": "loudred"
+}

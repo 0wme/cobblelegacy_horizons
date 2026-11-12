@@ -1,0 +1,45 @@
+{
+  "animations": {
+    "cry": "q.in_battle ? q.bedrock_stateful('typhlosion', 'battle_cry') : q.bedrock_stateful('typhlosion', 'cry')"
+  },
+  "portraitScale": 1.4,
+  "portraitTranslation": [-0.65, 1.8, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('typhlosion', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, 0, 45, -45)", "q.bedrock('typhlosion', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('typhlosion', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.look('head', 1, 1, 70, 0, 45, -45)", "q.bedrock('typhlosion', 'ground_walk')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('typhlosion', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, 0, 45, -45)", "q.bedrock('typhlosion', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('typhlosion', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.5,
+  "profileTranslation": [0, 1, 0],
+  "rootBone": "typhlosion"
+}

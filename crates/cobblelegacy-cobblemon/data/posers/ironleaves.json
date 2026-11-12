@@ -1,0 +1,47 @@
+{
+  "portraitScale": 3,
+  "portraitTranslation": [-0.9, 2.2, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('ironleaves', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('ironleaves', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "neck_sword_left"},
+        {"isVisible": false, "part": "neck_sword_right"},
+        {"isVisible": false, "part": "sword_head"}
+      ]
+    },
+    "SLEEP": {
+      "animations": ["q.bedrock('ironleaves', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "neck_sword_left"},
+        {"isVisible": false, "part": "neck_sword_right"},
+        {"isVisible": false, "part": "sword_head"}
+      ]
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('ironleaves', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('ironleaves', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "neck_sword_left"},
+        {"isVisible": false, "part": "neck_sword_right"},
+        {"isVisible": false, "part": "sword_head"}
+      ]
+    }
+  },
+  "profileScale": 0.65,
+  "profileTranslation": [0, 0.8, 0],
+  "rootBone": "ironleaves"
+}

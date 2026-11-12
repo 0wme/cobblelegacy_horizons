@@ -1,0 +1,27 @@
+{
+  "portraitScale": 1.8,
+  "portraitTranslation": [-0.9, 0.6, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('luxray', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND", "HOVER", "FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [
+        "q.quadruped_walk(1.1, 1.4, 'front_leg_left', 'front_leg_right', 'back_leg_left', 'back_leg_right')",
+        "q.bedrock('luxray', 'ground_idle')",
+        "q.look('head', 1, 1, 70, -45, 45, -45)"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.66,
+  "profileTranslation": [0, 0.7, 0],
+  "rootBone": "luxray"
+}

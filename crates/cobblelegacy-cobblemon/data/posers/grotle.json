@@ -1,0 +1,46 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('grotle', 'cry')",
+    "faint": "q.bedrock_stateful('grotle', 'faint')"
+  },
+  "portraitScale": 2.2,
+  "portraitTranslation": [-0.8, -1, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('grotle', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('grotle', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('grotle', 'blink', 8, 30, 1)", "q.bedrock_quirk('grotle', 'quirk', 30, 360, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('grotle', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('grotle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('grotle', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('grotle', 'blink', 8, 30, 1)", "q.bedrock_quirk('grotle', 'quirk', 30, 360, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.7,
+  "profileTranslation": [0, 0.65, 0],
+  "rootBone": "grotle"
+}

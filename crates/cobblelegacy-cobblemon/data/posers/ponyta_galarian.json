@@ -1,0 +1,39 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('ponyta_galar', 'cry')",
+    "faint": "q.bedrock_stateful('ponyta_galar', 'faint')"
+  },
+  "portraitScale": 2.2,
+  "portraitTranslation": [-0.4, 0.2, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('ponyta_galar', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('neck', 1, 1, 70, -45, 45, -45)", "q.bedrock('ponyta_galar', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND"],
+      "quirks": [
+        "q.bedrock_quirk('ponyta_galar', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('ponyta_galar', 'quirk', 60, 360, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('neck', 1, 1, 70, -45, 45, -45)", "q.bedrock('ponyta_galar', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('ponyta_galar', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.9,
+  "profileTranslation": [0, 0.43, 0],
+  "rootBone": "ponyta_galar"
+}

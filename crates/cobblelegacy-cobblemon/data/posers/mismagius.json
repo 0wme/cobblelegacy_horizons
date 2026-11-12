@@ -1,0 +1,28 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('mismagius', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.2, 1.5, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 0.5, 70, -45, 45, -45)", "q.bedrock('mismagius', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('mismagius', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 0.5, 70, -45, 45, -45)", "q.bedrock('mismagius', 'ground_idle')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('mismagius', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.6,
+  "profileTranslation": [0, 0.9, 0],
+  "rootBone": "mismagius"
+}

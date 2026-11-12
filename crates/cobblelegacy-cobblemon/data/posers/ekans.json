@@ -1,0 +1,36 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('ekans', 'cry')",
+    "faint": "q.bedrock_stateful('ekans', 'faint')"
+  },
+  "portraitScale": 1.7,
+  "portraitTranslation": [-0.3, -0.45, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('ekans', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "normal": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('ekans', 'ground_idle')"],
+      "poseName": "normal",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('ekans', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "portrait": {
+      "animations": ["q.bedrock('ekans', 'summary_idle')"],
+      "poseName": "portrait",
+      "poseTypes": ["PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('ekans', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.7,
+  "profileTranslation": [-0.05, 0.6, 0],
+  "rootBone": "ekans"
+}

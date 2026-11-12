@@ -1,0 +1,73 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('phantump', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.1, -0.2, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('phantump', 'sleep')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('phantump', 'faint')"
+      },
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "stand": {
+      "animations": ["q.bedrock('phantump', 'ground_idle')"],
+      "isBattle": false,
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('phantump', 'faint')"
+      },
+      "poseName": "stand",
+      "poseTypes": ["STAND", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('phantump', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "hover": {
+      "animations": ["q.bedrock('phantump', 'air_idle')"],
+      "poseName": "hover",
+      "poseTypes": ["HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('phantump', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "fly": {
+      "animations": ["q.bedrock('phantump', 'air_fly')"],
+      "poseName": "fly",
+      "poseTypes": ["FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('phantump', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('phantump', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('phantump', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('phantump', 'blink', 8, 30, 1)"],
+      "transformTicks": 5,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.bedrock('phantump', 'battle_idle')"],
+      "isBattle": true,
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('phantump', 'battle_faint')"
+      },
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('phantump', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.9,
+  "profileTranslation": [0, 0.5, 0],
+  "rootBone": "phantump"
+}

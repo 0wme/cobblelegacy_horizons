@@ -1,0 +1,54 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('roserade', 'cry')"
+  },
+  "portraitScale": 2.64,
+  "portraitTranslation": [-0.29, 0.49, 0],
+  "poses": {
+    "sleep": {
+      "animations": ["q.bedrock('roserade', 'sleep')"],
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('roserade', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": [
+        "q.bedrock_quirk('roserade', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('roserade', 'quirk_idle', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('roserade', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('roserade', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('roserade', 'battle_idle')"],
+      "isBattle": true,
+      "namedAnimations": {
+        "cry": "q.bedrock_stateful('roserade', 'battle_cry')"
+      },
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('roserade', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('roserade', 'quirk_idle', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.65,
+  "profileTranslation": [0, 0.76, 0],
+  "rootBone": "roserade"
+}

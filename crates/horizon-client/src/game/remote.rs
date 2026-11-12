@@ -629,6 +629,8 @@ pub(super) struct Remote {
     /// follows (`horizon:menu_extra`).
     menu_extra: Option<horizon_protocol::menu_extra::Message>,
     entities: HashMap<i32, Tracked>,
+    /// A Cobblemon server's Pokémon (`remote_pokemon.rs`).
+    pokemon: pokemon::Pokemon,
     /// Per-tick remote entity scratch retained between frames.
     tick_fluids: Vec<Option<horizon_client::mobs::living::Fluids>>,
     tick_rain: Vec<bool>,
@@ -1202,6 +1204,7 @@ impl Game<'_> {
             use_target: None,
             menu_extra: None,
             entities: HashMap::new(),
+            pokemon: Default::default(),
             tick_fluids: Vec::new(),
             tick_rain: Vec::new(),
             tick_standings: Vec::new(),
@@ -1432,6 +1435,7 @@ impl Game<'_> {
             use_target: None,
             menu_extra: None,
             entities: HashMap::new(),
+            pokemon: Default::default(),
             tick_fluids: Vec::new(),
             tick_rain: Vec::new(),
             tick_standings: Vec::new(),
@@ -3342,6 +3346,10 @@ impl Game<'_> {
                     }
                     Err(e) => log::debug!("Horizon: a bad menu extra payload: {e}"),
                 }
+            }
+            // A Cobblemon server's own messages: a Pokémon in place of AddEntity, its data, the Pokédex.
+            C::CustomPayload(p) if pokemon::reads(&p.channel) => {
+                self.remote_pokemon_payload(&p.channel, &p.data);
             }
             C::CustomPayload(p) if p.channel == horizon_client::lan::recipes::TRANSFER_CHANNEL => {
                 self.remote_recipe_transfer(&p.data);
@@ -9770,6 +9778,10 @@ impl Game<'_> {
             }
             return Ok(false);
         }
+        // CobbleLegacy: the keys of a Cobblemon server's party (`remote_pokemon_party.rs`).
+        if self.pokemon_party_key(key) {
+            return Ok(true);
+        }
         match key {
             KeyCode::KeyT | KeyCode::Slash | KeyCode::Enter => {
                 // ChatScreen, over the server's command tree.
@@ -11614,6 +11626,8 @@ fn in_storage_range(view_distance: i32, center: (i32, i32), x: i32, z: i32) -> b
 }
 
 // A packet's removals (`RemoveEntities`), apart: this file may not grow.
+#[path = "remote_pokemon.rs"]
+mod pokemon;
 #[path = "remote_removal.rs"]
 mod removal;
 #[cfg(test)]

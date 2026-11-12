@@ -1,0 +1,49 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('rapidash_galar', 'cry')"
+  },
+  "portraitScale": 1.86,
+  "portraitTranslation": [-0.5, 1.3, 0],
+  "poses": {
+    "standing": {
+      "animations": [
+        "q.look('neck', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('rapidash_galar', 'ground_idle')",
+        "q.bedrock('rapidash_galar', 'hair')"
+      ],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('rapidash_galar', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [
+        "q.look('neck', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('rapidash_galar', 'ground_walk')",
+        "q.bedrock('rapidash_galar', 'hair')"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('rapidash_galar', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": [
+        "q.look('neck', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('rapidash_galar', 'battle_idle')",
+        "q.bedrock('rapidash_galar', 'hair')"
+      ],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.67,
+  "profileTranslation": [0, 0.72, 0],
+  "rootBone": "rapidash_galar"
+}

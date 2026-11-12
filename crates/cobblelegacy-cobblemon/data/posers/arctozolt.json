@@ -1,0 +1,116 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('arctozolt', 'cry')"
+  },
+  "portraitScale": 0.85,
+  "portraitTranslation": [-0.45, 2.15, 0],
+  "poses": {
+    "sleep": {
+      "animations": ["q.bedrock('arctozolt', 'sleep')"],
+      "isTouchingWater": false,
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "surface_sleep": {
+      "animations": ["q.bedrock('arctozolt', 'surfacewater_sleep')"],
+      "isTouchingWater": true,
+      "isUnderWater": false,
+      "poseName": "surface_sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "water_sleep": {
+      "animations": ["q.bedrock('arctozolt', 'surfacewater_sleep')"],
+      "isTouchingWater": true,
+      "isUnderWater": true,
+      "poseName": "water_sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "arctozolt", "position": [0, -53, 0]}
+      ]
+    },
+    "standing": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('arctozolt', 'ground_idle')"],
+      "isBattle": false,
+      "isTouchingWater": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "PROFILE", "PORTRAIT"],
+      "quirks": [
+        "q.bedrock_quirk('arctozolt', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('arctozolt', 'quirk', 30, 60, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('arctozolt', 'ground_walk')"],
+      "isTouchingWater": false,
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY"],
+      "quirks": ["q.bedrock_quirk('arctozolt', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "float": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('arctozolt', 'water_idle')"],
+      "isUnderWater": true,
+      "poseName": "float",
+      "poseTypes": ["FLOAT"],
+      "quirks": ["q.bedrock_quirk('arctozolt', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swim": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('arctozolt', 'water_swim')"],
+      "isUnderWater": true,
+      "poseName": "swim",
+      "poseTypes": ["SWIM"],
+      "quirks": ["q.bedrock_quirk('arctozolt', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "surfacefloat": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('arctozolt', 'surfacewater_idle')"],
+      "isTouchingWater": true,
+      "isUnderWater": false,
+      "poseName": "surfacefloat",
+      "poseTypes": ["STAND"],
+      "quirks": [
+        "q.bedrock_quirk('arctozolt', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('arctozolt', 'quirk', 30, 60, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "surfaceswim": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('arctozolt', 'surfacewater_swim')"],
+      "isTouchingWater": true,
+      "isUnderWater": false,
+      "poseName": "surfaceswim",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('arctozolt', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battleidle": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('arctozolt', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battleidle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('arctozolt', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('arctozolt', 'quirk', 30, 60, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.33,
+  "profileTranslation": [0.02, 1.14, 0],
+  "rootBone": "arctozolt"
+}

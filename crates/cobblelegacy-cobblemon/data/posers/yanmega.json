@@ -1,0 +1,49 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('yanmega', 'cry')"
+  },
+  "portraitScale": 1.6,
+  "portraitTranslation": [-0.55, -0.9, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('yanmega', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "FLOAT", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('yanmega', 'air_idle')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "yanmega", "position": [0, -4, 0]}
+      ]
+    },
+    "hovering": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('yanmega', 'air_idle')"],
+      "poseName": "hovering",
+      "poseTypes": ["HOVER"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "yanmega", "position": [0, -4, 0]}
+      ]
+    },
+    "flying": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('yanmega', 'air_idle')"],
+      "poseName": "flying",
+      "poseTypes": ["FLY"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "yanmega", "position": [0, -4, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.61,
+  "profileTranslation": [0, 0.8, 0],
+  "rootBone": "yanmega"
+}

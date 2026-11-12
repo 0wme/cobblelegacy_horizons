@@ -1,0 +1,39 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('spewpa', 'cry')",
+    "faint": "q.bedrock_stateful('spewpa', 'faint')"
+  },
+  "portraitScale": 2.8,
+  "portraitTranslation": [0, -1.8, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('spewpa', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('spewpa', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": [
+        "q.bedrock_quirk('spewpa', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('spewpa', 'quirk_fluff', 60, 360, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('spewpa', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('spewpa', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 1.2,
+  "profileTranslation": [0, 0, 0],
+  "rootBone": "spewpa"
+}

@@ -69,6 +69,9 @@ pub enum Anim {
     Ghast,
     Blaze,
     Strider,
+    /// A model that brings its own animation (CobbleLegacy's fork: a Pokémon's Bedrock files), by its
+    /// number in `own`'s table. None of vanilla's animations poses it.
+    Own(u32),
     /// The humanoid model of the earlier simple renderer.
     Humanoid {
         zombie_arms: bool,
@@ -113,6 +116,11 @@ pub(crate) fn key(name: &str) -> u64 {
     // The length too, so "a" and "a\0" differ (str's own Hash adds a terminator).
     h.write_usize(name.len());
     h.finish()
+}
+/// [`key`] for an animation outside this crate that poses the same parts every draw: it looks each
+/// name up once and then goes by [`Poses::by_key`].
+pub fn part_key(name: &str) -> u64 {
+    key(name)
 }
 /// Part poses for one draw, keyed by part name.
 #[derive(Clone, Default)]
@@ -219,6 +227,17 @@ impl Poses {
     }
     pub fn pose(&self, part: &Part) -> [f32; 9] {
         self.map.get(&key(&part.name)).copied().unwrap_or(part.pose)
+    }
+    /// `get` by a [`part_key`]. `None`: the model has no such part.
+    pub fn by_key(&mut self, key: u64) -> Option<&mut [f32; 9]> {
+        self.changed();
+        self.map.get_mut(&key)
+    }
+    /// `visible(name, false)` by a [`part_key`].
+    pub fn hide_key(&mut self, key: u64) {
+        if self.map.contains_key(&key) && self.hidden.insert(key) {
+            self.changed();
+        }
     }
     pub fn skip_draw(&mut self, name: &str) {
         if self.skipped.insert(key(name)) {
@@ -826,6 +845,8 @@ fn vanilla_setup(
         Anim::CopperGolem => super::copper_golem::anim(m, s, p, w_anims),
         Anim::HappyGhast => super::happy_ghast::anim(m, s, p),
         Anim::Nautilus => super::nautilus::anim(m, s, p, w_anims),
+        // Its parts are its species' own: nothing here knows their names.
+        Anim::Own(animation) => super::own::setup(animation, m, s, p),
         // body_anim::llama runs first.
         Anim::Llama => quadruped(p, s),
         Anim::Warden => super::warden::anim(m, s, p, w_anims),

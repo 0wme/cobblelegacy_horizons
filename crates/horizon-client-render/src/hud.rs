@@ -149,6 +149,18 @@ pub const MOD_IMAGE_SIZE: u32 = 1024;
 /// (`skins::SkinSlots`): skins drawn in the last frame keep theirs, and a
 /// skin past them shows the default skin until a slot frees up.
 pub const SKIN_SLOTS: usize = 128;
+/// Atlas slots for the textures of a Cobblemon server's Pokémon (CobbleLegacy's fork), each
+/// `POKEMON_SLOT_SIZE` square: a species' texture is uploaded into one the first time the species is
+/// seen. Cobblemon 1.8.1's textures are 32 to 512 texels wide, and all but ten fit 256.
+pub const POKEMON_SLOTS: usize = 96;
+pub const POKEMON_SLOT_SIZE: u32 = 256;
+/// Whether the atlas reserves `POKEMON_SLOTS`: only when `HORIZON_COBBLEMON_ROOT` names Cobblemon's
+/// resources, so the atlas of every other run is what it was.
+pub fn pokemon_slots() -> bool {
+    static ON: std::sync::LazyLock<bool> =
+        std::sync::LazyLock::new(|| std::env::var_os("HORIZON_COBBLEMON_ROOT").is_some());
+    *ON
+}
 /// Reused by the visible rows of the classic world selector.
 pub const WORLD_ICON_SLOTS: usize = 32;
 /// Atlas slots for the pack icons on the pack screen, one per icon drawn
@@ -930,6 +942,17 @@ impl HudAtlas {
         // Downloaded skins (game/scoreboard.rs).
         for i in 0..SKIN_SLOTS {
             images.push((format!("horizon/skin{i}"), 64, 64, Vec::new()));
+        }
+        // A Cobblemon server's Pokémon (game/remote_pokemon.rs).
+        if pokemon_slots() {
+            for i in 0..POKEMON_SLOTS {
+                images.push((
+                    format!("horizon/pokemon{i}"),
+                    POKEMON_SLOT_SIZE,
+                    POKEMON_SLOT_SIZE,
+                    Vec::new(),
+                ));
+            }
         }
         for i in 0..TRIM_SLOTS {
             images.push((format!("horizon/trim{i}"), trim.0, trim.1, Vec::new()));

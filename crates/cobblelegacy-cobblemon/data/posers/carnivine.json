@@ -1,0 +1,57 @@
+{
+  "portraitScale": 1.07,
+  "portraitTranslation": [-0.42, 0.9, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('carnivine', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": [
+        "q.bedrock_quirk('carnivine', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('carnivine', 'quirk_ground_idle', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('carnivine', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "SWIM"],
+      "quirks": ["q.bedrock_quirk('carnivine', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "hover": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('carnivine', 'air_idle')"],
+      "poseName": "hover",
+      "poseTypes": ["HOVER"],
+      "quirks": [
+        "q.bedrock_quirk('carnivine', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('carnivine', 'quirk_ground_idle', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "flying": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('carnivine', 'air_fly')"],
+      "poseName": "flying",
+      "poseTypes": ["FLY"],
+      "quirks": ["q.bedrock_quirk('carnivine', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('carnivine', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('carnivine', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.5,
+  "profileTranslation": [0, 0.98, 0],
+  "rootBone": "carnivine"
+}

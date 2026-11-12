@@ -1,0 +1,23 @@
+{
+  "portraitScale": 3,
+  "portraitTranslation": [-0.1, -2.5, 0],
+  "poses": {
+    "standing": {
+      "animations": [],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.biped_walk(1, 0.5, 'left_foot', 'right_foot')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 1.2,
+  "profileTranslation": [0, 0, 0],
+  "rootBone": "bounsweet"
+}

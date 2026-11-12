@@ -1,0 +1,36 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('raticate', 'cry')",
+    "faint": "q.bedrock_stateful('raticate', 'faint')"
+  },
+  "portraitScale": 1.5,
+  "portraitTranslation": [-0.2, 0, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('raticate', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('raticate', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('raticate', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "WALK": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('raticate', 'ground_walk')"],
+      "poseName": "WALK",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('raticate', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 1,
+  "profileTranslation": [0, 0.22, 0],
+  "rootBone": "raticate"
+}

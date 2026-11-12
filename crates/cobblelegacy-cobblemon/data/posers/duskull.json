@@ -1,0 +1,59 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('duskull', 'cry')",
+    "faint": "q.bedrock_stateful('duskull', 'faint')"
+  },
+  "portraitScale": 1.6,
+  "portraitTranslation": [-0.25, -0.77, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('duskull', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.bedrock('duskull', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.bedrock('duskull', 'ground_walk')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "hover": {
+      "animations": ["q.bedrock('duskull', 'air_idle')"],
+      "isBattle": false,
+      "poseName": "hover",
+      "poseTypes": ["PROFILE", "PORTRAIT", "HOVER", "FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "fly": {
+      "animations": ["q.bedrock('duskull', 'air_fly')"],
+      "isBattle": false,
+      "poseName": "fly",
+      "poseTypes": ["FLY", "SWIM", "WALK"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.bedrock('duskull', 'battle_idle')"],
+      "isBattle": true,
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.35, 0],
+  "rootBone": "duskull"
+}

@@ -1,0 +1,34 @@
+{
+  "portraitScale": 2.2,
+  "portraitTranslation": [-0.25, -0.5, 0],
+  "poses": {
+    "portrait": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('crabrawler', 'portrait')"],
+      "poseName": "portrait",
+      "poseTypes": ["PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('crabrawler', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('crabrawler', 'ground_idle')",
+        "q.bedrock('crabrawler', 'ground_walk')"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.65,
+  "profileTranslation": [0, 0.7, 0],
+  "rootBone": "crabrawler"
+}

@@ -1,0 +1,150 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('squirtle', 'cry')",
+    "physical": "q.bedrock_primary('squirtle', 'physical', 'look', q.curve('symmetrical_wide'))",
+    "recoil": "q.bedrock_stateful('squirtle', 'recoil')",
+    "special": "q.bedrock_primary('squirtle', 'special', 'look', q.curve('symmetrical_wide'))",
+    "status": "q.bedrock_primary('squirtle', 'status', q.curve('symmetrical_wide'))"
+  },
+  "portraitScale": 2.02,
+  "portraitTranslation": [-0.26, -0.21, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('squirtle', 'sleep')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_primary('squirtle', 'faint', q.curve('one'))"
+      },
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "quirks": ["q.bedrock_quirk('squirtle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('squirtle', 'ground_idle')"],
+      "isBattle": false,
+      "isTouchingWater": false,
+      "namedAnimations": {
+        "faint": "q.bedrock_primary('squirtle', 'faint', q.curve('one'))"
+      },
+      "poseName": "standing",
+      "poseTypes": ["STAND", "PROFILE", "PORTRAIT"],
+      "quirks": [
+        "q.bedrock_quirk('squirtle', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('squirtle', 'quirk_ground_idle', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_standing": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('squirtle', 'battle_idle')"],
+      "isBattle": true,
+      "namedAnimations": {
+        "faint": "q.bedrock_primary('squirtle', 'faint', q.curve('one'))"
+      },
+      "poseName": "battle_standing",
+      "poseTypes": ["STAND"],
+      "quirks": [
+        "q.bedrock_quirk('squirtle', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('squirtle', 'quirk_ground_idle', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('squirtle', 'ground_walk')"],
+      "isTouchingWater": false,
+      "namedAnimations": {
+        "faint": "q.bedrock_primary('squirtle', 'faint', q.curve('one'))"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('squirtle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "floating": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('squirtle', 'water_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_primary('squirtle', 'faint', q.curve('one'))"
+      },
+      "poseName": "floating",
+      "poseTypes": ["FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('squirtle', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('squirtle', 'quirk_water', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swimming": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('squirtle', 'water_swim')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_primary('squirtle', 'faint', q.curve('one'))"
+      },
+      "poseName": "swimming",
+      "poseTypes": ["SWIM"],
+      "quirks": ["q.bedrock_quirk('squirtle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "surface_idle": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('squirtle', 'surfacewater_idle')"],
+      "isTouchingWater": true,
+      "namedAnimations": {
+        "faint": "q.bedrock_primary('squirtle', 'faint', q.curve('one'))"
+      },
+      "poseName": "surface_idle",
+      "poseTypes": ["STAND"],
+      "quirks": ["q.bedrock_quirk('squirtle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "squirtle", "position": [0, -10, 0]}
+      ]
+    },
+    "surface_swim": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('squirtle', 'surfacewater_swim')"],
+      "isTouchingWater": true,
+      "namedAnimations": {
+        "faint": "q.bedrock_primary('squirtle', 'faint', q.curve('one'))"
+      },
+      "poseName": "surface_swim",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('squirtle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "squirtle", "position": [0, -10, 0]}
+      ]
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('squirtle', 'shoulder_left')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('squirtle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "squirtle", "position": [0, -2, 0]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('squirtle', 'shoulder_right')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('squirtle', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "squirtle", "position": [0, -2, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.78,
+  "profileTranslation": [0, 0.57, 0],
+  "properties": {
+    "item_display_context": "THIRD_PERSON_RIGHT_HAND"
+  },
+  "rootBone": "squirtle"
+}

@@ -1,0 +1,31 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('lillipup', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.4, -0.7, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)"],
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('lillipup', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [
+        "q.quadruped_walk(1.1, 1.4, 'leg_front_left', 'leg_front_right', 'leg_back_left1', 'leg_back_right1')",
+        "q.look('head', 1, 1, 70, -45, 45, -45)"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('lillipup', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.52, 0],
+  "rootBone": "lillipup"
+}

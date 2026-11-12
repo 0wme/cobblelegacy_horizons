@@ -30,6 +30,10 @@ pub fn main_with(mods: crate::mod_api::Mods) {
     horizon_hooks::engine::seal();
     // The text crates ship (`horizon_hooks::lang`), loaded with the game's own languages.
     horizon_client::lang::install_crate_files(horizon_hooks::lang::engine::all());
+    // CobbleLegacy's fork: Cobblemon's own text (its Pokémon's names), from where its models are read.
+    if let Some(roots) = std::env::var_os("HORIZON_COBBLEMON_ROOT") {
+        horizon_client::lang::install_extra_roots(std::env::split_paths(&roots).collect());
+    }
     horizon_client::spans::startup::init(std::time::Instant::now());
     horizon_client::spans::trace::start_from_env();
     let args: Vec<String> = std::env::args().skip(1).collect();

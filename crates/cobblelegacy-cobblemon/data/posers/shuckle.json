@@ -1,0 +1,39 @@
+{
+  "portraitScale": 2.2,
+  "portraitTranslation": [-0.7, 0.1, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('shuckle', 'ground_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('shuckle', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('ditto', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('shuckle', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('shuckle', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('ditto', 'blink', 8, 30, 1)"],
+      "transformTicks": 5,
+      "transformToTicks": 10
+    },
+    "sleep": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('shuckle', 'sleep')"],
+      "poseName": "sleep",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('ditto', 'blink', 8, 30, 1)"],
+      "transformTicks": 5,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.6,
+  "profileTranslation": [0, 0.8, 0],
+  "rootBone": "shuckle"
+}

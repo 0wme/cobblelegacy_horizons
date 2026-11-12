@@ -1,0 +1,80 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('unfezant', 'cry')"
+  },
+  "portraitScale": 2.1,
+  "portraitTranslation": [-0.5, 1.5, 0],
+  "poses": {
+    "stand": {
+      "animations": ["q.look('head_ai', 1, 1, 70, -45, 45, -45)", "q.bedrock('unfezant', 'ground_idle')"],
+      "poseName": "stand",
+      "poseTypes": ["STAND", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('unfezant', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "open_left"},
+        {"isVisible": false, "part": "open_right"},
+        {"isVisible": true, "part": "closed_left"},
+        {"isVisible": true, "part": "closed_right"}
+      ]
+    },
+    "walk": {
+      "animations": [
+        "q.look('head_ai', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('unfezant', 'ground_idle')",
+        "q.biped_walk(0.6662, 1.4, 'leg_left', 'leg_right')"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": ["q.bedrock_quirk('unfezant', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "open_left"},
+        {"isVisible": false, "part": "open_right"},
+        {"isVisible": true, "part": "closed_left"},
+        {"isVisible": true, "part": "closed_right"}
+      ]
+    },
+    "floating": {
+      "animations": [
+        "q.look('head_ai', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('unfezant', 'air_idle')",
+        "q.sine_wing_flap(0.6, 0.9, -0.17453286, 'z', 'wing_left', 'wing_right')"
+      ],
+      "poseName": "floating",
+      "poseTypes": ["FLOAT", "HOVER"],
+      "quirks": ["q.bedrock_quirk('unfezant', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": true, "part": "open_left"},
+        {"isVisible": true, "part": "open_right"},
+        {"isVisible": false, "part": "closed_left"},
+        {"isVisible": false, "part": "closed_right"}
+      ]
+    },
+    "flying": {
+      "animations": [
+        "q.look('head_ai', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('unfezant', 'air_idle')",
+        "q.sine_wing_flap(0.9, 0.9, -0.24434601, 'z', 'wing_left', 'wing_right')"
+      ],
+      "poseName": "flying",
+      "poseTypes": ["FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('unfezant', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": true, "part": "open_left"},
+        {"isVisible": true, "part": "open_right"},
+        {"isVisible": false, "part": "closed_left"},
+        {"isVisible": false, "part": "closed_right"}
+      ]
+    }
+  },
+  "profileScale": 0.7,
+  "profileTranslation": [0, 0.7, 0],
+  "rootBone": "unfezant"
+}

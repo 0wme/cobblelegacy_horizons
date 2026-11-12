@@ -1,0 +1,61 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('cufant', 'cry')",
+    "physical": "q.bedrock_primary('cufant', 'physical', 'look', q.curve('symmetrical_wide'))",
+    "recoil": "q.bedrock_stateful('cufant', 'recoil')",
+    "special": "q.bedrock_primary('cufant', 'special', 'look', q.curve('symmetrical_wide'))",
+    "status": "q.bedrock_primary('cufant', 'status', q.curve('symmetrical_wide'))"
+  },
+  "portraitScale": 1.5,
+  "portraitTranslation": [-0.32, 0.13, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('cufant', 'sleep')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_primary('cufant', 'faint', q.curve('one'))"
+      },
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.bedrock('cufant', 'ground_idle')"],
+      "isBattle": false,
+      "namedAnimations": {
+        "faint": "q.bedrock_primary('cufant', 'faint', q.curve('one'))"
+      },
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('cufant', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('cufant', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_primary('cufant', 'faint', q.curve('one'))"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('cufant', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.bedrock('cufant', 'battle_idle')"],
+      "isBattle": true,
+      "namedAnimations": {
+        "faint": "q.bedrock_primary('cufant', 'faint', q.curve('one'))"
+      },
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('cufant', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.62,
+  "profileTranslation": [0.05, 0.8, 0],
+  "rootBone": "cufant"
+}

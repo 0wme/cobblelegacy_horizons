@@ -1,0 +1,93 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('archen', 'cry')"
+  },
+  "portraitScale": 1.81,
+  "portraitTranslation": [-0.32, -0.07, 0],
+  "poses": {
+    "sleep": {
+      "animations": ["q.bedrock('archen', 'sleep')"],
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('archen', 'ground_idle')"],
+      "isBattle": false,
+      "isTouchingWater": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": [
+        "q.bedrock_quirk('archen', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('archen', 'idle_quirk', 30, 60, 1)",
+        "q.bedrock_quirk('archen', 'quirk', 30, 60, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('archen', 'ground_walk')"],
+      "isTouchingWater": false,
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY"],
+      "quirks": ["q.bedrock_quirk('archen', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swim": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('archen', 'surfacewater_swim')"],
+      "isTouchingWater": true,
+      "poseName": "swim",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('archen', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "float": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('archen', 'surfacewater_idle')"],
+      "isTouchingWater": true,
+      "poseName": "float",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('archen', 'blink', 8, 30, 1)", "q.bedrock_quirk('archen', 'idle_quirk', 30, 60, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('archen', 'battle_idle')"],
+      "namedAnimations": {
+        "cry": "q.bedrock_stateful('archen', 'battle_cry')"
+      },
+      "poseName": "battle_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('archen', 'blink', 8, 30, 1)", "q.bedrock_quirk('archen', 'quirk', 30, 60, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('archen', 'shoulder_left')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('archen', 'blink', 8, 30, 1)", "q.bedrock_quirk('archen', 'quirk', 30, 60, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "archen"}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('archen', 'shoulder_right')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('archen', 'blink', 8, 30, 1)", "q.bedrock_quirk('archen', 'quirk', 30, 60, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "archen"}
+      ]
+    }
+  },
+  "profileScale": 0.58,
+  "profileTranslation": [-0.02, 0.87, 0],
+  "rootBone": "archen"
+}

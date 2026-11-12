@@ -1,0 +1,30 @@
+{
+  "portraitScale": 2.6,
+  "portraitTranslation": [-1.3, -2.5, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('huntail', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "WALK"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "floating": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('huntail', 'water_idle')"],
+      "poseName": "floating",
+      "poseTypes": ["PROFILE", "PORTRAIT", "FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swimming": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('huntail', 'water_swim')"],
+      "poseName": "swimming",
+      "poseTypes": ["SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.9,
+  "profileTranslation": [0, 0, 0],
+  "rootBone": "huntail"
+}

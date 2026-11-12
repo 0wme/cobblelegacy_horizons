@@ -1,0 +1,41 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('vivillon', 'cry')"
+  },
+  "portraitScale": 2.8,
+  "portraitTranslation": [-0.3, 0.2, 0],
+  "poses": {
+    "sleep": {
+      "animations": ["q.bedrock('vivillon', 'sleep')"],
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('vivillon', 'air_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('vivillon', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "vivillon", "position": [0, -10, 0]}
+      ]
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('vivillon', 'air_fly')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('vivillon', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "vivillon", "position": [0, -10, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.7,
+  "profileTranslation": [0.1, 0.8, 0],
+  "rootBone": "vivillon"
+}

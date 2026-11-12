@@ -264,6 +264,12 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             // (after TamableAnimal's flags and owner).
             (Species::Axolotl, 18, Value::Int(v)) => m.extra.variant = (*v).clamp(0, 4) as u8,
             (Species::Parrot, 20, Value::Int(v)) => m.extra.variant = (*v).clamp(0, 4) as u8,
+            // Cobblemon's `PokemonEntity.MOVING`, at a 1.21.1 server's own index (the adapter knows no
+            // layout for a Pokémon, so nothing renumbers it): walking or standing, flying or hovering.
+            // Kept in the variant's top bit, beside the pose it appeared in (`remote_pokemon.rs`).
+            (Species::Pokemon, 24, Value::Bool(moving)) => {
+                m.extra.variant = (m.extra.variant & 0x7F) | (u8::from(*moving) << 7);
+            }
             // Rabbit.DATA_TYPE_ID: the killer bunny's 99 has no model here.
             (Species::Rabbit, 18, Value::Int(t)) if (0..=5).contains(t) => {
                 m.extra.variant = *t as u8;
@@ -507,6 +513,8 @@ impl Game<'_> {
                 m.extra.ints[1] = code;
             }
         }
+        // CobbleLegacy's fork: a Pokémon's label reads its name and whether it shows.
+        self.remote_pokemon_label_data(id, values);
     }
 }
 

@@ -1,0 +1,42 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('beedrill', 'cry')"
+  },
+  "portraitScale": 1.9,
+  "portraitTranslation": [0.05, 0.9, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('beedrill', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "beedrill", "position": [0, -3, 0]}
+      ]
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('beedrill', 'air_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "beedrill", "position": [0, -10, 0]}
+      ]
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('beedrill', 'air_fly')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "beedrill", "position": [0, -5, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [-0.1, 0.9, 0],
+  "rootBone": "beedrill"
+}

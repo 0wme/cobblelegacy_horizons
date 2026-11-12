@@ -1,0 +1,92 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('charcadet', 'cry')"
+  },
+  "portraitScale": 1.7,
+  "portraitTranslation": [-0.15, 0.08, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": [
+        "q.bedrock('charcadet', 'sleep')",
+        "q.bedrock('charcadet', 'eye_flame_overlay')",
+        "q.bedrock('charcadet', 'head_flame_overlay')"
+      ],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('charcadet', 'faint')"
+      },
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('charcadet', 'ground_idle')",
+        "q.bedrock('charcadet', 'eye_flame_overlay')",
+        "q.bedrock('charcadet', 'head_flame_overlay')"
+      ],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('charcadet', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('charcadet', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('charcadet', 'ground_walk')",
+        "q.bedrock('charcadet', 'eye_flame_overlay')",
+        "q.bedrock('charcadet', 'head_flame_overlay')"
+      ],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('charcadet', 'faint')"
+      },
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('charcadet', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('charcadet', 'shoulder_left')",
+        "q.bedrock('charcadet', 'eye_flame_overlay')",
+        "q.bedrock('charcadet', 'head_flame_overlay')"
+      ],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('charcadet', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "charcadet", "position": [0, -0.1, 0]},
+        {"part": "charcadet", "position": [0, 0, -1.1]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('charcadet', 'shoulder_right')",
+        "q.bedrock('charcadet', 'eye_flame_overlay')",
+        "q.bedrock('charcadet', 'head_flame_overlay')"
+      ],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('charcadet', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "charcadet", "position": [0, -0.1, 0]},
+        {"part": "charcadet", "position": [0, 0, -1.1]}
+      ]
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.6, 0],
+  "rootBone": "charcadet"
+}

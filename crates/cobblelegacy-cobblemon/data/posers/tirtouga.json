@@ -1,0 +1,60 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('tirtouga', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.9, -1.65, 0],
+  "poses": {
+    "sleep": {
+      "animations": ["q.bedrock('tirtouga', 'sleep')"],
+      "isTouchingWater": false,
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "water_sleep": {
+      "animations": ["q.bedrock('tirtouga', 'water_sleep')"],
+      "isTouchingWater": true,
+      "poseName": "water_sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('tirtouga', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('tirtouga', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('tirtouga', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY"],
+      "quirks": ["q.bedrock_quirk('tirtouga', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "float": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('tirtouga', 'water_idle')"],
+      "poseName": "float",
+      "poseTypes": ["FLOAT"],
+      "quirks": ["q.bedrock_quirk('tirtouga', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swim": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('tirtouga', 'water_swim')"],
+      "poseName": "swim",
+      "poseTypes": ["SWIM"],
+      "quirks": ["q.bedrock_quirk('tirtouga', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.6,
+  "profileTranslation": [0, 0.65, 0],
+  "rootBone": "tirtouga"
+}

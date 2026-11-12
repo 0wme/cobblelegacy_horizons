@@ -1,0 +1,51 @@
+{
+  "portraitScale": 1.8,
+  "portraitTranslation": [0, -0.2, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.bedrock('bellossom', 'ground_idle')", "q.look('head', 1, 1, 70, -45, 45, -45)"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('bellossom', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [
+        "q.bedrock('bellossom', 'ground_idle')",
+        "q.bedrock('bellossom', 'ground_walk')",
+        "q.look('head', 1, 1, 70, -45, 45, -45)"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('bellossom', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "SHOULDER_LEFT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('bellossom', 'ground_idle')"],
+      "poseName": "SHOULDER_LEFT",
+      "poseTypes": ["SHOULDER_LEFT"],
+      "quirks": ["q.bedrock_quirk('bellossom', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "bellossom", "position": [5, 0, 0]}
+      ]
+    },
+    "SHOULDER_RIGHT": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('bellossom', 'ground_idle')"],
+      "poseName": "SHOULDER_RIGHT",
+      "poseTypes": ["SHOULDER_RIGHT"],
+      "quirks": ["q.bedrock_quirk('bellossom', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "bellossom", "position": [-5, 0, 0]}
+      ]
+    }
+  },
+  "profileScale": 1,
+  "profileTranslation": [0, 0.21, 0],
+  "rootBone": "bellossom"
+}

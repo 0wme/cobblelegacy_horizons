@@ -1,0 +1,76 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('wimpod', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.35, -1.6, 0],
+  "poses": {
+    "sleeping": {
+      "animations": ["q.bedrock('wimpod', 'sleep')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('wimpod', 'faint')"
+      },
+      "poseName": "sleeping",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 0, 1, 70, -45, 45, -45)", "q.bedrock('wimpod', 'ground_idle')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('wimpod', 'faint')"
+      },
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "PORTRAIT", "STAND"],
+      "quirks": [
+        "q.bedrock_quirk('wimpod', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('wimpod', 'twitch_quirk_left', 8, 30, 1)",
+        "q.bedrock_quirk('wimpod', 'twitch_quirk_right', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 0, 1, 70, -45, 45, -45)", "q.bedrock('wimpod', 'ground_walk')"],
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('wimpod', 'faint')"
+      },
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "quirks": [
+        "q.bedrock_quirk('wimpod', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('wimpod', 'twitch_quirk_left', 8, 30, 1)",
+        "q.bedrock_quirk('wimpod', 'twitch_quirk_right', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "floating": {
+      "animations": ["q.look('head', 0, 1, 70, -45, 45, -45)", "q.bedrock('wimpod', 'water_idle')"],
+      "poseName": "floating",
+      "poseTypes": ["FLOAT"],
+      "quirks": [
+        "q.bedrock_quirk('wimpod', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('wimpod', 'twitch_quirk_left', 8, 30, 1)",
+        "q.bedrock_quirk('wimpod', 'twitch_quirk_right', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swimming": {
+      "animations": ["q.look('head', 0, 1, 70, -45, 45, -45)", "q.bedrock('wimpod', 'water_swim')"],
+      "poseName": "swimming",
+      "poseTypes": ["SWIM"],
+      "quirks": [
+        "q.bedrock_quirk('wimpod', 'blink', 8, 30, 1)",
+        "q.bedrock_quirk('wimpod', 'twitch_quirk_left', 8, 30, 1)",
+        "q.bedrock_quirk('wimpod', 'twitch_quirk_right', 8, 30, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.7,
+  "profileTranslation": [0, 0.71, 0],
+  "rootBone": "wimpod"
+}

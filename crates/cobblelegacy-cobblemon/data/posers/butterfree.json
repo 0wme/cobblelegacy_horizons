@@ -1,0 +1,39 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('butterfree', 'cry')"
+  },
+  "portraitScale": 2.4,
+  "portraitTranslation": [-0.1, 0.2, 0],
+  "poses": {
+    "SLEEP": {
+      "animations": ["q.bedrock('butterfree', 'sleep')"],
+      "poseName": "SLEEP",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('butterfree', 'air_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["NONE", "PROFILE", "PORTRAIT", "STAND", "HOVER", "FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "butterfree", "position": [0, -5, 0]}
+      ]
+    },
+    "walking": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('butterfree', 'air_fly')"],
+      "poseName": "walking",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "butterfree", "position": [0, -5, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.7,
+  "profileTranslation": [0.1, 0.8, 0],
+  "rootBone": "butterfree"
+}

@@ -1,0 +1,66 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('rowlet_hisui_bias', 'cry')"
+  },
+  "portraitScale": 1.77,
+  "portraitTranslation": [-0.3, -0.34, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.bedrock('rowlet_hisui_bias', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('rowlet_hisui_bias', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "wings_open"},
+        {"isVisible": true, "part": "wings_folded"}
+      ]
+    },
+    "hover": {
+      "animations": [
+        "q.bedrock('rowlet_hisui_bias', 'flying_idle')",
+        "q.sine_wing_flap(0.4, 1, -0.1396263, 'z', 'wing_open_left_main', 'wing_open_right_main')"
+      ],
+      "poseName": "hover",
+      "poseTypes": ["HOVER"],
+      "quirks": ["q.bedrock_quirk('rowlet_hisui_bias', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": true, "part": "wings_open"},
+        {"isVisible": false, "part": "wings_folded"}
+      ]
+    },
+    "fly": {
+      "animations": [
+        "q.bedrock('rowlet_hisui_bias', 'flying_idle')",
+        "q.sine_wing_flap(0.9, 0.9, -0.24434601, 'z', 'wing_open_left_main', 'wing_open_right_main')"
+      ],
+      "poseName": "fly",
+      "poseTypes": ["FLY"],
+      "quirks": ["q.bedrock_quirk('rowlet_hisui_bias', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": true, "part": "wings_open"},
+        {"isVisible": false, "part": "wings_folded"}
+      ]
+    },
+    "walk": {
+      "animations": ["q.bedrock('rowlet_hisui_bias', 'ground_idle')", "q.biped_walk(0.8, 0.7, 'foot_left', 'foot_right')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "SWIM"],
+      "quirks": ["q.bedrock_quirk('rowlet_hisui_bias', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"isVisible": false, "part": "wings_open"},
+        {"isVisible": true, "part": "wings_folded"}
+      ]
+    }
+  },
+  "profileScale": 0.76,
+  "profileTranslation": [-0.04, 0.58, 0],
+  "rootBone": "rowlet_hisui_bias"
+}

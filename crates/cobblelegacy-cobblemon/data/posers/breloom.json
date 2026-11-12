@@ -1,0 +1,53 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('breloom', 'cry')",
+    "faint": "q.bedrock_stateful('breloom', 'faint')"
+  },
+  "portraitScale": 2.3,
+  "portraitTranslation": [-0.1, 0.3, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('breloom', 'ground_idle')"],
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('breloom', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battlestanding": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('breloom', 'battle_idle')"],
+      "isBattle": true,
+      "namedAnimations": {
+        "faint": "q.bedrock_stateful('breloom', 'battle_faint')"
+      },
+      "poseName": "battlestanding",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('breloom', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "sleeping": {
+      "animations": ["q.bedrock('breloom', 'sleep')"],
+      "poseName": "sleeping",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('breloom', 'ground_idle')",
+        "q.bedrock('breloom', 'ground_walk')"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('breloom', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.6, 0],
+  "rootBone": "breloom"
+}

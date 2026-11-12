@@ -1,0 +1,88 @@
+{
+  "portraitScale": 3,
+  "portraitTranslation": [-0.2, -2.8, 0],
+  "poses": {
+    "non_water_sleep": {
+      "animations": ["q.bedrock('wingull', 'sleep')"],
+      "isTouchingWater": false,
+      "poseName": "non_water_sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "water_surface_sleep": {
+      "animations": ["q.bedrock('wingull', 'surfacewater_sleep')"],
+      "isTouchingWater": true,
+      "poseName": "water_surface_sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "wingull", "position": [0, -9, 0]}
+      ]
+    },
+    "standing": {
+      "animations": ["q.bedrock('wingull', 'ground_idle')"],
+      "isTouchingWater": false,
+      "poseName": "standing",
+      "poseTypes": ["SHOULDER_LEFT", "SHOULDER_RIGHT", "PROFILE", "PORTRAIT", "STAND", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('wingull', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "hover": {
+      "animations": ["q.bedrock('pelipper', 'air_idle')"],
+      "isTouchingWater": false,
+      "poseName": "hover",
+      "poseTypes": ["HOVER"],
+      "quirks": ["q.bedrock_quirk('wingull', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "fly": {
+      "animations": ["q.bedrock('pelipper', 'air_fly')"],
+      "isTouchingWater": false,
+      "poseName": "fly",
+      "poseTypes": ["FLY"],
+      "quirks": ["q.bedrock_quirk('wingull', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walking": {
+      "animations": ["q.bedrock('wingull', 'ground_walk')"],
+      "isTouchingWater": false,
+      "poseName": "walking",
+      "poseTypes": ["WALK", "SWIM"],
+      "quirks": ["q.bedrock_quirk('wingull', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "surface_idle": {
+      "animations": ["q.bedrock('wingull', 'surfacewater_idle')"],
+      "isTouchingWater": true,
+      "poseName": "surface_idle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('wingull', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "wingull", "position": [0, -9, 0]}
+      ]
+    },
+    "surface_swim": {
+      "animations": ["q.bedrock('wingull', 'surfacewater_swim')"],
+      "isTouchingWater": true,
+      "poseName": "surface_swim",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('wingull', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transformedParts": [
+        {"part": "wingull", "position": [0, -9, 0]}
+      ]
+    }
+  },
+  "profileScale": 0.85,
+  "profileTranslation": [0, 0.5, 0],
+  "rootBone": "wingull"
+}

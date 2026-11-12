@@ -1,0 +1,28 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('qwilfish', 'cry')"
+  },
+  "portraitScale": 2.12,
+  "portraitTranslation": [-0.26, -1.06, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.bedrock('qwilfish', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('qwilfish', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.bedrock('qwilfish', 'ground_idle')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('qwilfish', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.84,
+  "profileTranslation": [0.02, 0.54, 0],
+  "rootBone": "qwilfish"
+}

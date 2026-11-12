@@ -1,0 +1,58 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('gimmighoul_chest', 'cry')"
+  },
+  "portraitScale": 2.54,
+  "portraitTranslation": [-0.01, -1.6, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('gimmighoul_chest', 'ground_idle')"],
+      "condition": "q.has_entity ? !q.is_wild : 0.0",
+      "isBattle": false,
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "FLOAT", "PROFILE", "PORTRAIT"],
+      "quirks": [
+        "q.bedrock_quirk('gimmighoul_chest', 'blink', 8, 30, 1)",
+        "q.bedrock_primary_quirk('gimmighoul_chest', 'idle_quirk', 30, 120, 1)"
+      ],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "closed": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('gimmighoul_chest', 'mimic')"],
+      "condition": "q.has_entity ? q.is_wild : 1.0",
+      "isBattle": false,
+      "poseName": "closed",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('gimmighoul_chest', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10,
+      "transitions": {
+        "battle": "q.bedrock_stateful('gimmighoul_chest', 'surprise')"
+      }
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('gimmighoul_chest', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY", "SWIM"],
+      "quirks": ["q.bedrock_quirk('gimmighoul_chest', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "battle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('gimmighoul_chest', 'battle_idle')"],
+      "isBattle": true,
+      "namedAnimations": {
+        "cry": "q.bedrock_stateful('gimmighoul_chest', 'battle_cry')"
+      },
+      "poseName": "battle",
+      "poseTypes": ["STAND", "HOVER", "FLOAT"],
+      "quirks": ["q.bedrock_quirk('gimmighoul_chest', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.65,
+  "profileTranslation": [0, 0.76, 0],
+  "rootBone": "gimmighoul_chest"
+}

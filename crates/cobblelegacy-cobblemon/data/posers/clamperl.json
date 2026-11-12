@@ -1,0 +1,52 @@
+{
+  "portraitScale": 3,
+  "portraitTranslation": [0, -2.15, 0],
+  "poses": {
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('clamperl', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["PROFILE", "STAND"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('clamperl', 'ground_idle')",
+        "q.bedrock('clamperl', 'ground_walk')"
+      ],
+      "poseName": "walk",
+      "poseTypes": ["WALK"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "floating": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('clamperl', 'water_idle')"],
+      "poseName": "floating",
+      "poseTypes": ["FLOAT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "swimming": {
+      "animations": [
+        "q.look('head', 1, 1, 70, -45, 45, -45)",
+        "q.bedrock('clamperl', 'water_swim')",
+        "q.bedrock('clamperl', 'water_idle')"
+      ],
+      "poseName": "swimming",
+      "poseTypes": ["SWIM"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "portrait": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('clamperl', 'portrait')"],
+      "poseName": "portrait",
+      "poseTypes": ["PORTRAIT"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.5, 0],
+  "rootBone": "clamperl"
+}

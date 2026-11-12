@@ -1,0 +1,51 @@
+{
+  "animations": {
+    "cry": "q.bedrock_stateful('lileep', 'cry')"
+  },
+  "portraitScale": 2,
+  "portraitTranslation": [-0.3, -0.5, 0],
+  "poses": {
+    "sleep": {
+      "animations": ["q.bedrock('lileep', 'sleep')"],
+      "poseName": "sleep",
+      "poseTypes": ["SLEEP"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "standing": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('lileep', 'ground_idle')"],
+      "poseName": "standing",
+      "poseTypes": ["STAND", "HOVER", "PROFILE", "PORTRAIT"],
+      "quirks": ["q.bedrock_quirk('lileep', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "walk": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('lileep', 'ground_walk')"],
+      "poseName": "walk",
+      "poseTypes": ["WALK", "FLY"],
+      "quirks": ["q.bedrock_quirk('lileep', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "water_idle": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('lileep', 'water_idle')"],
+      "poseName": "water_idle",
+      "poseTypes": ["FLOAT"],
+      "quirks": ["q.bedrock_quirk('lileep', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    },
+    "water_swim": {
+      "animations": ["q.look('head', 1, 1, 70, -45, 45, -45)", "q.bedrock('lileep', 'water_swim')"],
+      "poseName": "water_swim",
+      "poseTypes": ["SWIM"],
+      "quirks": ["q.bedrock_quirk('lileep', 'blink', 8, 30, 1)"],
+      "transformTicks": 10,
+      "transformToTicks": 10
+    }
+  },
+  "profileScale": 0.8,
+  "profileTranslation": [0, 0.55, 0],
+  "rootBone": "lileep"
+}
