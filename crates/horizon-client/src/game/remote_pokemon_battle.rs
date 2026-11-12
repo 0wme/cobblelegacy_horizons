@@ -14,15 +14,18 @@
 //! The same key puts the screen away and brings it back, so the player can walk (and flee: a wild
 //! battle ends once the player is far enough, the Run button only says so).
 //!
-//! Not here yet: battles of more than one Pokémon a side (their tiles and target choice), a move's
-//! type and category on its tile (the server's move registry, `cobblemon:moves_sync`), the gimmicks
+//! A move's tile takes its type's colour and icons from the server's own moves
+//! (`cobblemon:moves_sync`): the type the move has there, not the one an ability or Hidden Power would
+//! give it in this Pokémon's hands, which Cobblemon works out.
+//!
+//! Not here yet: battles of more than one Pokémon a side (their tiles and target choice), the gimmicks
 //! (mega evolution, Z-moves, dynamax, terastallization), challenges between players, the capture's ball
 //! on the tile, the tiles sliding in and out, scrolling the log, and Cobblemon's own font for names.
 use super::super::super::{Game, Screen};
 use super::party::{Framing, health_colour, small_text};
 use cobblelegacy_cobblemon::{
     battle::{self, ActorType, Battle, BattlePokemon, Battles, Change, Response},
-    party,
+    moves, party,
 };
 use horizon_client::{
     hud::{HudAtlas, HudBatch, Rect, rgba},
@@ -357,6 +360,24 @@ const WHOLE: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
 const UPPER: [f32; 4] = [0.0, 0.0, 1.0, 0.5];
 const LOWER: [f32; 4] = [0.0, 0.5, 1.0, 1.0];
 
+/// `text` from (`x`, `y`), narrowed to `most` pixels when it is wider: Cobblemon writes its tiles in
+/// a font narrower than the game's, which is the one used here.
+fn fitted(
+    batch: &mut HudBatch,
+    atlas: &HudAtlas,
+    text: &Text,
+    (x, y): (f32, f32),
+    most: f32,
+    colour: u32,
+) {
+    let start = batch.vertices.len();
+    let width = atlas.font.width_text(text);
+    batch.text_styled(atlas, text, x, y, colour, true);
+    if width > most {
+        batch.scale_since(start, x, y, most / width, 1.0);
+    }
+}
+
 /// White at opacity `alpha`, 0 to 1.
 fn white(alpha: f32) -> u32 {
     rgba(255, 255, 255, (alpha.clamp(0.0, 1.0) * 255.0) as u8)
@@ -666,14 +687,16 @@ impl Game<'_> {
                 colour,
             );
             let name = horizon_client::entity_nbt::name_text(&pokemon.name).bold();
-            batch.text_styled(atlas, &name, info, y + 7.0, tint, true);
+            fitted(batch, atlas, &name, (info, y + 7.0), 61.0, tint);
             if let Some((sign, colour)) = gender_sign(&pokemon.properties) {
                 batch.text(atlas, sign, info + 63.0, y + 7.0, colour, true);
             }
-            let level = Text::tr("cobblemon.ui.lv", &[]).bold();
-            batch.text_styled(atlas, &level, info + 69.0, y + 7.0, tint, true);
-            let number = Text::literal(pokemon.level.to_string()).bold();
-            batch.text_styled(atlas, &number, info + 82.0, y + 7.0, tint, true);
+            // "Lv." and the level, which Cobblemon writes 13 pixels apart: one text here, kept in
+            // the tile.
+            let level = Text::tr("cobblemon.ui.lv", &[])
+                .append(Text::literal(pokemon.level.to_string()))
+                .bold();
+            fitted(batch, atlas, &level, (info + 69.0, y + 7.0), 27.0, tint);
             // The bar empties toward the tile's outer edge.
             let bar = health * 97.0;
             let at = if left {
@@ -790,6 +813,7 @@ impl Game<'_> {
             HashMap::new()
         };
         let atlas = &self.gui.atlas;
+        let known = self.remote.as_ref().and_then(|r| r.pokemon.moves.as_ref());
         let hovered = |b: &Button| ui::hovered(cursor, b.rect[0], b.rect[1], b.rect[2], b.rect[3]);
         // `BattleGUI`'s own line: how to move around, or what a forfeit means.
         let line = match shown {
@@ -859,9 +883,12 @@ impl Game<'_> {
                     };
                     let fade = if button.enabled { 1.0 } else { 0.5 };
                     let of = if over && button.enabled { LOWER } else { UPPER };
-                    // The tile takes its move's type's colour: every move is told as a normal one
-                    // until the server's moves are read.
-                    let tint = rgba(0xE8, 0xE8, 0xDA, (fade * 255.0) as u8);
+                    // The tile takes its move's type's colour; a move the server did not tell of
+                    // is a normal one (`Moves.getByNameOrDummy`).
+                    let template = known.and_then(|moves| moves.get(&offered.id));
+                    let kind = template.map_or("normal", |m| m.elemental_type.as_str());
+                    let hue = moves::type_hue(kind).unwrap_or(0xE8E8DA).to_be_bytes();
+                    let tint = rgba(hue[1], hue[2], hue[3], (fade * 255.0) as u8);
                     image(batch, atlas, "battle_move", button.rect, of, tint);
                     image(
                         batch,
@@ -871,8 +898,25 @@ impl Game<'_> {
                         WHOLE,
                         u32::MAX,
                     );
+                    // The type's icon, one of eighteen in a row, and the category's, one of three
+                    // in a column, both at half their size.
+                    if let Some(cell) = moves::type_icon(kind) {
+                        let of = [cell as f32 / 18.0, 0.0, (cell + 1) as f32 / 18.0, 1.0];
+                        let at = [x - 9.0, y + 2.0, 18.0, 18.0];
+                        image(batch, atlas, "cobblemon:gui/types", at, of, u32::MAX);
+                    }
+                    if let Some(template) = template {
+                        let cell = match template.category {
+                            moves::DamageCategory::Physical => 0.0,
+                            moves::DamageCategory::Special => 1.0,
+                            moves::DamageCategory::Status => 2.0,
+                        };
+                        let of = [0.0, cell / 3.0, 1.0, (cell + 1.0) / 3.0];
+                        let at = [x + 48.0, y + 14.5, 12.0, 8.0];
+                        image(batch, atlas, "cobblemon:gui/categories", at, of, u32::MAX);
+                    }
                     let name = move_name(offered).bold();
-                    batch.text_styled(atlas, &name, x + 17.0, y + 2.0, white(fade), true);
+                    fitted(batch, atlas, &name, (x + 17.0, y + 2.0), 73.0, white(fade));
                     // A move the Pokémon is locked into comes without its own numbers.
                     let (left, colour) = if offered.must_be_used() {
                         ("\u{2014}/\u{2014}".to_owned(), u32::MAX)
@@ -948,7 +992,7 @@ impl Game<'_> {
                         .filter(|name| !name.plain().is_empty())
                         .unwrap_or_else(|| super::label::species_name(&pokemon.species))
                         .bold();
-                    batch.text_styled(atlas, &name, x + 5.0, y + 13.0, fade, true);
+                    fitted(batch, atlas, &name, (x + 5.0, y + 13.0), 58.0, fade);
                     // Its health as Showdown has it in the request; none once it has fainted.
                     let health = battle
                         .request

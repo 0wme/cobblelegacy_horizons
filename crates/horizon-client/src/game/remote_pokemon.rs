@@ -55,6 +55,7 @@ pub(super) fn reads(channel: &str) -> bool {
         SPAWN_POKEMON | UNREAD_ENTITY_DATA | SERVER_SETTINGS | SET_CLIENT_PLAYERDATA
     ) || cobblelegacy_cobblemon::party::reads(channel)
         || cobblelegacy_cobblemon::battle::reads(channel)
+        || channel == cobblelegacy_cobblemon::moves::MOVES_SYNC
 }
 
 /// The vanilla type that lends a Pokémon its attributes, and its body when Cobblemon's own cannot be
@@ -86,6 +87,8 @@ pub(super) struct Pokemon {
     party: party::Party,
     /// The battle the player is in.
     fight: fight::Fight,
+    /// The server's moves, sent as the player joins: a battle's tiles take each move's type from it.
+    moves: Option<cobblelegacy_cobblemon::moves::Moves>,
 }
 
 /// A look ready to draw: the mob type a model and its texture make, and how the model's poser frames
@@ -510,6 +513,16 @@ impl Game<'_> {
             UNREAD_ENTITY_DATA => self.remote_pokemon_data(data),
             battle if cobblelegacy_cobblemon::battle::reads(battle) => {
                 self.remote_pokemon_battle(battle, data);
+            }
+            cobblelegacy_cobblemon::moves::MOVES_SYNC => {
+                match cobblelegacy_cobblemon::moves::Moves::read(data) {
+                    Ok(moves) => {
+                        if let Some(r) = self.remote.as_mut() {
+                            r.pokemon.moves = Some(moves);
+                        }
+                    }
+                    Err(e) => log::warn!("Horizon: Cobblemon's moves do not decode: {e}"),
+                }
             }
             _ => {
                 let Some(r) = self.remote.as_mut() else {
