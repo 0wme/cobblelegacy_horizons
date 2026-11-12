@@ -88,7 +88,7 @@ impl Inputs {
     /// What stands in for `Math.random()`: a number from 0 up to 1 that depends on which `math.random`
     /// asks (`seed`) and on the moment, so that it changes with every frame as the library's does, and is
     /// the same whenever the same moment is asked about again.
-    fn random(&self, seed: u64) -> f64 {
+    fn roll(&self, seed: u64) -> f64 {
         let mut state = seed;
         for time in [
             self.query_anim_time,
@@ -99,6 +99,65 @@ impl Inputs {
         }
         // The top 53 bits, as a fraction: every `f64` of that many bits below 1.
         (state >> 11) as f64 / (1u64 << 53) as f64
+    }
+}
+
+/// What a compiled expression reads as it runs: a model's animation reads [`Inputs`], a particle effect
+/// its [`Scope`].
+trait Source {
+    fn read(&self, input: Input) -> f64;
+    /// The variable a [`Scope`] keeps at `index`.
+    fn slot(&self, index: u16) -> f64;
+    /// `Math.random()` for the `math.random` that `seed` tells from every other.
+    fn random(&self, seed: u64) -> f64;
+}
+
+impl Source for Inputs {
+    fn read(&self, input: Input) -> f64 {
+        Inputs::read(self, input)
+    }
+
+    fn slot(&self, _: u16) -> f64 {
+        0.0
+    }
+
+    fn random(&self, seed: u64) -> f64 {
+        self.roll(seed)
+    }
+}
+
+/// What an expression compiled by [`Expression::parse_scoped`] reads: the variables of a runtime that
+/// has some, each at the slot its name was given when the expression was compiled.
+///
+/// `math.random` draws a new number each time it is evaluated, as the library's `Math.random()` does:
+/// `random` is the state those draws move on.
+#[derive(Clone, Copy, Debug)]
+pub struct Scope<'a> {
+    pub slots: &'a [f64],
+    pub random: &'a std::cell::Cell<u64>,
+}
+
+impl Scope<'_> {
+    /// The next number from 0 up to 1 of `random`: one SplitMix64 output.
+    pub fn roll(random: &std::cell::Cell<u64>) -> f64 {
+        let state = random.get();
+        random.set(state.wrapping_add(0x9E37_79B9_7F4A_7C15));
+        (mix(state) >> 11) as f64 / (1u64 << 53) as f64
+    }
+}
+
+impl Source for Scope<'_> {
+    /// The numbers a model's animation is given: a particle's runtime has none of them.
+    fn read(&self, _: Input) -> f64 {
+        0.0
+    }
+
+    fn slot(&self, index: u16) -> f64 {
+        self.slots.get(usize::from(index)).copied().unwrap_or(0.0)
+    }
+
+    fn random(&self, _: u64) -> f64 {
+        Self::roll(self.random)
     }
 }
 
@@ -354,6 +413,8 @@ fn random_integer(low: f64, high: f64, unit: f64) -> f64 {
 enum Op {
     Number(f64),
     Read(Input),
+    /// A variable of a [`Scope`].
+    Slot(u16),
     Unary(Unary),
     Binary(Binary),
     Ternary(Ternary),
@@ -376,7 +437,7 @@ fn stack_needed(ops: &[Op]) -> Option<usize> {
     let (mut height, mut highest) = (0usize, 0);
     for op in ops {
         let (taken, left) = match op {
-            Op::Number(_) | Op::Read(_) => (0, 1),
+            Op::Number(_) | Op::Read(_) | Op::Slot(_) => (0, 1),
             Op::Unary(_) => (1, 1),
             Op::Binary(_) | Op::Random(_) | Op::RandomInteger(_) => (2, 1),
             Op::Ternary(_) => (3, 1),
@@ -387,7 +448,7 @@ fn stack_needed(ops: &[Op]) -> Option<usize> {
     (height == 1).then_some(highest)
 }
 
-fn run(ops: &[Op], inputs: &Inputs) -> f64 {
+fn run(ops: &[Op], inputs: &impl Source) -> f64 {
     let mut stack = [0.0; STACK];
     let mut height = 0;
     for op in ops {
@@ -398,6 +459,10 @@ fn run(ops: &[Op], inputs: &Inputs) -> f64 {
             }
             Op::Read(input) => {
                 stack[height] = inputs.read(input);
+                height += 1;
+            }
+            Op::Slot(index) => {
+                stack[height] = inputs.slot(index);
                 height += 1;
             }
             Op::Unary(op) => stack[height - 1] = unary(op, stack[height - 1]),
@@ -457,6 +522,31 @@ impl Expression {
     /// [`Self::parse_noting`] with what tells this expression's `math.random`s from another's: two
     /// expressions of one `seed` and one text roll the same numbers.
     pub(crate) fn compile(source: &str, seed: u64, name: &mut dyn FnMut(&str)) -> Result<Self> {
+        Self::compile_with(source, seed, name, None)
+    }
+
+    /// Compiles `source` for a runtime that has variables: `slot` is asked about every name outside
+    /// `math.`, as the library looks it up (`variable.particle_age`, `query.entity_size`), and answers
+    /// the slot of a [`Scope`] that name reads. A name it has no slot for is what [`Self::parse`] makes
+    /// of it: 0, but for the few names a model's animation is given, which a `Scope` reads as 0 too.
+    pub fn parse_scoped(source: &str, slot: &mut dyn FnMut(&str) -> Option<u16>) -> Result<Self> {
+        Self::compile_with(source, hash(source), &mut |_| {}, Some(slot))
+    }
+
+    /// The expression's value in `scope`, as the library computes it. Never allocates.
+    pub fn eval_scoped(&self, scope: &Scope) -> f64 {
+        match &self.0 {
+            Compiled::Constant(value) => *value,
+            Compiled::Steps(ops) => run(ops, scope),
+        }
+    }
+
+    fn compile_with<'n>(
+        source: &str,
+        seed: u64,
+        name: &'n mut dyn FnMut(&str),
+        slots: Option<&'n mut dyn FnMut(&str) -> Option<u16>>,
+    ) -> Result<Self> {
         let mut parser = Parser {
             source,
             index: 0,
@@ -467,6 +557,7 @@ impl Expression {
             randoms: 0,
             name: String::new(),
             note: name,
+            slots,
         };
         // `parseExpression` answers null for an empty text, which Cobblemon cannot hold as a bone's value.
         if parser.expression(ANYTHING)?.is_none() {
@@ -799,6 +890,8 @@ struct Parser<'s, 'n> {
     /// Where a name is spelled out, kept from one name to the next.
     name: String,
     note: &'n mut dyn FnMut(&str),
+    /// The slots of a [`Scope`]'s variables, by name, when the expression is compiled for one.
+    slots: Option<&'n mut dyn FnMut(&str) -> Option<u16>>,
 }
 
 impl<'s> Parser<'s, '_> {
@@ -1095,6 +1188,12 @@ impl<'s> Parser<'s, '_> {
         // A struct asked for its value with no name left: `NoSuchElementException`. (`context` alone is 0
         // before a state's first evaluation and this afterwards.)
         let key = key.ok_or_else(|| bad(format_args!("`{name}` is a struct, not a number")))?;
+        if root != "math"
+            && let Some(slot) = self.slots.as_mut().and_then(|slots| slots(name))
+        {
+            self.instead(start, Op::Slot(slot));
+            return Ok(());
+        }
         let op = match (root, key) {
             // `QueryStruct.get`: a function that answers a number answers it whatever names follow.
             ("query", "anim_time") => Op::Read(Input::QueryAnimTime),
