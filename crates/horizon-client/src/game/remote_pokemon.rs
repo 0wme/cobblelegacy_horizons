@@ -43,6 +43,8 @@ mod fight;
 mod label;
 #[path = "remote_pokemon_looks.rs"]
 mod looks;
+#[path = "remote_pokemon_particles.rs"]
+mod particles;
 #[path = "remote_pokemon_party.rs"]
 mod party;
 #[path = "remote_pokemon_phase.rs"]
@@ -58,6 +60,7 @@ pub(super) fn reads(channel: &str) -> bool {
     ) || cobblelegacy_cobblemon::party::reads(channel)
         || cobblelegacy_cobblemon::battle::reads(channel)
         || channel == cobblelegacy_cobblemon::moves::MOVES_SYNC
+        || cobblelegacy_cobblemon::snowstorm::reads(channel)
 }
 
 /// The vanilla type that lends a Pokémon its attributes, and its body when Cobblemon's own cannot be
@@ -98,6 +101,8 @@ pub(super) struct Pokemon {
     moves: Option<cobblelegacy_cobblemon::moves::Moves>,
     /// The Pokémon coming out of their Balls and going back in.
     phases: phase::Phases,
+    /// The particle effects that play.
+    particles: particles::Particles,
 }
 
 /// What there is of a look when it is asked for.
@@ -549,6 +554,7 @@ impl Game<'_> {
     pub(in super::super) fn pokemon_frame(&mut self) {
         self.pokemon_looks_frame();
         self.pokemon_phase_frame();
+        self.pokemon_particles_frame();
     }
 
     /// An image in one of the atlas's Pokémon slots, as the sprite `sprite`. The slots are shared: only
@@ -564,6 +570,7 @@ impl Game<'_> {
             .map(|m| m.kind.texture.clone())
             .chain(pokemon.party.textures())
             .chain(pokemon.phases.textures())
+            .chain(pokemon.particles.textures())
             .collect();
         let slots = pokemon
             .slots
@@ -579,6 +586,7 @@ impl Game<'_> {
                 .retain(|_, look| look.as_ref().is_none_or(|l| l.kind.texture != old));
             pokemon.party.forget_texture(&old);
             pokemon.phases.forget_texture(&old);
+            pokemon.particles.forget_texture(&old);
         }
         let mut rect = *atlas.sprites.get(&format!("horizon/pokemon{slot}"))?;
         let (aw, ah) = (atlas.width as f32, atlas.height as f32);
@@ -603,6 +611,9 @@ impl Game<'_> {
             UNREAD_ENTITY_DATA => self.remote_pokemon_data(data),
             battle if cobblelegacy_cobblemon::battle::reads(battle) => {
                 self.remote_pokemon_battle(battle, data);
+            }
+            particle if cobblelegacy_cobblemon::snowstorm::reads(particle) => {
+                self.pokemon_particle_payload(particle, data);
             }
             cobblelegacy_cobblemon::moves::MOVES_SYNC => {
                 match cobblelegacy_cobblemon::moves::Moves::read(data) {
