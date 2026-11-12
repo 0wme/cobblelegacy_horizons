@@ -1674,6 +1674,43 @@ impl SoundEngine {
             backend.unpause(c);
         }
     }
+    /// Pauses what plays on `sources`, but for the instance `except` (CobbleLegacy's fork: Cobblemon's
+    /// `SoundEngineDuck.pauseSounds` by category, which holds the game's music, ambience and
+    /// records while a battle's music plays). [`Self::resume_sources`] undoes it.
+    pub fn pause_sources(
+        &mut self,
+        sources: &[usize],
+        except: Option<InstanceId>,
+        backend: &mut impl Backend,
+    ) {
+        self.each_on_sources(sources, except, |channel| backend.pause(channel));
+    }
+    /// Resumes what [`Self::pause_sources`] paused on `sources`.
+    pub fn resume_sources(&mut self, sources: &[usize], backend: &mut impl Backend) {
+        self.each_on_sources(sources, None, |channel| backend.unpause(channel));
+    }
+    fn each_on_sources(
+        &self,
+        sources: &[usize],
+        except: Option<InstanceId>,
+        mut each: impl FnMut(ChannelId),
+    ) {
+        if !self.loaded {
+            return;
+        }
+        for (id, handle) in &self.instance_to_channel {
+            let on = self
+                .instances
+                .get(id)
+                .is_some_and(|i| sources.contains(&i.source));
+            if on
+                && Some(*id) != except
+                && let Some(channel) = self.handles.get(handle).and_then(handle_channel)
+            {
+                each(channel);
+            }
+        }
+    }
     /// Channels in use (static, streaming).
     pub fn used_channels(&self) -> [usize; 2] {
         self.used

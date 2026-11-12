@@ -336,6 +336,9 @@ impl MixerBackend {
 pub struct MixerBackend {
     mixer: Arc<Mutex<Mixer>>,
     root: PathBuf,
+    /// The files of the sounds that are not under `root` ([`Audio::add_sounds`]), by the key they
+    /// are cached under (`namespace:sounds/<path>.ogg`).
+    elsewhere: HashMap<String, PathBuf>,
     cache: Arc<Mutex<SoundCache>>,
     /// The decoder thread for static sounds, started with the first one.
     decoder: Option<std::sync::mpsc::Sender<Decode>>,
@@ -442,6 +445,16 @@ fn attach(mixer: &Mutex<Mixer>, channel: ChannelId, samples: Samples, looping: b
 type Stream = cpal::Stream;
 #[cfg(not(feature = "audio"))]
 type Stream = std::convert::Infallible;
+/// Sound events and their files from outside the resource root (CobbleLegacy's fork: Cobblemon's own
+/// resources, which stay where its Pokémon are read from). Read away from the render thread, then
+/// handed to [`Audio::add_sounds`].
+#[derive(Clone, Debug, Default)]
+pub struct ExtraSounds {
+    /// Their events. One the resource root defines too keeps the root's sounds.
+    pub registry: SoundRegistry,
+    /// Where each of their sound files is, by `namespace:sounds/<path>.ogg`.
+    pub files: HashMap<String, PathBuf>,
+}
 /// A level sound retained for the network broadcaster, in playback order.
 #[derive(Clone, Debug)]
 pub struct CapturedSound {
@@ -497,6 +510,9 @@ pub struct Audio {
     preview: crate::sound_preview::SoundPreview,
     /// A mod's muffle fading out (`muffle`), advanced by `tick`.
     muffle: Option<MuffleFade>,
+    /// The sounds from outside the resource root ([`Self::add_sounds`]), kept to be known again after
+    /// a reload.
+    extra: Vec<Arc<ExtraSounds>>,
     /// `SoundEngine.lastSeenDevices`: the system default output last seen.
     #[cfg(feature = "audio")]
     default_seen: Option<String>,
@@ -755,7 +771,11 @@ impl Backend for MixerBackend {
             return;
         }
         let (namespace, path) = sound.path();
-        let file = self.root.join("assets").join(namespace).join(&path);
+        let key = format!("{namespace}:{path}");
+        let file = match self.elsewhere.get(&key) {
+            Some(file) => file.clone(),
+            None => self.root.join("assets").join(namespace).join(&path),
+        };
         // A looping sound follows its entity in one client's tracking only: each keeps its own.
         if !looping && self.duplicate(channel, (namespace, &path)) {
             return;
@@ -769,7 +789,6 @@ impl Backend for MixerBackend {
             });
             return;
         }
-        let key = format!("{namespace}:{path}");
         let cached = self.cache.lock().ok().and_then(|mut c| c.get(&key));
         if let Some(samples) = cached {
             attach(&self.mixer, channel, samples, looping);
@@ -1471,6 +1490,7 @@ impl Audio {
             backend: MixerBackend {
                 mixer,
                 root: root.to_owned(),
+                elsewhere: HashMap::new(),
                 cache: Arc::default(),
                 decoder: None,
                 next: 0,
@@ -1491,6 +1511,7 @@ impl Audio {
             stopped: Default::default(),
             preview: Default::default(),
             muffle: None,
+            extra: Vec::new(),
             #[cfg(feature = "audio")]
             default_seen: if live { default_output_name() } else { None },
             #[cfg(feature = "audio")]
@@ -1639,6 +1660,7 @@ impl Audio {
             backend: MixerBackend {
                 mixer: self.backend.mixer.clone(),
                 root: self.backend.root.clone(),
+                elsewhere: self.backend.elsewhere.clone(),
                 cache: self.backend.cache.clone(),
                 decoder: None,
                 next: (SHARED_CHANNELS.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1)
@@ -1660,6 +1682,7 @@ impl Audio {
             stopped: Default::default(),
             preview: Default::default(),
             muffle: None,
+            extra: self.extra.clone(),
             // The device belongs to the first player's output, which looks after it.
             #[cfg(feature = "audio")]
             default_seen: self.default_seen.clone(),
@@ -1879,6 +1902,15 @@ impl Audio {
     pub fn resume(&mut self) {
         self.engine.resume(&mut self.backend);
     }
+    /// Holds what plays on `sources`, but for `except` (`SoundEngine::pause_sources`).
+    pub fn pause_sources(&mut self, sources: &[usize], except: Option<InstanceId>) {
+        self.engine
+            .pause_sources(sources, except, &mut self.backend);
+    }
+    /// Lets what [`Self::pause_sources`] held play on.
+    pub fn resume_sources(&mut self, sources: &[usize]) {
+        self.engine.resume_sources(sources, &mut self.backend);
+    }
     /// `SoundManager.stop()`: every sound.
     pub fn stop_all(&mut self) {
         self.engine.stop_all(&mut self.backend);
@@ -1894,9 +1926,36 @@ impl Audio {
         self.stop_all();
         self.engine.registry = registry;
         self.backend.root = root.to_owned();
-        let mut cache = self.backend.cache.lock().unwrap();
-        cache.entries.clear();
-        cache.bytes = 0;
+        {
+            let mut cache = self.backend.cache.lock().unwrap();
+            cache.entries.clear();
+            cache.bytes = 0;
+        }
+        // The sounds from elsewhere, under the new root's.
+        self.backend.elsewhere.clear();
+        for sounds in std::mem::take(&mut self.extra) {
+            self.add_sounds(sounds);
+        }
+    }
+    /// Sound events from outside the resource root, with where their files are (CobbleLegacy's
+    /// fork): known from now on, and again after every [`Self::reload`], under the root's own. An
+    /// event the root defines keeps the root's sounds. The same sounds added twice are added once.
+    pub fn add_sounds(&mut self, sounds: Arc<ExtraSounds>) {
+        if self.extra.iter().any(|known| Arc::ptr_eq(known, &sounds)) {
+            return;
+        }
+        let elsewhere = &mut self.backend.elsewhere;
+        self.engine.registry.add_missing(&sounds.registry, |sound| {
+            if sound.event {
+                return;
+            }
+            let (namespace, path) = sound.path();
+            let key = format!("{namespace}:{path}");
+            if let Some(file) = sounds.files.get(&key) {
+                elsewhere.insert(key, file.clone());
+            }
+        });
+        self.extra.push(sounds);
     }
     /// Play a sound event at a world position, as `ClientLevel.playLocalSound`
     /// (a `SimpleSoundInstance` seeded from the level random), or relative to
@@ -2374,6 +2433,109 @@ mod tests {
             State::Initial
         );
         audio.stop_all();
+    }
+
+    /// Sounds from outside the resource root play from where their files are, stay known after a
+    /// reload, and give way to the root's own event of the same name.
+    #[test]
+    fn sounds_from_elsewhere_are_known_played_and_kept_through_a_reload() {
+        let root = Path::new("/nonexistent/horizon-test-assets");
+        let mut audio = Audio::silent(root);
+        audio.engine.registry.add_file(
+            "mod",
+            br#"{"own":{"sounds":["own/file"]}}"#,
+            &|_, _| true,
+        );
+        let mut extra = ExtraSounds::default();
+        extra.registry.add_file(
+            "mod",
+            br#"{"own":{"sounds":["other/file"]},"throw":{"sounds":["ball/throw"]}}"#,
+            &|_, _| true,
+        );
+        let file = PathBuf::from("/elsewhere/assets/mod/sounds/ball/throw.ogg");
+        for path in ["ball/throw", "other/file"] {
+            extra.files.insert(
+                format!("mod:sounds/{path}.ogg"),
+                PathBuf::from(format!("/elsewhere/assets/mod/sounds/{path}.ogg")),
+            );
+        }
+        let extra = Arc::new(extra);
+        audio.add_sounds(extra.clone());
+        audio.add_sounds(extra.clone());
+        assert_eq!(audio.extra.len(), 1);
+        assert_eq!(
+            audio.engine.registry.tracks("mod:throw"),
+            ["mod:ball/throw"]
+        );
+        // The root's event keeps its sound, and that sound its place under the root.
+        assert_eq!(audio.engine.registry.tracks("mod:own"), ["mod:own/file"]);
+        assert_eq!(
+            audio.backend.elsewhere,
+            HashMap::from([("mod:sounds/ball/throw.ogg".to_owned(), file.clone())])
+        );
+        // Played through the mixer with no output device: the samples the decoder would have made
+        // of that file are heard.
+        audio.engine.loaded = true;
+        audio.backend.live = true;
+        audio.insert_cached_sound("mod:sounds/ball/throw.ogg", vec![0.5; 4800], 48_000, 1);
+        audio.play_on(crate::sound_engine::NEUTRAL, "mod:throw", None, 1.0, 1.0);
+        assert_eq!(audio.backend.mixer.lock().unwrap().channels.len(), 1);
+        let mut out = vec![0.0f32; 256];
+        audio.mix_buffer(&mut out, 2, 48_000);
+        assert!(out.iter().any(|s| *s != 0.0));
+        // A reload reads the new root's events; those from elsewhere are known again.
+        let mut reloaded = SoundRegistry::default();
+        reloaded.add_file(
+            "mod",
+            br#"{"throw":{"sounds":["root/throw"]}}"#,
+            &|_, _| true,
+        );
+        audio.reload_with(root, reloaded);
+        assert_eq!(audio.extra.len(), 1);
+        assert_eq!(
+            audio.engine.registry.tracks("mod:throw"),
+            ["mod:root/throw"]
+        );
+        assert_eq!(audio.engine.registry.tracks("mod:own"), ["mod:other/file"]);
+        assert_eq!(
+            audio.backend.elsewhere.keys().collect::<Vec<_>>(),
+            ["mod:sounds/other/file.ogg"]
+        );
+    }
+
+    /// What plays on some sources is held and let go again, but for one instance: the game's music
+    /// under a battle's.
+    #[test]
+    fn sources_are_paused_and_resumed_but_for_one_instance() {
+        use crate::sound_engine::{MUSIC, NEUTRAL};
+        let mut audio = Audio::silent(Path::new("/nonexistent/horizon-test-assets"));
+        audio.engine.registry.add_file(
+            "mod",
+            br#"{"a":{"sounds":["a"]},"b":{"sounds":["b"]},"c":{"sounds":["c"]}}"#,
+            &|_, _| true,
+        );
+        audio.engine.loaded = true;
+        audio.backend.live = true;
+        for key in ["a", "b", "c"] {
+            audio.insert_cached_sound(&format!("mod:sounds/{key}.ogg"), vec![0.5; 48_000], 48_000, 1);
+        }
+        let music = |id: &str| SoundInstance::for_music(id, LegacyRandom::new(1));
+        let (game, _) = audio.play_instance(music("mod:a"), false);
+        let (battle, _) = audio.play_instance(music("mod:b"), false);
+        audio.play_on(NEUTRAL, "mod:c", None, 1.0, 1.0);
+        let states = |audio: &Audio| {
+            let mixer = audio.backend.mixer.lock().unwrap();
+            [1, 2, 3].map(|channel| mixer.channels[&channel].state)
+        };
+        assert_eq!(states(&audio), [State::Playing; 3]);
+        audio.pause_sources(&[MUSIC], Some(battle));
+        assert_eq!(
+            states(&audio),
+            [State::Paused, State::Playing, State::Playing]
+        );
+        assert!(audio.is_active(game));
+        audio.resume_sources(&[MUSIC]);
+        assert_eq!(states(&audio), [State::Playing; 3]);
     }
 
     fn channel(samples: Vec<f32>, linear: Option<f32>, at: [f32; 3], looping: bool) -> Channel {
