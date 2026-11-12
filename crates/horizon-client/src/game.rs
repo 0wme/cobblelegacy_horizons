@@ -9088,8 +9088,9 @@ impl Game<'_> {
             self.apply_ui_settings();
         }
         self.follow_frame();
-        // Cobblemon's Pokémon coming out of their Balls and going back in (`remote_pokemon_phase.rs`).
-        self.pokemon_phase_frame();
+        // Cobblemon's Pokémon: the looks read since the last frame, those coming out of their Balls
+        // and going back in (`remote_pokemon.rs`).
+        self.pokemon_frame();
         self.observe_screen();
         // `Gui.setScreen` clears the focus of the screen it leaves: a menu
         // that comes back starts with no widget highlighted.

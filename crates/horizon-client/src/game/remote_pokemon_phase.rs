@@ -370,7 +370,7 @@ impl Game<'_> {
     fn pokemon_ball_type(&mut self, ball: &str) -> Option<Arc<MobType>> {
         let template = self.res.mob_types().get(STAND_IN).cloned()?;
         let pokemon = &mut self.remote.as_mut()?.pokemon;
-        let assets = pokemon.assets.get_or_insert_with(Assets::load).as_ref()?;
+        let assets = pokemon.assets.get_or_insert_with(Assets::load).as_deref()?;
         let shape = if ball.starts_with("ancient_") {
             "ancient_poke_ball"
         } else {

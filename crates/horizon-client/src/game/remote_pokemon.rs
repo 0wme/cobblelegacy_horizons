@@ -21,9 +21,7 @@ use super::super::Game;
 use super::Tracked;
 use cobblelegacy_cobblemon::{
     animation::AnimationFile,
-    coded_posers, geo,
-    poser::Poser,
-    resolver,
+    geo, resolver,
     wire::{PokemonData, SERVER_SETTINGS, SET_CLIENT_PLAYERDATA, SPAWN_POKEMON, SpawnPokemon},
 };
 use horizon_client::hud::{POKEMON_SLOT_SIZE, POKEMON_SLOTS};
@@ -43,6 +41,8 @@ mod anim;
 mod fight;
 #[path = "remote_pokemon_label.rs"]
 mod label;
+#[path = "remote_pokemon_looks.rs"]
+mod looks;
 #[path = "remote_pokemon_party.rs"]
 mod party;
 #[path = "remote_pokemon_phase.rs"]
@@ -73,10 +73,15 @@ const GROUND: f32 = 24.0;
 #[derive(Default)]
 pub(super) struct Pokemon {
     /// Cobblemon's resources, indexed when the first Pokémon appears. `Some(None)`: there are none.
-    assets: Option<Option<Assets>>,
+    assets: Option<Option<Arc<Assets>>>,
     /// One look per model with a texture, made the first time it is seen. `None`: that look failed to
     /// load, and is not tried again.
-    looks: HashMap<(String, String), Option<Look>>,
+    looks: HashMap<looks::Key, Option<Look>>,
+    /// The looks whose files are being read (`remote_pokemon_looks.rs`), each with the Pokémon in the
+    /// level that wait for it.
+    reading: HashMap<looks::Key, Vec<i32>>,
+    /// The thread that reads them, started with the first look.
+    loader: Option<looks::Loader>,
     /// The stand-in type of each species without a look.
     stand_ins: HashMap<String, Arc<MobType>>,
     /// Which texture is in which of the atlas's Pokémon slots.
@@ -93,6 +98,15 @@ pub(super) struct Pokemon {
     moves: Option<cobblelegacy_cobblemon::moves::Moves>,
     /// The Pokémon coming out of their Balls and going back in.
     phases: phase::Phases,
+}
+
+/// What there is of a look when it is asked for.
+enum Looked {
+    Made(Look),
+    /// Its files are being read.
+    Reading,
+    /// There is none: no resources, a model that does not load, no slot left in the atlas.
+    None,
 }
 
 /// A look ready to draw: the mob type a model and its texture make, and how the model's poser frames
@@ -162,12 +176,13 @@ impl Assets {
     /// Cobblemon's resources under the folders `HORIZON_COBBLEMON_ROOT` names: one root, or several as
     /// a path list (`;` on Windows), the one that wins last. None without the variable, or when the
     /// atlas was built without the Pokémon's slots (it has them only when the variable was there).
-    fn load() -> Option<Self> {
+    fn load() -> Option<Arc<Self>> {
         let roots: Vec<PathBuf> =
             std::env::split_paths(&std::env::var_os("HORIZON_COBBLEMON_ROOT")?).collect();
         horizon_client::hud::pokemon_slots()
             .then(|| Self::index(&roots))
             .flatten()
+            .map(Arc::new)
     }
 
     /// `roots` from the one a file is taken from last to the one that wins, as resource packs stack: a
@@ -374,82 +389,112 @@ fn fit(mut width: u32, mut height: u32, mut rgba: Vec<u8>) -> (u32, u32, Vec<u8>
 impl Game<'_> {
     /// The look of a Pokémon of `species_id` with `aspects`: its species' model for them as a mob type,
     /// with its texture in the atlas. `None` when Cobblemon's resources are not there, the look does not
-    /// load, or every one of the atlas's slots is worn by a Pokémon in view.
+    /// load, every one of the atlas's slots is worn by a Pokémon in view, or its files are still being
+    /// read: asked for again, it is there once they are.
     fn pokemon_look(
         &mut self,
         species_id: &str,
         aspects: &[String],
-        template: &MobType,
+        _template: &MobType,
     ) -> Option<Look> {
-        let r = self.remote.as_mut()?;
-        let pokemon = &mut r.pokemon;
-        let assets = pokemon.assets.get_or_insert_with(Assets::load).as_ref()?;
-        let species = path_of(species_id);
-        let resolved = resolver::resolve(assets.resolvers.get(species)?, aspects)?;
-        let texture_id = resolved.texture.at(0.0)?.to_owned();
-        let key = (resolved.model.clone(), texture_id.clone());
-        if let Some(look) = pokemon.looks.get(&key) {
-            return look.clone();
+        match self.pokemon_look_for(species_id, aspects, None) {
+            Looked::Made(look) => Some(look),
+            Looked::Reading | Looked::None => None,
         }
-        type Built = (
-            Part,
-            (u32, u32, Vec<u8>),
-            Option<anim::Animator>,
-            (f32, [f32; 3]),
-        );
-        let build = || -> Result<Built, String> {
-            let model = assets
-                .models
-                .get(path_of(&resolved.model))
-                .ok_or_else(|| format!("no model {}", resolved.model))?;
-            let json = std::fs::read_to_string(model).map_err(|e| e.to_string())?;
-            let geometry = geo::Geometry::parse(&json).map_err(|e| e.0)?;
-            let poser = path_of(&resolved.poser);
-            // The species' poser file, or for one of the posers Cobblemon writes in code, what
-            // `tools/cobblelegacy/posers_from_kotlin.py` made of that class (`coded_posers`).
-            let poser_file = assets
-                .posers
-                .get(poser)
-                .and_then(|path| std::fs::read_to_string(path).ok())
-                .or_else(|| coded_posers::coded_poser(poser).map(str::to_owned))
-                .and_then(|json| match Poser::parse(&json) {
-                    Ok(parsed) => Some(parsed),
-                    Err(e) => {
-                        log::warn!("Horizon: Cobblemon poser {poser}: {}", e.0);
-                        None
-                    }
-                });
-            let root_bone = poser_file.as_ref().and_then(|p| p.root_bone.clone());
-            let framing = poser_file.as_ref().map_or((1.0, [0.0; 3]), |p| {
-                (p.portrait_scale, p.portrait_translation)
+    }
+
+    /// [`Self::pokemon_look`] for `waiting`, a Pokémon in the level: when the look's files are still
+    /// being read, it gets its body as soon as they are (`pokemon_looks_frame`).
+    fn pokemon_look_for(
+        &mut self,
+        species_id: &str,
+        aspects: &[String],
+        waiting: Option<i32>,
+    ) -> Looked {
+        let Some(r) = self.remote.as_mut() else {
+            return Looked::None;
+        };
+        let pokemon = &mut r.pokemon;
+        let Some(assets) = pokemon.assets.get_or_insert_with(Assets::load).clone() else {
+            return Looked::None;
+        };
+        let resolved = assets
+            .resolvers
+            .get(path_of(species_id))
+            .and_then(|resolvers| resolver::resolve(resolvers, aspects));
+        let Some(resolved) = resolved else {
+            return Looked::None;
+        };
+        let Some(texture_id) = resolved.texture.at(0.0) else {
+            return Looked::None;
+        };
+        let key = (resolved.model.clone(), texture_id.to_owned());
+        if let Some(look) = pokemon.looks.get(&key) {
+            return look.clone().map_or(Looked::None, Looked::Made);
+        }
+        if let Some(ids) = pokemon.reading.get_mut(&key) {
+            ids.extend(waiting);
+            return Looked::Reading;
+        }
+        pokemon
+            .reading
+            .insert(key.clone(), waiting.into_iter().collect());
+        pokemon
+            .loader
+            .get_or_insert_with(|| looks::Loader::new(assets.clone()))
+            .ask(looks::Wanted {
+                key,
+                species: species_id.to_owned(),
+                poser: resolved.poser.clone(),
             });
-            let root = geometry
-                .drawn_root(root_bone.as_deref(), poser)
-                .ok_or("a model without a root bone")?;
-            let texture = assets
-                .texture(&texture_id)
-                .ok_or_else(|| format!("no texture {texture_id}"))?;
-            let png = std::fs::read(texture).map_err(|e| format!("{texture_id}: {e}"))?;
-            let (width, height, rgba) =
-                horizon_client::hud::decode_bytes(&png).map_err(|e| e.to_string())?;
-            let animator = poser_file
-                .map(|poser| anim::Animator::new(&poser, &mut |group| assets.animation(group)));
-            Ok((
-                part(root, geometry.texture_size),
-                fit(width, height, rgba),
-                animator,
-                framing,
-            ))
-        };
-        let (root, (w, h, rgba), animator, (portrait_scale, portrait_translation)) = match build() {
-            Ok(built) => built,
-            Err(e) => {
-                log::warn!("Horizon: {species_id}'s model does not load: {e}");
-                pokemon.looks.insert(key, None);
-                return None;
+        Looked::Reading
+    }
+
+    /// Once a frame: the looks whose files have been read since the last get their place in the atlas,
+    /// and the Pokémon that waited for them their body.
+    fn pokemon_looks_frame(&mut self) {
+        loop {
+            let Some(r) = self.remote.as_mut() else {
+                return;
+            };
+            let pokemon = &mut r.pokemon;
+            let Some((wanted, read)) = pokemon.loader.as_mut().and_then(looks::Loader::next) else {
+                return;
+            };
+            let waiting = pokemon.reading.remove(&wanted.key).unwrap_or_default();
+            let look = match read {
+                Ok(read) => self.pokemon_look_made(&wanted, read),
+                Err(e) => {
+                    log::warn!("Horizon: {}'s model does not load: {e}", wanted.species);
+                    pokemon.looks.insert(wanted.key.clone(), None);
+                    None
+                }
+            };
+            // A look that could not be made leaves them the body that stands in for it.
+            let kind = match look {
+                Some(look) => Some(look.kind),
+                None => self.pokemon_stand_in(&wanted.species),
+            };
+            let Some(kind) = kind else {
+                continue;
+            };
+            for id in waiting {
+                // One that left the level while its look was read is not there any more.
+                if let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32)
+                    && mob.species() == Species::Pokemon
+                {
+                    mob.kind = kind.clone();
+                }
             }
-        };
-        let (base_scale, width, height) = assets.dimensions(species);
+        }
+    }
+
+    /// What the render thread does of a look once its files are read: the texture's place in the atlas
+    /// and the mob type. `None` when every one of the atlas's slots is worn at once: the look is read
+    /// again the next time it is seen.
+    fn pokemon_look_made(&mut self, wanted: &looks::Wanted, read: looks::Read) -> Option<Look> {
+        let template = self.res.mob_types().get(STAND_IN).cloned()?;
+        let (base_scale, width, height) = read.dimensions;
         // Stood on the ground and sized, around its feet: a part of its own above the model's
         // root, whose pose animations change (`PokemonRenderer` scales outside the model too).
         let body = Part {
@@ -458,19 +503,22 @@ impl Game<'_> {
                 0.0, GROUND, 0.0, 0.0, 0.0, 0.0, base_scale, base_scale, base_scale,
             ],
             polygons: Vec::new(),
-            children: vec![root],
+            children: vec![read.root],
         };
-        let sprite = format!("cobblemon/{}", path_of(&texture_id));
-        // Every slot worn at once: this look waits (a stand-in body, no portrait) and is tried again.
-        self.pokemon_skin(&sprite, (w, h, rgba))?;
-        let mut kind = pokemon_type(template, species_id);
+        let sprite = format!("cobblemon/{}", path_of(&wanted.key.1));
+        self.pokemon_skin(&sprite, read.texture)?;
+        let mut kind = pokemon_type(&template, &wanted.species);
         kind.model = Arc::new(body);
-        kind.anim = Anim::Own(animator.map_or(own::NONE, |a| own::register(Arc::new(a))));
+        kind.anim = Anim::Own(
+            read.animator
+                .map_or(own::NONE, |a| own::register(Arc::new(a))),
+        );
         kind.texture = sprite;
         // `PokemonEntity.getDimensions`: the hitbox by the base scale.
         kind.width = f64::from(width * base_scale);
         kind.height = f64::from(height * base_scale);
         kind.eye_height = kind.height * 0.85;
+        let (portrait_scale, portrait_translation) = read.portrait;
         let look = Look {
             kind: Arc::new(kind),
             base_scale,
@@ -481,8 +529,26 @@ impl Game<'_> {
             .as_mut()?
             .pokemon
             .looks
-            .insert(key, Some(look.clone()));
+            .insert(wanted.key.clone(), Some(look.clone()));
         Some(look)
+    }
+
+    /// The vanilla body a Pokémon of `species_id` has when Cobblemon's own cannot be drawn.
+    fn pokemon_stand_in(&mut self, species_id: &str) -> Option<Arc<MobType>> {
+        let template = self.res.mob_types().get(STAND_IN).cloned()?;
+        let stand_ins = &mut self.remote.as_mut()?.pokemon.stand_ins;
+        Some(
+            stand_ins
+                .entry(species_id.to_owned())
+                .or_insert_with(|| Arc::new(pokemon_type(&template, species_id)))
+                .clone(),
+        )
+    }
+
+    /// Once a frame, before it is drawn: what of the Pokémon moves on by itself.
+    pub(in super::super) fn pokemon_frame(&mut self) {
+        self.pokemon_looks_frame();
+        self.pokemon_phase_frame();
     }
 
     /// An image in one of the atlas's Pokémon slots, as the sprite `sprite`. The slots are shared: only
@@ -558,7 +624,7 @@ impl Game<'_> {
                     _ => {
                         let pokemon = &mut r.pokemon;
                         let max_level = pokemon.labels.max_level();
-                        let assets = pokemon.assets.get_or_insert_with(Assets::load).as_ref();
+                        let assets = pokemon.assets.get_or_insert_with(Assets::load).as_deref();
                         pokemon.party.read(channel, data, max_level, assets);
                     }
                 }
@@ -623,19 +689,29 @@ impl Game<'_> {
         let Some(template) = self.res.mob_types().get(STAND_IN).cloned() else {
             return;
         };
-        let look = self.pokemon_look(&spawn.species, &spawn.aspects, &template);
+        let id = spawn.entity.id;
+        let kind = match self.pokemon_look_for(&spawn.species, &spawn.aspects, Some(id)) {
+            Looked::Made(look) => look.kind,
+            // No body until its files are read: `pokemon_looks_frame` gives it one.
+            Looked::Reading => {
+                let mut bodiless = pokemon_type(&template, &spawn.species);
+                bodiless.model = Arc::new(Part {
+                    name: "#stand".into(),
+                    pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+                    polygons: Vec::new(),
+                    children: Vec::new(),
+                });
+                Arc::new(bodiless)
+            }
+            Looked::None => match self.pokemon_stand_in(&spawn.species) {
+                Some(kind) => kind,
+                None => return,
+            },
+        };
         let Some(r) = self.remote.as_mut() else {
             return;
         };
-        let kind = look.map(|look| look.kind).unwrap_or_else(|| {
-            r.pokemon
-                .stand_ins
-                .entry(spawn.species.clone())
-                .or_insert_with(|| Arc::new(pokemon_type(&template, &spawn.species)))
-                .clone()
-        });
         let entity = &spawn.entity;
-        let id = entity.id;
         let beam_mode = spawn.beam_mode;
         // The AddEntity arm of `handle_packet`: an id the level holds already starts afresh.
         r.ticked_before_player.remove(&(id as u32));

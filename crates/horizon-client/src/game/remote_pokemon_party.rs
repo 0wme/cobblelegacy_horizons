@@ -603,7 +603,7 @@ impl Game<'_> {
         let tiles: Arc<[Option<Tile>]> = if party.storage.party().iter().all(Option::is_none) {
             Arc::new([])
         } else {
-            let assets = pokemon.assets.get_or_insert_with(Assets::load).as_ref();
+            let assets = pokemon.assets.get_or_insert_with(Assets::load).as_deref();
             let facts = &mut party.facts;
             party
                 .storage
