@@ -320,6 +320,20 @@ impl SoundRegistry {
             }
         }
     }
+    /// The events of `other` this registry has none for, as resources read under the game's own
+    /// (CobbleLegacy's fork: a mod's sounds kept outside the resource root): an event both define
+    /// keeps the sounds it has here. `added` is told each sound of the events taken.
+    pub fn add_missing(&mut self, other: &Self, mut added: impl FnMut(&Sound)) {
+        for (name, event) in &other.events {
+            if !self.events.contains_key(name) {
+                event.sounds.iter().for_each(&mut added);
+                self.events.insert(name.clone(), event.clone());
+            }
+        }
+    }
+    pub fn len(&self) -> usize {
+        self.events.len()
+    }
     pub fn get(&self, event: &str) -> Option<&WeighedSoundEvents> {
         self.events.get(event)
     }
@@ -513,6 +527,37 @@ mod tests {
         // The referenced event lists its own tracks; this one only "music/c".
         assert_eq!(r.tracks("minecraft:music.creative"), ["minecraft:music/c"]);
         assert!(r.tracks("minecraft:music.absent").is_empty());
+    }
+
+    #[test]
+    fn events_from_elsewhere_fill_in_what_the_registry_lacks() {
+        let mut r = SoundRegistry::default();
+        r.add_file(
+            "mod",
+            br#"{"throw": {"sounds": ["mod:own/throw"]}}"#,
+            &|_, _| true,
+        );
+        let mut other = SoundRegistry::default();
+        other.add_file(
+            "mod",
+            br#"{
+                "throw": {"sounds": ["mod:other/throw"]},
+                "recall": {"subtitle": "mod.recall", "sounds": ["mod:other/recall", {"name": "mod:other/far", "stream": true}]}
+            }"#,
+            &|_, _| true,
+        );
+        let mut added = Vec::new();
+        r.add_missing(&other, |sound| added.push(sound.location.clone()));
+        // Only the event the registry lacked came, with its sounds; the other keeps its own.
+        assert_eq!(added, ["mod:other/recall", "mod:other/far"]);
+        assert_eq!(r.len(), 2);
+        assert_eq!(r.tracks("mod:throw"), ["mod:own/throw"]);
+        assert_eq!(
+            r.get("mod:recall").unwrap().subtitle.as_deref(),
+            Some("mod.recall")
+        );
+        // A second time changes nothing.
+        r.add_missing(&other, |_| panic!("nothing left to take"));
     }
 
     #[test]

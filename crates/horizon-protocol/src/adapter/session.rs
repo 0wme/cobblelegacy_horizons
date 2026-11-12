@@ -448,6 +448,67 @@ mod tests {
         assert_eq!(s.clientbound(entity_id, entity.data).unwrap(), None);
     }
 
+    /// Once the session has a modded server's table (`set_modded`), a sound of its mods goes on by its
+    /// name, as an inline sound: Cobblemon's Ball leaving a hand, a sound bound to an entity. One the
+    /// table does not name is still dropped.
+    #[test]
+    fn a_modded_server_s_sound_goes_on_by_its_name() {
+        use crate::{adapter::fabric::Modded, packets::play};
+        let s = Session::new(ServerVersion::V1_21_1);
+        s.set_reading(State::Play);
+        s.set_modded(Modded {
+            sounds: [(1700, "cobblemon:poke_ball.throw".to_owned())].into(),
+            ..Default::default()
+        });
+        let sound = |holder: i32| {
+            let mut w = Writer::new();
+            w.varint(holder);
+            w.varint(6); // neutral
+            for v in [8, 64, -8] {
+                w.i32(v);
+            }
+            w.f32(0.6);
+            w.f32(1.0);
+            w.i64(7);
+            w.data
+        };
+        let sound_id = old_play_id(s.version, ids::play::clientbound::SOUND);
+        let (id, payload) = s.clientbound(sound_id, sound(1700 + 1)).unwrap().unwrap();
+        let play::Clientbound::Sound(p) = play::Clientbound::decode(id, &payload).unwrap() else {
+            panic!("sound")
+        };
+        assert_eq!(
+            p.sound,
+            (-1, Some(("cobblemon:poke_ball.throw".into(), None)))
+        );
+        assert_eq!((p.source, p.x, p.volume, p.seed), (6, 8, 0.6, 7));
+        assert_eq!(s.clientbound(sound_id, sound(1701 + 1)).unwrap(), None);
+        // Vanilla's own keep their numbers.
+        let (id, payload) = s.clientbound(sound_id, sound(1)).unwrap().unwrap();
+        let play::Clientbound::Sound(p) = play::Clientbound::decode(id, &payload).unwrap() else {
+            panic!("vanilla sound")
+        };
+        assert!(p.sound.0 >= 0 && p.sound.1.is_none());
+
+        let mut entity = Writer::new();
+        entity.varint(1700 + 1);
+        entity.varint(6);
+        entity.varint(12);
+        entity.f32(1.0);
+        entity.f32(1.0);
+        entity.i64(7);
+        let entity_id = old_play_id(s.version, ids::play::clientbound::SOUND_ENTITY);
+        let (id, payload) = s.clientbound(entity_id, entity.data).unwrap().unwrap();
+        let play::Clientbound::SoundEntity(p) = play::Clientbound::decode(id, &payload).unwrap()
+        else {
+            panic!("entity sound")
+        };
+        assert_eq!(
+            (p.sound.1, p.id),
+            (Some(("cobblemon:poke_ball.throw".into(), None)), 12)
+        );
+    }
+
     /// A modded 1.21.1 server (Fabric with Cobblemon) has argument parsers of its own after vanilla's
     /// (`cobblemon:pokemon`, a species): the tree used to be refused whole ("unknown argument type -1"),
     /// so every command read as unknown. Such an argument is now the rest of the line, completed by the

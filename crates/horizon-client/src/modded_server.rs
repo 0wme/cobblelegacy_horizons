@@ -214,6 +214,13 @@ pub fn modded(
             (server, skip)
         })
         .collect();
+    // The mods' sound events: the client numbers none of them, and plays them by name.
+    modded.sounds = sync
+        .entries("minecraft:sound_event")
+        .filter(|(_, name)| !name.starts_with("minecraft:"))
+        .map(|(server, name)| (server, name.to_owned()))
+        .collect();
+    summary.sounds = modded.sounds.len();
     (modded.with_items(pairs), summary)
 }
 
@@ -232,6 +239,8 @@ pub struct Summary {
     pub unknown_block: Option<String>,
     pub items_matched: usize,
     pub items_missing: usize,
+    /// The server's mod sound events, which the session names from now on.
+    pub sounds: usize,
 }
 
 /// [`modded`] from the client's resource root, with the report [`REPORT`] names if it does.
@@ -308,6 +317,16 @@ mod tests {
             .map(|(n, name)| (n, name.to_owned()))
             .into(),
         );
+        table.registries.insert(
+            "minecraft:sound_event".into(),
+            [
+                (0, "minecraft:entity.allay.ambient_with_item"),
+                (1611, "cobblemon:poke_ball.throw"),
+                (1612, "cobblemon:poke_ball.recall"),
+            ]
+            .map(|(n, name)| (n, name.to_owned()))
+            .into(),
+        );
         table
     }
 
@@ -350,6 +369,14 @@ mod tests {
             modded.components,
             HashMap::from([(57, Skip::Nbt), (67, Skip::Bool)])
         );
+        // The mods' sounds keep their names; the game's own have their numbers in the adapter's tables.
+        assert_eq!(
+            modded.sounds,
+            HashMap::from([
+                (1611, "cobblemon:poke_ball.throw".to_owned()),
+                (1612, "cobblemon:poke_ball.recall".to_owned()),
+            ])
+        );
         assert_eq!(
             summary,
             Summary {
@@ -358,6 +385,7 @@ mod tests {
                 unknown_block: None,
                 items_matched: 1,
                 items_missing: 1,
+                sounds: 2,
             }
         );
     }

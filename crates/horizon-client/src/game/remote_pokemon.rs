@@ -47,6 +47,8 @@ mod looks;
 mod party;
 #[path = "remote_pokemon_phase.rs"]
 mod phase;
+#[path = "remote_pokemon_sounds.rs"]
+mod sounds;
 
 /// Whether `channel` carries one of the messages of a Cobblemon server that are read here: a Pokémon in
 /// place of AddEntity, the part of its data the adapter could not read, the server's settings, the
@@ -58,6 +60,7 @@ pub(super) fn reads(channel: &str) -> bool {
     ) || cobblelegacy_cobblemon::party::reads(channel)
         || cobblelegacy_cobblemon::battle::reads(channel)
         || channel == cobblelegacy_cobblemon::moves::MOVES_SYNC
+        || channel == cobblelegacy_cobblemon::sound::PLAY_ANIMATION
 }
 
 /// The vanilla type that lends a Pokémon its attributes, and its body when Cobblemon's own cannot be
@@ -98,6 +101,8 @@ pub(super) struct Pokemon {
     moves: Option<cobblelegacy_cobblemon::moves::Moves>,
     /// The Pokémon coming out of their Balls and going back in.
     phases: phase::Phases,
+    /// What is heard of them: a Ball's trail, the cries to come, a battle's music.
+    sounds: sounds::Sounds,
 }
 
 /// What there is of a look when it is asked for.
@@ -119,6 +124,8 @@ struct Look {
     /// The poser's `portraitScale` and `portraitTranslation`.
     portrait_scale: f32,
     portrait_translation: [f32; 3],
+    /// The sounds of its named animations (a cry).
+    voice: Arc<sounds::Voice>,
 }
 
 impl Pokemon {
@@ -126,6 +133,7 @@ impl Pokemon {
         self.seen.remove(&id);
         self.labels.forget(id);
         self.phases.forget(id);
+        self.sounds.forget(id);
     }
 }
 
@@ -524,6 +532,7 @@ impl Game<'_> {
             base_scale,
             portrait_scale,
             portrait_translation,
+            voice: Arc::new(read.voice),
         };
         self.remote
             .as_mut()?
@@ -549,6 +558,7 @@ impl Game<'_> {
     pub(in super::super) fn pokemon_frame(&mut self) {
         self.pokemon_looks_frame();
         self.pokemon_phase_frame();
+        self.pokemon_sounds_frame();
     }
 
     /// An image in one of the atlas's Pokémon slots, as the sprite `sprite`. The slots are shared: only
@@ -601,7 +611,9 @@ impl Game<'_> {
         match channel {
             SPAWN_POKEMON => self.remote_pokemon_spawn(data),
             UNREAD_ENTITY_DATA => self.remote_pokemon_data(data),
+            cobblelegacy_cobblemon::sound::PLAY_ANIMATION => self.pokemon_animation_sounds(data),
             battle if cobblelegacy_cobblemon::battle::reads(battle) => {
+                self.pokemon_battle_sounds(battle, data);
                 self.remote_pokemon_battle(battle, data);
             }
             cobblelegacy_cobblemon::moves::MOVES_SYNC => {

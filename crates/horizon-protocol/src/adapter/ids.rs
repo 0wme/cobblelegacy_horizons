@@ -262,6 +262,14 @@ pub(crate) fn modded_component(id: i32) -> Option<super::fabric::Skip> {
     }
     MODDED.with_borrow(|modded| modded.as_ref()?.components.get(&id).copied())
 }
+/// The name of a modded server's own sound event `id` (its number there), while a packet of that
+/// server is read on this thread.
+pub(crate) fn modded_sound(id: i32) -> Option<String> {
+    if !matches!(ACTIVE.get(), Some((_, Way::Up))) {
+        return None;
+    }
+    MODDED.with_borrow(|modded| modded.as_ref()?.sounds.get(&id).cloned())
+}
 /// A mod's item the other side numbers otherwise, in the direction being renumbered.
 fn modded_item(id: i32, way: Way) -> Option<i32> {
     MODDED.with_borrow(|modded| {

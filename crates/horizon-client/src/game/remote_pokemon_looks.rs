@@ -8,7 +8,7 @@
 //!
 //! What stays the render thread's is what only it can do: the texture's place in the atlas and the mob
 //! type (`pokemon_look_made` in `remote_pokemon.rs`).
-use super::{Assets, anim, fit, part, path_of};
+use super::{Assets, anim, fit, part, path_of, sounds};
 use cobblelegacy_cobblemon::{coded_posers, geo, poser::Poser};
 use horizon_client::mobs::Part;
 use std::sync::{Arc, mpsc};
@@ -32,6 +32,8 @@ pub(super) struct Read {
     /// The texture, no larger than a slot of the atlas: width, height, RGBA.
     pub(super) texture: (u32, u32, Vec<u8>),
     pub(super) animator: Option<anim::Animator>,
+    /// The sounds of its named animations (a cry).
+    pub(super) voice: sounds::Voice,
     /// The poser's `portraitScale` and `portraitTranslation`.
     pub(super) portrait: (f32, [f32; 3]),
     /// The species' `baseScale`, and its hitbox's width and height.
@@ -130,12 +132,20 @@ fn read_look(assets: &Assets, wanted: &Wanted) -> Result<Read, String> {
     let png = std::fs::read(texture).map_err(|e| format!("{texture_id}: {e}"))?;
     let (width, height, rgba) =
         horizon_client::hud::decode_bytes(&png).map_err(|e| e.to_string())?;
-    let animator =
-        poser_file.map(|poser| anim::Animator::new(&poser, &mut |group| assets.animation(group)));
+    let mut load = |group: &str| assets.animation(group);
+    let animator = poser_file
+        .as_ref()
+        .map(|poser| anim::Animator::new(poser, &mut load));
+    let voice = poser_file
+        .as_ref()
+        .zip(animator.as_ref())
+        .map(|(poser, animator)| sounds::Voice::new(poser, animator, &mut load))
+        .unwrap_or_default();
     Ok(Read {
         root: part(root, geometry.texture_size),
         texture: fit(width, height, rgba),
         animator,
+        voice,
         portrait,
         dimensions: assets.dimensions(path_of(&wanted.species)),
     })

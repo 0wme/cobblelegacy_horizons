@@ -5,9 +5,10 @@
 //! and plays it (`BedrockAnimation.run`, `BedrockKeyFrameBoneValue.resolve`, `catmullromLerp`): for each
 //! bone its `position`, `rotation` and `scale`, each three MoLang expressions or keyframes of them.
 //!
-//! Only the bones are read. An animation's `sound_effects`, `particle_effects` and `timeline`, which
-//! Cobblemon also reads (and a file whose particle effect it does not know is a file it drops), and
-//! whatever else is in it are skipped unread.
+//! The bones are read, and the sounds an animation plays as it goes (`sound_effects`: a cry is one of
+//! those). An animation's `particle_effects` and `timeline`, which Cobblemon also reads (and a file
+//! whose particle effect it does not know is a file it drops), and whatever else is in it are skipped
+//! unread.
 //!
 //! A file Cobblemon would fail to load is an error here, with one exception: a component whose MoLang
 //! does not compile (see [`crate::molang`] for what that is) is counted in [`Census::unparsed`] and stands
@@ -42,7 +43,7 @@ pub struct AnimationFile {
     pub animations: Vec<Animation>,
 }
 
-/// One animation: Cobblemon's `BedrockAnimation`, without its effects.
+/// One animation: Cobblemon's `BedrockAnimation`, without its particles and instructions.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Animation {
     /// Its key in the file, such as `animation.pikachu.ground_idle`.
@@ -54,6 +55,18 @@ pub struct Animation {
     pub length: Option<f32>,
     /// The bones the animation names, in file order, whether or not it moves them.
     pub bones: Vec<BoneChannels>,
+    /// `sound_effects`, by the moment they play at: Cobblemon's `BedrockSoundKeyframe`s.
+    pub sounds: Vec<SoundKeyframe>,
+}
+
+/// A sound an animation plays `seconds` after it starts (`BedrockSoundKeyframe`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct SoundKeyframe {
+    pub seconds: f32,
+    /// The sound event, with its namespace (`cobblemon:pokemon.pikachu.cry`): the file's `effect`
+    /// in lower case, in Cobblemon's namespace when it names none
+    /// (`asIdentifierDefaultingNamespace`).
+    pub sound: String,
 }
 
 /// What an animation does to one bone: Cobblemon's `BedrockBoneTimeline`.
@@ -95,6 +108,8 @@ pub struct Census {
     pub constant_expressions: usize,
     /// How often the expressions refer to each name, as [`Expression::parse_noting`] reports names.
     pub names: BTreeMap<String, usize>,
+    /// The sounds of every animation's `sound_effects`.
+    pub sounds: usize,
     /// How often an animation has each of the keys that are skipped.
     pub ignored_animation_keys: BTreeMap<String, usize>,
     /// Likewise for a bone's keys.
@@ -734,23 +749,86 @@ impl<'de> Visitor<'de> for AnimationSeed<'_, '_> {
     ) -> std::result::Result<Self::Value, A::Error> {
         let AnimationSeed(reader, name) = self;
         let (mut looping, mut length, mut bones) = (false, None, Vec::new());
-        while let Some(key) = map.next_key_seed(KeyAmong(&["loop", "animation_length", "bones"]))? {
+        let mut sounds = Vec::new();
+        const KEYS: &[&str] = &["loop", "animation_length", "bones", "sound_effects"];
+        while let Some(key) = map.next_key_seed(KeyAmong(KEYS))? {
             match key {
                 Key::Known(0) => looping = map.next_value::<Loop>()?.0,
                 Key::Known(1) => length = Some(map.next_value::<f64>()? as f32),
-                Key::Known(_) => bones = map.next_value_seed(BonesSeed(&mut *reader))?,
+                Key::Known(2) => bones = map.next_value_seed(BonesSeed(&mut *reader))?,
+                Key::Known(_) => sounds = map.next_value::<SoundEffects>()?.0,
                 Key::Other(key) => {
                     map.next_value::<IgnoredAny>()?;
                     count(&mut reader.census.ignored_animation_keys, &key);
                 }
             }
         }
+        reader.census.sounds += sounds.len();
         Ok(Animation {
             name,
             looping,
             length,
             bones,
+            sounds,
         })
+    }
+}
+
+/// An animation's `sound_effects` as `BedrockAnimationAdapter` reads them: an object of moments, each
+/// with one effect or an array of them, an effect being an object whose `effect` names the sound.
+/// What is at a moment and is neither is passed over, as there; an effect without a name, or what is
+/// in an array and is no object, fails the file, as there.
+struct SoundEffects(Vec<SoundKeyframe>);
+
+impl<'de> Deserialize<'de> for SoundEffects {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
+        struct Moments;
+        impl<'de> Visitor<'de> for Moments {
+            type Value = SoundEffects;
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("an animation's `sound_effects`, an object")
+            }
+            fn visit_map<A: MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> std::result::Result<SoundEffects, A::Error> {
+                let mut sounds = Vec::new();
+                while let Some(seconds) = map.next_key_seed(Time)? {
+                    let effects = match map.next_value::<serde_json::Value>()? {
+                        serde_json::Value::Array(effects) => effects,
+                        effect @ serde_json::Value::Object(_) => vec![effect],
+                        _ => continue,
+                    };
+                    for effect in effects {
+                        let name = match effect.as_object().map(|effect| effect.get("effect")) {
+                            Some(Some(serde_json::Value::String(name))) => name.clone(),
+                            // Gson's `getAsString` of a number or a boolean is its text.
+                            Some(Some(
+                                name @ (serde_json::Value::Number(_) | serde_json::Value::Bool(_)),
+                            )) => name.to_string(),
+                            _ => {
+                                return Err(de::Error::custom(
+                                    "a sound effect that is no object with an `effect`",
+                                ));
+                            }
+                        };
+                        let name = name.to_lowercase();
+                        sounds.push(SoundKeyframe {
+                            seconds: seconds as f32,
+                            sound: if name.contains(':') {
+                                name
+                            } else {
+                                format!("cobblemon:{name}")
+                            },
+                        });
+                    }
+                }
+                // In the order they play; those of one moment in the order they were read.
+                sounds.sort_by(|a, b| a.seconds.total_cmp(&b.seconds));
+                Ok(SoundEffects(sounds))
+            }
+        }
+        deserializer.deserialize_map(Moments)
     }
 }
 
@@ -1558,10 +1636,51 @@ mod tests {
         };
         assert_eq!(
             keys(&census.ignored_animation_keys),
-            "particle_effects 1, sound_effects 2, timeline 1"
+            "particle_effects 1, timeline 1"
         );
+        assert_eq!(census.sounds, 1);
         assert_eq!(keys(&census.ignored_bone_keys), "relative_to 1");
         assert!(census.unparsed.is_empty());
+    }
+
+    #[test]
+    fn an_animation_s_sounds_are_read_with_their_moments() {
+        let cry = file(
+            r#""animation.pikachu.cry": {
+                "animation_length": 4,
+                "sound_effects": {
+                    "1.25": [{ "effect": "Cobblemon:Pokemon.Pikachu.Extra" }, { "effect": "mod:beep" }],
+                    "0.5": { "effect": "pokemon.pikachu.cry" },
+                    "2.0": "nothing Cobblemon reads"
+                }
+            },
+            "animation.pikachu.idle": { "sound_effects": {} }"#,
+        );
+        let sounds: Vec<_> = cry.animations[0]
+            .sounds
+            .iter()
+            .map(|s| (s.seconds, s.sound.as_str()))
+            .collect();
+        // By moment; a name without a namespace is Cobblemon's, and any is in lower case.
+        assert_eq!(
+            sounds,
+            [
+                (0.5, "cobblemon:pokemon.pikachu.cry"),
+                (1.25, "cobblemon:pokemon.pikachu.extra"),
+                (1.25, "mod:beep"),
+            ]
+        );
+        assert!(cry.animations[1].sounds.is_empty());
+        // What Cobblemon fails on fails here: no object of moments, an effect that names nothing.
+        for bad in [
+            r#""sound_effects": []"#,
+            r#""sound_effects": { "0.0": {} }"#,
+            r#""sound_effects": { "0.0": ["cry"] }"#,
+            r#""sound_effects": { "soon": { "effect": "cry" } }"#,
+        ] {
+            let json = format!(r#"{{ "animations": {{ "a": {{ {bad} }} }} }}"#);
+            assert!(AnimationFile::parse(&json).is_err(), "{bad}");
+        }
     }
 
     #[test]
