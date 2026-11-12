@@ -534,15 +534,15 @@ mod tests {
         let mut r = SoundRegistry::default();
         r.add_file(
             "mod",
-            br#"{"throw": {"sounds": ["own/throw"]}}"#,
+            br#"{"throw": {"sounds": ["mod:own/throw"]}}"#,
             &|_, _| true,
         );
         let mut other = SoundRegistry::default();
         other.add_file(
             "mod",
             br#"{
-                "throw": {"sounds": ["other/throw"]},
-                "recall": {"subtitle": "mod.recall", "sounds": ["other/recall", {"name": "other/far", "stream": true}]}
+                "throw": {"sounds": ["mod:other/throw"]},
+                "recall": {"subtitle": "mod.recall", "sounds": ["mod:other/recall", {"name": "mod:other/far", "stream": true}]}
             }"#,
             &|_, _| true,
         );

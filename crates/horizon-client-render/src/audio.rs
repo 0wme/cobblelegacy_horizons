@@ -2443,13 +2443,13 @@ mod tests {
         let mut audio = Audio::silent(root);
         audio.engine.registry.add_file(
             "mod",
-            br#"{"own":{"sounds":["own/file"]}}"#,
+            br#"{"own":{"sounds":["mod:own/file"]}}"#,
             &|_, _| true,
         );
         let mut extra = ExtraSounds::default();
         extra.registry.add_file(
             "mod",
-            br#"{"own":{"sounds":["other/file"]},"throw":{"sounds":["ball/throw"]}}"#,
+            br#"{"own":{"sounds":["mod:other/file"]},"throw":{"sounds":["mod:ball/throw"]}}"#,
             &|_, _| true,
         );
         let file = PathBuf::from("/elsewhere/assets/mod/sounds/ball/throw.ogg");
@@ -2487,7 +2487,7 @@ mod tests {
         let mut reloaded = SoundRegistry::default();
         reloaded.add_file(
             "mod",
-            br#"{"throw":{"sounds":["root/throw"]}}"#,
+            br#"{"throw":{"sounds":["mod:root/throw"]}}"#,
             &|_, _| true,
         );
         audio.reload_with(root, reloaded);
@@ -2511,13 +2511,18 @@ mod tests {
         let mut audio = Audio::silent(Path::new("/nonexistent/horizon-test-assets"));
         audio.engine.registry.add_file(
             "mod",
-            br#"{"a":{"sounds":["a"]},"b":{"sounds":["b"]},"c":{"sounds":["c"]}}"#,
+            br#"{"a":{"sounds":["mod:a"]},"b":{"sounds":["mod:b"]},"c":{"sounds":["mod:c"]}}"#,
             &|_, _| true,
         );
         audio.engine.loaded = true;
         audio.backend.live = true;
         for key in ["a", "b", "c"] {
-            audio.insert_cached_sound(&format!("mod:sounds/{key}.ogg"), vec![0.5; 48_000], 48_000, 1);
+            audio.insert_cached_sound(
+                &format!("mod:sounds/{key}.ogg"),
+                vec![0.5; 48_000],
+                48_000,
+                1,
+            );
         }
         let music = |id: &str| SoundInstance::for_music(id, LegacyRandom::new(1));
         let (game, _) = audio.play_instance(music("mod:a"), false);
@@ -2913,6 +2918,7 @@ mod tests {
         let backend = |owner| MixerBackend {
             mixer: mixer.clone(),
             root: PathBuf::new(),
+            elsewhere: HashMap::new(),
             cache: Arc::default(),
             decoder: None,
             next: (u64::from(owner)) << 40,
