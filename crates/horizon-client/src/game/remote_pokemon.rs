@@ -45,6 +45,8 @@ mod fight;
 mod label;
 #[path = "remote_pokemon_party.rs"]
 mod party;
+#[path = "remote_pokemon_phase.rs"]
+mod phase;
 
 /// Whether `channel` carries one of the messages of a Cobblemon server that are read here: a Pokémon in
 /// place of AddEntity, the part of its data the adapter could not read, the server's settings, the
@@ -89,6 +91,8 @@ pub(super) struct Pokemon {
     fight: fight::Fight,
     /// The server's moves, sent as the player joins: a battle's tiles take each move's type from it.
     moves: Option<cobblelegacy_cobblemon::moves::Moves>,
+    /// The Pokémon coming out of their Balls and going back in.
+    phases: phase::Phases,
 }
 
 /// A look ready to draw: the mob type a model and its texture make, and how the model's poser frames
@@ -107,6 +111,7 @@ impl Pokemon {
     pub(super) fn forget(&mut self, id: i32) {
         self.seen.remove(&id);
         self.labels.forget(id);
+        self.phases.forget(id);
     }
 }
 
@@ -246,9 +251,14 @@ impl Assets {
     /// The file of a texture id (`cobblemon:textures/pokemon/0025_pikachu/pikachu.png`), in the root that
     /// wins among those that have it.
     fn texture(&self, id: &str) -> Option<PathBuf> {
+        self.file(path_of(id))
+    }
+
+    /// The file at `path` under `assets/cobblemon`, in the root that wins among those that have it.
+    fn file(&self, path: &str) -> Option<PathBuf> {
         self.assets
             .iter()
-            .map(|assets| assets.join(path_of(id)))
+            .map(|assets| assets.join(path))
             .find(|path| path.is_file())
     }
 
@@ -451,43 +461,8 @@ impl Game<'_> {
             children: vec![root],
         };
         let sprite = format!("cobblemon/{}", path_of(&texture_id));
-        // The atlas's slots are shared: only the textures the Pokémon in the level and the party's
-        // portraits wear keep theirs, and one nothing wears any more gives its slot to this one.
-        let worn: HashSet<String> = self
-            .mobs
-            .iter()
-            .filter(|m| m.species() == Species::Pokemon)
-            .map(|m| m.kind.texture.clone())
-            .chain(pokemon.party.textures())
-            .collect();
-        let slots = pokemon
-            .slots
-            .get_or_insert_with(|| SkinSlots::new(POKEMON_SLOTS));
-        slots.next_frame(worn);
         // Every slot worn at once: this look waits (a stand-in body, no portrait) and is tried again.
-        let (slot, evicted) = slots.place(sprite.clone())?;
-        let atlas = &mut self.gui.atlas;
-        if let Some(old) = evicted {
-            atlas.sprites.remove(&old);
-            // The looks that wore it are made again the next time they are seen.
-            pokemon
-                .looks
-                .retain(|_, look| look.as_ref().is_none_or(|l| l.kind.texture != old));
-            pokemon.party.forget_texture(&old);
-        }
-        let mut rect = *atlas.sprites.get(&format!("horizon/pokemon{slot}"))?;
-        let (aw, ah) = (atlas.width as f32, atlas.height as f32);
-        self.map_patches.push(horizon_client::font::Patch {
-            x: (rect.u0 * aw).round() as u32,
-            y: (rect.v0 * ah).round() as u32,
-            width: w,
-            height: h,
-            rgba,
-        });
-        // The texture is the slot's top left corner.
-        rect.u1 = rect.u0 + w as f32 / aw;
-        rect.v1 = rect.v0 + h as f32 / ah;
-        atlas.sprites.insert(sprite.clone(), rect);
+        self.pokemon_skin(&sprite, (w, h, rgba))?;
         let mut kind = pokemon_type(template, species_id);
         kind.model = Arc::new(body);
         kind.anim = Anim::Own(animator.map_or(own::NONE, |a| own::register(Arc::new(a))));
@@ -502,8 +477,57 @@ impl Game<'_> {
             portrait_scale,
             portrait_translation,
         };
-        pokemon.looks.insert(key, Some(look.clone()));
+        self.remote
+            .as_mut()?
+            .pokemon
+            .looks
+            .insert(key, Some(look.clone()));
         Some(look)
+    }
+
+    /// An image in one of the atlas's Pokémon slots, as the sprite `sprite`. The slots are shared: only
+    /// the textures the Pokémon in the level, the party's portraits and the Balls in flight wear keep
+    /// theirs, and one nothing wears any more gives its slot to this one. `None` when every slot is worn
+    /// at once.
+    fn pokemon_skin(&mut self, sprite: &str, (w, h, rgba): (u32, u32, Vec<u8>)) -> Option<()> {
+        let pokemon = &mut self.remote.as_mut()?.pokemon;
+        let worn: HashSet<String> = self
+            .mobs
+            .iter()
+            .filter(|m| m.species() == Species::Pokemon)
+            .map(|m| m.kind.texture.clone())
+            .chain(pokemon.party.textures())
+            .chain(pokemon.phases.textures())
+            .collect();
+        let slots = pokemon
+            .slots
+            .get_or_insert_with(|| SkinSlots::new(POKEMON_SLOTS));
+        slots.next_frame(worn);
+        let (slot, evicted) = slots.place(sprite.to_owned())?;
+        let atlas = &mut self.gui.atlas;
+        if let Some(old) = evicted {
+            atlas.sprites.remove(&old);
+            // The looks that wore it are made again the next time they are seen.
+            pokemon
+                .looks
+                .retain(|_, look| look.as_ref().is_none_or(|l| l.kind.texture != old));
+            pokemon.party.forget_texture(&old);
+            pokemon.phases.forget_texture(&old);
+        }
+        let mut rect = *atlas.sprites.get(&format!("horizon/pokemon{slot}"))?;
+        let (aw, ah) = (atlas.width as f32, atlas.height as f32);
+        self.map_patches.push(horizon_client::font::Patch {
+            x: (rect.u0 * aw).round() as u32,
+            y: (rect.v0 * ah).round() as u32,
+            width: w,
+            height: h,
+            rgba,
+        });
+        // The texture is the slot's top left corner.
+        rect.u1 = rect.u0 + w as f32 / aw;
+        rect.v1 = rect.v0 + h as f32 / ah;
+        atlas.sprites.insert(sprite.to_owned(), rect);
+        Some(())
     }
 
     /// A message of a Cobblemon server on one of the channels [`reads`] names.
@@ -570,6 +594,9 @@ impl Game<'_> {
         if let Some(r) = self.remote.as_mut() {
             r.pokemon.labels.own_data(id, &data);
         }
+        if let Some(mode) = data.beam_mode {
+            self.pokemon_phase(id, mode);
+        }
         if let Some(pose) = data.pose
             && let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32)
         {
@@ -609,6 +636,7 @@ impl Game<'_> {
         });
         let entity = &spawn.entity;
         let id = entity.id;
+        let beam_mode = spawn.beam_mode;
         // The AddEntity arm of `handle_packet`: an id the level holds already starts afresh.
         r.ticked_before_player.remove(&(id as u32));
         r.level_player_textures.remove(&id);
@@ -650,10 +678,14 @@ impl Game<'_> {
                 },
             );
             r.pokemon.labels.appeared(id, &spawn);
+            r.pokemon.phases.forget(id);
+            r.pokemon.phases.target(id, spawn.phasing_target);
             r.pokemon.seen.insert(id, spawn);
         }
         // Entity.recreateFromPacket: the packet's motion, once the mob exists.
         self.remote_motion(id, velocity);
+        // `SpawnPokemonPacket.applyData` sets the mode last: one thrown out starts in its Ball.
+        self.pokemon_phase(id, beam_mode);
     }
 }
 

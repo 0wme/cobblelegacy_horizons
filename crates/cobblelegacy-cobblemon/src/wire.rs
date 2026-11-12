@@ -383,6 +383,8 @@ impl PokedexData {
 pub struct PokemonData {
     /// `PLATFORM_TYPE`: the raft under a Pokémon that stands on water, by ordinal (0 is none).
     pub platform: Option<i32>,
+    /// `BEAM_MODE`: 1 thrown out in its Ball, 2 appearing where it stands, 3 called back, 0 neither.
+    pub beam_mode: Option<i8>,
     /// `BATTLE_ID`: the battle it is in, if any.
     pub battle: Option<Option<u128>>,
     /// `ASPECTS`: what picks its model and texture (`shiny`, `sheared`...).
@@ -461,10 +463,7 @@ impl PokemonData {
             match index {
                 // `PlatformTypeDataSerializer`: an Int ordinal.
                 27 => data.platform = Some(r.i32()?),
-                // BEAM_MODE.
-                28 => {
-                    r.i8()?;
-                }
+                28 => data.beam_mode = Some(r.i8()?),
                 29 => data.battle = Some(nullable(r, Reader::uuid)?),
                 // `StringSetDataSerializer`: a count in one byte, then the strings.
                 30 => {

@@ -593,6 +593,12 @@ pub fn body_color(m: &Mob, alpha: f32) -> u32 {
     match m.species() {
         Species::Wolf => super::tame::tint(m, alpha),
         Species::TropicalFish => abgr(dye(m.extra.variant2 as usize)),
+        // Cobblemon's `PokemonRenderer` (CobbleLegacy's fork): the red a Pokémon called back turns as
+        // the beam takes it. `variant2` is how far its green and blue are from white.
+        Species::Pokemon => {
+            let rest = 255 - u32::from(m.extra.variant2);
+            0xFF00_00FF | rest << 16 | rest << 8
+        }
         // LivingEntityRenderer.submit: a spectator is invisible
         // (Player.updateInvisibilityStatus) but not to another spectator or
         // itself, so its body is forced translucent (654311423, alpha 38).

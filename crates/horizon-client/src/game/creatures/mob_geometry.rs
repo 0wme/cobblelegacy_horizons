@@ -349,6 +349,8 @@ impl Game<'_> {
         self.mark_motion(out.len(), 0);
         self.elder_apparition_geometry(alpha, out);
         self.spawner_geometry(camera, alpha, out);
+        // Cobblemon's Balls in flight and recall beams (`remote_pokemon_phase.rs`).
+        self.pokemon_phase_geometry(camera, alpha, out);
         // Projectiles: the baked vanilla arrow model, the rest as item billboards.
         let (right, up) = thrown_item_axes(self.camera_type, self.yaw, self.pitch);
         let live = self.creatures.projectiles.iter().map(|a| {

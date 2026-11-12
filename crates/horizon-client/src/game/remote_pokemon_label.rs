@@ -240,6 +240,7 @@ impl Game<'_> {
             (s.display_entity_name_label, s.display_entity_level_label)
         });
         let [forward, _, up] = self.view_axes();
+        let phases = self.remote.as_ref().map(|r| &r.pokemon.phases);
         for m in &self.mobs {
             if m.species() != Species::Pokemon || !m.alive() || m.invisible {
                 continue;
@@ -248,6 +249,10 @@ impl Game<'_> {
                 continue;
             };
             if !label.shown || label.hidden || label.phasing {
+                continue;
+            }
+            // In its Ball still: the server takes the thrower back a moment before the Ball lands here.
+            if phases.is_some_and(|p| p.unseen(m.id as i32)) {
                 continue;
             }
             // `LivingEntityRenderer.shouldShowName` and `renderNameTag`: within 64 blocks.
@@ -281,8 +286,22 @@ impl Game<'_> {
         id: i32,
         values: &[(u8, i32, Value)],
     ) {
-        if let Some(r) = self.remote.as_mut() {
-            r.pokemon.labels.vanilla_data(id, values);
+        let Some(r) = self.remote.as_mut() else {
+            return;
+        };
+        r.pokemon.labels.vanilla_data(id, values);
+        r.pokemon.phases.vanilla_data(id, values);
+        // `BEAM_MODE` is a byte, which vanilla's readers know: it comes here when nothing of a type
+        // of Cobblemon's own is before it in the packet (a recall sets the target and the mode, no
+        // more), and with the rest of a Pokémon's data otherwise (`remote_pokemon_data`).
+        let mode = values.iter().find_map(|(index, _, value)| match value {
+            Value::Byte(mode) if *index == 28 => Some(*mode),
+            _ => None,
+        });
+        if let Some(mode) = mode
+            && r.pokemon.seen.contains_key(&id)
+        {
+            self.pokemon_phase(id, mode);
         }
     }
 }
