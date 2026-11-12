@@ -1623,4 +1623,172 @@ mod tests {
         assert_eq!(box_after(0, 1, 1), 0);
         assert_eq!(box_after(0, 1, 0), 0);
     }
+
+    /// What a Cobblemon 1.8.1 server sent a player (`tests/fixtures/pc1`, captured with
+    /// `examples/capture.rs`): the party and the PC as the player joins, eight Pokémon given, of which
+    /// the last two go to the PC, then the PC opened by its block and the server's answer to each
+    /// thing the capture asked of it. Each message with its number in the capture.
+    fn captured() -> Vec<(u32, String, Vec<u8>)> {
+        let folder = format!("{}/tests/fixtures/pc1", env!("CARGO_MANIFEST_DIR"));
+        let mut files: Vec<_> = std::fs::read_dir(&folder)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect();
+        files.sort();
+        files
+            .into_iter()
+            .map(|path| {
+                let stem = path.file_stem().unwrap().to_str().unwrap();
+                let number = stem["flow-".len()..][..3].parse().unwrap();
+                let channel = format!("cobblemon:{}", &stem["flow-000-".len()..]);
+                (number, channel, std::fs::read(&path).unwrap())
+            })
+            .collect()
+    }
+
+    /// The species a store holds, slot by slot.
+    fn species<'a>(slots: impl IntoIterator<Item = &'a Option<PartyPokemon>>) -> Vec<&'a str> {
+        slots
+            .into_iter()
+            .map(|slot| {
+                slot.as_ref().map_or("-", |p| {
+                    p.species.strip_prefix("cobblemon:").unwrap_or(&p.species)
+                })
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_captured_session_plays_back_to_what_the_server_held() {
+        use crate::party;
+        let mut pcs = Storage::new();
+        let mut own = party::Storage::new();
+        // What the PC holds, as (species, box, slot), after the message of each number.
+        let mut after: HashMap<u32, Vec<(String, usize, usize)>> = HashMap::new();
+        let mut changes: HashMap<u32, Change> = HashMap::new();
+        for (number, channel, payload) in captured() {
+            if party::reads(&channel) {
+                own.read(&channel, &payload).unwrap();
+            }
+            if !(reads(&channel) || shares(&channel)) {
+                continue;
+            }
+            let change = pcs.read(&channel, &payload).unwrap();
+            changes.insert(number, change);
+            let mut held = Vec::new();
+            for pc in pcs.pcs() {
+                for (index, pc_box) in pc.boxes.iter().enumerate() {
+                    for (slot, name) in species(&pc_box.slots).into_iter().enumerate() {
+                        if name != "-" {
+                            held.push((name.to_owned(), index, slot));
+                        }
+                    }
+                }
+            }
+            after.insert(number, held);
+        }
+        let held = |number: u32| -> Vec<(&str, usize, usize)> {
+            after[&number]
+                .iter()
+                .map(|(name, index, slot)| (name.as_str(), *index, *slot))
+                .collect()
+        };
+        // As the player joins: the PC's forty boxes, each sent empty, then the wallpapers a box may
+        // wear once the client said which it has.
+        assert_eq!(changes[&30], Change::Stores);
+        assert!(held(70).is_empty());
+        assert_eq!(changes[&75], Change::WallpapersAsked);
+        // The seventh and eighth Pokémon given have no room in the party.
+        assert_eq!(held(100), [("mew", 0, 0)]);
+        assert_eq!(held(102), [("mew", 0, 0), ("ditto", 0, 1)]);
+        // A right click on the PC's block.
+        assert_eq!(
+            changes[&103],
+            Change::Open {
+                store: 0xc63d_c98f_3301_33bd_8ec0_c1a8_d3c6_f512,
+                open_on: None,
+                unseen_wallpapers: vec![
+                    "cobblemon:textures/gui/pc/wallpaper/biome/wallpaper_biome_forest.png".into()
+                ],
+            }
+        );
+        // Mew moved to the second box, then swapped with Ditto.
+        assert_eq!(held(104), [("ditto", 0, 1), ("mew", 1, 8)]);
+        assert_eq!(held(105), [("mew", 0, 1), ("ditto", 1, 8)]);
+        // Mew swapped with the party's Snorlax: the party's own messages change nothing here.
+        assert_eq!(changes[&106], Change::Nothing);
+        assert_eq!(held(108), [("snorlax", 0, 1), ("ditto", 1, 8)]);
+        // Mew put back in the PC, then taken into the party again.
+        assert_eq!(changes[&109], Change::Nothing);
+        assert_eq!(
+            held(110),
+            [("mew", 0, 0), ("snorlax", 0, 1), ("ditto", 1, 8)]
+        );
+        assert_eq!(held(111), [("snorlax", 0, 1), ("ditto", 1, 8)]);
+        // Ditto released.
+        assert_eq!(held(113), [("snorlax", 0, 1)]);
+        // The first box sorted: sent again whole.
+        assert_eq!(held(116), [("snorlax", 0, 0)]);
+        // A request after the link ended: the server closes whichever PC is open.
+        assert_eq!(changes[&117], Change::Close { store: None });
+
+        let pc = pcs.pcs().next().unwrap();
+        assert_eq!((pc.boxes.len(), pc.count(), pc.overflowed), (40, 1, false));
+        // The second box renamed and dressed; the others as the server makes them, with a wallpaper
+        // that is none of the client's.
+        assert_eq!(pc.boxes[1].name.as_deref(), Some("Atelier"));
+        assert_eq!(
+            pc.boxes[1].wallpaper,
+            "cobblemon:textures/gui/pc/wallpaper/basic/wallpaper_basic_01.png"
+        );
+        assert_eq!(pc.boxes[0].name, None);
+        assert_eq!(
+            pc.boxes[39].wallpaper,
+            "cobblemon:textures/gui/pc/pc_screen_overlay.png"
+        );
+        let snorlax = pc.get(PcPosition::new(0, 0)).unwrap();
+        assert_eq!(snorlax.level, 22);
+        assert_eq!(snorlax.caught_ball, "cobblemon:poke_ball");
+        // The eleven basic wallpapers the capture said it has, and the server's own.
+        let wallpapers = pcs.wallpapers().unwrap();
+        assert!(wallpapers.len() >= 11);
+        assert!(wallpapers.iter().any(|w| w == DEFAULT_WALLPAPER));
+        // And the party, through the same messages: Mew in Snorlax's place.
+        assert_eq!(
+            species(own.party()),
+            [
+                "pikachu",
+                "charizard",
+                "bulbasaur",
+                "gyarados",
+                "eevee",
+                "mew"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_captured_message_cut_anywhere_is_an_error_and_changes_nothing() {
+        let mut pcs = Storage::new();
+        for (number, channel, payload) in captured() {
+            if !(reads(&channel) || shares(&channel)) {
+                continue;
+            }
+            // Every message but the empty one (the wallpapers asked for) and the one-byte one.
+            if payload.len() > 1 {
+                let before = pcs.pcs().map(Pc::count).sum::<usize>();
+                for cut in [payload.len() - 1, payload.len() / 2, 1] {
+                    assert!(
+                        pcs.read(&channel, &payload[..cut]).is_err(),
+                        "{number} {channel} cut to {cut}"
+                    );
+                }
+                let mut long = payload.clone();
+                long.push(0);
+                assert!(pcs.read(&channel, &long).is_err(), "{number} {channel}");
+                assert_eq!(pcs.pcs().map(Pc::count).sum::<usize>(), before);
+            }
+            pcs.read(&channel, &payload).unwrap();
+        }
+    }
 }
