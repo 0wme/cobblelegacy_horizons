@@ -603,15 +603,18 @@ impl PartyPokemon {
             fullness: small(&tag, "Fullness"),
             ivs,
             evs,
-            nature: text(&tag, "Nature")?,
+            // Cobblemon's codec asks for a nature, an ability and a Tera type. A compound without
+            // them still makes a Pokémon here, with nothing to show of them: the party and the
+            // battle go by what is above.
+            nature: text(&tag, "Nature").unwrap_or_default(),
             minted_nature: text(&tag, "MintedNature").ok(),
             ability: tag
                 .get("Ability")
                 .and_then(|ability| text(ability, "AbilityName").ok())
-                .ok_or_else(|| Error::new("a Pokémon without an ability"))?,
+                .unwrap_or_default(),
             moves,
             benched_moves,
-            tera_type: text(&tag, "TeraType")?,
+            tera_type: text(&tag, "TeraType").unwrap_or_default(),
             original_trainer: text(&tag, "PokemonOriginalTrainer").ok(),
             original_trainer_name: text(&tag, "PokemonOriginalTrainerName").ok(),
             // `Pokemon.heldItemVisible` is true until the server says otherwise.

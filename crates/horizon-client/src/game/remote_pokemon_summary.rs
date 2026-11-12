@@ -1087,7 +1087,20 @@ impl Pen<'_> {
 
     /// A text Cobblemon writes in its own large font, bold over its shadow: in the game's font
     /// here, narrowed to `most` pixels where that is wider.
-    fn large(&mut self, text: &Text, (x, y): (f32, f32), most: f32, align: Align, colour: u32) {
+    fn large(&mut self, text: &Text, at: (f32, f32), most: f32, align: Align, colour: u32) {
+        self.fitted(text, at, most, align, colour, true);
+    }
+
+    /// [`Self::large`], over its shadow or without one.
+    fn fitted(
+        &mut self,
+        text: &Text,
+        (x, y): (f32, f32),
+        most: f32,
+        align: Align,
+        colour: u32,
+        shadow: bool,
+    ) {
         let text = text.clone().bold();
         let width = self.atlas.font.width_text(&text);
         let by = if width > most { most / width } else { 1.0 };
@@ -1098,7 +1111,7 @@ impl Pen<'_> {
         };
         let start = self.batch.vertices.len();
         self.batch
-            .text_styled(self.atlas, &text, left, y, colour, true);
+            .text_styled(self.atlas, &text, left, y, colour, shadow);
         if by < 1.0 {
             self.batch.scale_since(start, left, y, by, 1.0);
         }
@@ -1391,10 +1404,9 @@ fn draw_moves(pen: &mut Pen, view: &View, cursor: (f32, f32)) {
             } else {
                 WHITE
             };
-            let left = Text::literal(format!("{}/{}", line.pp, line.max_pp)).bold();
-            let at = sx + 93.0 - pen.atlas.font.width_text(&left) / 2.0;
-            pen.batch
-                .text_styled(pen.atlas, &left, at, sy + 13.0, colour, false);
+            let left = Text::literal(format!("{}/{}", line.pp, line.max_pp));
+            let at = (sx + 93.0, sy + 13.0);
+            pen.fitted(&left, at, 27.0, Align::Centre, colour, false);
             pen.type_icon(&line.kind, sx + 2.0, sy + 2.0);
             pen.category_icon(line.category, sx + 66.0, sy + 13.5);
             let name = move_name(&line.id);
@@ -2057,7 +2069,7 @@ impl Game<'_> {
         };
         if let Some((sign, colour)) = sign {
             let at = (x + 69.0, y + 14.5);
-            pen.large(&Text::literal(sign), at, 8.0, Align::Left, colour);
+            pen.large(&Text::literal(sign), at, 9.0, Align::Left, colour);
         }
         let at = (x + 6.0, y + 4.5);
         pen.large(&tr("cobblemon.ui.lv"), at, 12.0, Align::Left, WHITE);
@@ -2545,8 +2557,12 @@ mod tests {
         assert_eq!(page.learn_rows(Some("ember")).len(), 6);
         assert_eq!(page.learn_rows(None).len(), 5);
         assert!(page.learn_rows(Some("ember"))[5].is_none());
+        // Without its species' file, the move it gave up is still one to take.
+        let benched = Page::of(&charmeleon(CHARMELEON), 0, None, Some(&known()), LIMITS);
+        assert_eq!((benched.moves.len(), benched.learnable.len()), (4, 1));
         // A Pokémon with nothing to take shows only the moves it knows.
-        let alone = Page::of(&charmeleon(CHARMELEON), 0, None, Some(&known()), LIMITS);
+        let nothing = CHARMELEON.replace(r#"{MoveName:"growl",RaisedPPStages:3b}"#, "");
+        let alone = Page::of(&charmeleon(&nothing), 0, None, Some(&known()), LIMITS);
         assert_eq!(alone.moves.len(), 2);
         // A move the server did not tell of is its dummy.
         let unknown = move_facts(Some(&known()), "splashier", 3, 0);
@@ -2625,9 +2641,9 @@ mod tests {
             (8, 0.5)
         );
         // Words that would cross the width start the next line, measured as Cobblemon does: the
-        // line so far and the word with no space between.
-        let lines = wrap("aa bb cc dddd e", 5.0, |text| text.len() as f32);
-        assert_eq!(lines, ["aa bb", "cc", "dddd", "e"]);
+        // line so far and the word with no space between, so that a line may end a space too wide.
+        let lines = wrap("aa bb cc dddd e ffff", 5.0, |text| text.len() as f32);
+        assert_eq!(lines, ["aa bb", "cc", "dddd e", "ffff"]);
         assert!(wrap("", 5.0, |text| text.len() as f32).is_empty());
     }
 
