@@ -96,6 +96,9 @@ pub struct Modded {
     /// How the value of each of the server's mods' item components is read past, by the server's
     /// number: the client has nothing to hold them, and a stack that carries one is kept without it.
     pub components: HashMap<i32, Skip>,
+    /// The name of each of the server's mods' sound events, by the server's number: the client has no
+    /// number for them, and a packet that plays one names it instead, as an inline sound does.
+    pub sounds: HashMap<i32, String>,
 }
 
 /// How a mod's item component is written, for reading past it: nothing on the wire says how long a

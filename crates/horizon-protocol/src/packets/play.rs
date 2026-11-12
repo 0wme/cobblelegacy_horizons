@@ -908,7 +908,15 @@ impl Codec<(i32, Option<(String, Option<f32>)>)> for SoundHolder {
     fn read(r: &mut Reader) -> Result<(i32, Option<(String, Option<f32>)>)> {
         let id = r.varint()?;
         if id != 0 {
-            return Ok((crate::adapter::ids::sound_event(id - 1), None));
+            let pinned = crate::adapter::ids::sound_event(id - 1);
+            // A modded server's own sound event (CobbleLegacy's fork): no number here, so it is
+            // named, as `SoundEvent.createVariableRangeEvent` of that name written inline.
+            if pinned == -1
+                && let Some(name) = crate::adapter::ids::modded_sound(id - 1)
+            {
+                return Ok((-1, Some((name, None))));
+            }
+            return Ok((pinned, None));
         }
         let location = r.string(32767)?;
         let range = if r.bool()? { Some(r.f32()?) } else { None };

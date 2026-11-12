@@ -381,7 +381,8 @@ pub fn clientbound(
         // A sound the pinned version has no entry for (a mod's on a modded server, or one a later release
         // removed) renumbers to -1, and -1 writes back as holder 0: the marker of an inline sound, with no
         // location after it, so the reader took the source for the location's length. Drop the packet: the
-        // client has no such sound to play.
+        // client has no such sound to play. A modded server's own sound is not one of those once the
+        // session has its table (`Session::set_modded`): the reader names it, and it goes on inline.
         (State::Play, cb::SOUND | cb::SOUND_ENTITY) => {
             let p = decode_play(ids, id, payload)?;
             let unknown = match &p {
