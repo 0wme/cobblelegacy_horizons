@@ -5,6 +5,7 @@
 //! plugin channels, read here so the Horizon client can show it. Nothing of this is in vanilla, so there is
 //! no vanilla reference; the reference is Cobblemon 1.8.1 itself, whose layouts these files follow.
 pub mod animation;
+pub mod battle;
 pub mod coded_posers;
 pub mod geo;
 mod json;
