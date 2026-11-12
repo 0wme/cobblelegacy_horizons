@@ -243,8 +243,9 @@ pub enum Change {
         /// The wallpapers unlocked since the PC was last looked at.
         unseen_wallpapers: Vec<String>,
     },
-    /// `ClosePCHandler`: the screen closes if it shows the PC `store`. The server sends none when it
-    /// refuses a request for want of a link: the screen it comes for is then whichever is open.
+    /// `ClosePCHandler`: the screen closes if it shows the PC `store`. The server names none when it
+    /// refuses a request for want of a link, and Cobblemon's client then closes nothing: it compares
+    /// the id with the open PC's.
     Close { store: Option<u128> },
     /// `RequestPCBoxWallpapersHandler`: the server asks which wallpapers the client has
     /// ([`Request::Wallpapers`]).

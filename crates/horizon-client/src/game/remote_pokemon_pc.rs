@@ -172,7 +172,6 @@ impl Slot {
 struct View {
     store: u128,
     current: usize,
-    boxes: usize,
     name: Option<String>,
     wallpaper: String,
     /// The box's slots, then the party's.
@@ -605,8 +604,9 @@ impl Game<'_> {
                     .keys()
                     .filter_map(|sprite| {
                         let (namespace, path) = sprite.split_once(':')?;
-                        let folder = path.strip_prefix("gui/pc/wallpaper/")?.rsplit_once('/')?.0;
-                        (!matches!(folder.rsplit('/').next(), Some("alt" | "glow")))
+                        path.strip_prefix("gui/pc/wallpaper/")?;
+                        let folder = path.rsplit('/').nth(1)?;
+                        (!matches!(folder, "alt" | "glow"))
                             .then(|| format!("{namespace}:textures/{path}.png"))
                     })
                     .collect();
@@ -680,7 +680,6 @@ impl Game<'_> {
         Some(View {
             store: open.store,
             current,
-            boxes: held.boxes.len(),
             name: shown.name.clone(),
             wallpaper: shown.wallpaper.clone(),
             box_slots: shown
@@ -1210,14 +1209,15 @@ impl Game<'_> {
                     Gender::Genderless => None,
                 };
                 if let Some((sign, colour)) = sign {
-                    let sign = Text::literal(sign).bold();
+                    // Not in bold as Cobblemon's: the game's font has it too small to thicken.
+                    let sign = Text::literal(sign);
                     large(
                         batch,
                         atlas,
                         &sign,
                         (x + 69.0, y + 11.5),
                         false,
-                        8.0,
+                        12.0,
                         colour,
                         true,
                     );
@@ -1578,6 +1578,7 @@ impl Game<'_> {
                     "name": preview.name.plain(),
                     "level": pokemon.level,
                     "shiny": preview.shiny,
+                    "held_item": pokemon.held_item,
                     "status": preview.status,
                     "nature": preview.nature.as_ref().map(|(nature, _)| nature),
                     "ability": preview.ability,
@@ -1632,7 +1633,6 @@ mod tests {
         View {
             store: 1,
             current: 0,
-            boxes: 40,
             name: None,
             wallpaper: pc::DEFAULT_WALLPAPER.into(),
             box_slots: vec![None; pc::POKEMON_PER_BOX],
