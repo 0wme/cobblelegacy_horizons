@@ -973,8 +973,9 @@ pub fn stack_to_network(
 ) -> Option<Stack> {
     network_stack(&item_id, &synced_id, s)
 }
-/// `ProvidesTrimMaterial.STREAM_CODEC`, `ProvidesBannerPatterns.STREAM_CODEC` and
-/// `AdventureModePredicate.STREAM_CODEC`: encode supported typed saved forms.
+/// `ProvidesTrimMaterial.STREAM_CODEC`, `ProvidesBannerPatterns.STREAM_CODEC`,
+/// `AdventureModePredicate.STREAM_CODEC` and `BlockItemStateProperties.STREAM_CODEC`:
+/// encode supported typed saved forms.
 /// A failed child discards this entire local buffer, including its prefix.
 fn builtin_component(
     name: &str,
@@ -1032,6 +1033,20 @@ fn builtin_component(
             w.varint(i32::try_from(predicates.len()).ok()?);
             for predicate in predicates {
                 write_block_predicate(predicate, ids, &mut w)?;
+            }
+        }
+        // `BlockItemStateProperties.STREAM_CODEC`: a map of property names to values.
+        "minecraft:block_state" => {
+            let Tag::Compound(properties) = value else {
+                return None;
+            };
+            w.varint(i32::try_from(properties.len()).ok()?);
+            for (property, value) in properties.iter() {
+                let Tag::String(value) = value else {
+                    return None;
+                };
+                w.string(&property.to_string().ok()?);
+                w.string(&value.to_string().ok()?);
             }
         }
         _ => return None,
@@ -1366,6 +1381,10 @@ fn network_stack(
             (
                 "minecraft:can_break",
                 horizon_protocol::item::component::CAN_BREAK,
+            ),
+            (
+                "minecraft:block_state",
+                horizon_protocol::item::component::BLOCK_STATE,
             ),
         ] {
             if d.other(&format!("!{name}")).is_some() {
@@ -1913,6 +1932,33 @@ mod tests {
         }
     }
 
+    /// A block item taken with its state (a creative tab's stack of one growth
+    /// stage) says it to the server: `BlockItemStateProperties.STREAM_CODEC` is
+    /// the count, then each property's name and value.
+    #[test]
+    fn a_block_item_s_state_properties_reach_the_server() {
+        let stack = |components: &str| {
+            let snbt = format!(r#"{{count:1,id:"minecraft:stone",components:{components}}}"#);
+            let stack = horizon_items::item_data::parse_stack(&snbt).unwrap();
+            stack_to_network(|_| 1, |_, _| None, &stack).unwrap()
+        };
+        let sent = stack(r#"{"minecraft:block_state":{stage:"2",stunted:"false"}}"#);
+        let Some(Component::Raw(bytes)) = sent.component(component::BLOCK_STATE) else {
+            panic!("the state is not sent")
+        };
+        let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+        assert_eq!(hex, "020573746167650132077374756e7465640566616c7365");
+        let mut w = Writer::new();
+        horizon_protocol::item::Slot::write(&Some(sent), &mut w);
+        let mut r = Reader::new(&w.data);
+        let decoded = horizon_protocol::item::Slot::read(&mut r).unwrap().unwrap();
+        assert!(decoded.component(component::BLOCK_STATE).is_some());
+        assert_eq!(r.remaining(), 0);
+        // A value that is no string is no state: the component is left out whole.
+        let sent = stack(r#"{"minecraft:block_state":{stage:2}}"#);
+        assert!(sent.component(component::BLOCK_STATE).is_none());
+    }
+
     #[test]
     fn builtin_removal_markers_survive_actual_saved_stack_adoption() {
         for (name, kind) in [
@@ -1926,6 +1972,7 @@ mod tests {
             ),
             ("minecraft:can_place_on", component::CAN_PLACE_ON),
             ("minecraft:can_break", component::CAN_BREAK),
+            ("minecraft:block_state", component::BLOCK_STATE),
         ] {
             let input = Tag::compound([
                 ("id", Tag::String("minecraft:stone".into())),

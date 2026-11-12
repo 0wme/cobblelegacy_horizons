@@ -365,19 +365,41 @@ pub struct Block {
 struct CreativeTabFile {
     title: String,
     icon: String,
-    items: Vec<String>,
+    /// Each an item id, or a [`TabStack`] written out.
+    items: Vec<serde_json::Value>,
+}
+
+/// One stack of a creative tab: an item, and the data components the stack
+/// has over its item's own (a block item's state, a potion's contents),
+/// written as an [`Item`]'s `components` are. None for the plain item.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct TabStack {
+    pub id: String,
+    #[serde(default)]
+    pub components: BTreeMap<String, serde_json::Value>,
+}
+
+impl From<&str> for TabStack {
+    /// The plain item `id`.
+    fn from(id: &str) -> Self {
+        Self {
+            id: id.to_owned(),
+            components: BTreeMap::new(),
+        }
+    }
 }
 
 /// A creative inventory tab the mod adds (`data/<id>/horizon/creative_tab/`):
-/// its title, the item on its button, and its items in order. Items no mod
-/// or vanilla registers are left out when the game loads.
+/// its title, the item on its button, and its stacks in order. Stacks of
+/// items no mod or vanilla registers are left out when the game loads.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CreativeTab {
     /// `<mod id>:<path>`.
     pub id: String,
     pub title: String,
     pub icon: String,
-    pub items: Vec<String>,
+    pub items: Vec<TabStack>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
@@ -1041,7 +1063,16 @@ impl Content {
                 s.split_once(':')
                     .is_some_and(|(n, p)| !n.is_empty() && !p.is_empty())
             };
-            if !id_like(&file.icon) || !file.items.iter().all(|i| id_like(i)) {
+            let items = file
+                .items
+                .into_iter()
+                .map(|item| match item {
+                    serde_json::Value::String(id) => Ok(TabStack::from(id.as_str())),
+                    stack => serde_json::from_value(stack)
+                        .map_err(|e| format!("{name}: a stack of items: {e}")),
+                })
+                .collect::<Result<Vec<TabStack>, String>>()?;
+            if !id_like(&file.icon) || !items.iter().all(|i| id_like(&i.id)) {
                 return Err(format!(
                     "{name}: icon and items are item ids (namespace:path)"
                 ));
@@ -1050,7 +1081,7 @@ impl Content {
                 id: tab,
                 title: file.title,
                 icon: file.icon,
-                items: file.items,
+                items,
             });
         }
         for (kind, name) in types {
@@ -2600,7 +2631,8 @@ capabilities = ["registries"]
         assert_eq!(content.blocks.len(), 2);
     }
 
-    /// A creative tab: a title, an icon and its items, all item ids.
+    /// A creative tab: a title, an icon and its items, each an item id or a
+    /// stack with the components it has over its item's.
     #[test]
     fn creative_tabs_name_their_items() {
         let tab = |json: &str| {
@@ -2622,6 +2654,31 @@ capabilities = ["registries"]
         );
         let e = tab(r#"{"title": "Gems", "icon": "ruby", "items": []}"#).unwrap_err();
         assert!(e.contains("item ids"), "{e}");
+        // The same item twice, as two stacks told apart by their components.
+        let content = tab(
+            r#"{"title": "Buds", "icon": "ruby:bud", "items": ["ruby:bud",
+                {"id": "ruby:bud", "components": {"minecraft:block_state": {"stage": "1"}}}]}"#,
+        )
+        .unwrap();
+        let grown = TabStack {
+            id: "ruby:bud".into(),
+            components: [(
+                "minecraft:block_state".to_owned(),
+                serde_json::json!({"stage": "1"}),
+            )]
+            .into(),
+        };
+        assert_eq!(content.creative_tabs[0].items, ["ruby:bud".into(), grown]);
+        for (stack, error) in [
+            (r#"{"id": "ruby"}"#, "item ids"),
+            (r#"{"components": {}}"#, "missing field `id`"),
+            (r#"{"id": "ruby:bud", "count": 2}"#, "unknown field `count`"),
+            ("7", "a stack of items"),
+        ] {
+            let json = format!(r#"{{"title": "Buds", "icon": "ruby:bud", "items": [{stack}]}}"#);
+            let e = tab(&json).unwrap_err();
+            assert!(e.contains(error), "{stack}: {e}");
+        }
     }
 
     #[test]

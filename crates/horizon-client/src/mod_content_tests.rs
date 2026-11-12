@@ -476,13 +476,13 @@ fn creative_tabs_keep_vanilla_items_missing_from_search() {
             "minecraft:written_book",
             "minecraft:knowledge_book",
         ]
-        .map(str::to_owned)
+        .map(TabStack::from)
         .into(),
     };
     let plan = Plan {
         blocks: Vec::new(),
         items: Vec::new(),
-        vanilla_items: tab.items.iter().cloned().collect(),
+        vanilla_items: tab.items.iter().map(|s| s.id.clone()).collect(),
         effects: Vec::new(),
         fluids: Vec::new(),
         entity_types: Vec::new(),
@@ -507,6 +507,109 @@ fn creative_tabs_keep_vanilla_items_missing_from_search() {
             "{count:1,id:\"minecraft:written_book\"}",
             "{count:1,id:\"minecraft:knowledge_book\"}",
         ])
+    );
+}
+
+/// A tab's stack with components is written as the export writes one, and is
+/// read back as a stack that holds them: the same item several times in a
+/// tab, one stack per growth stage.
+#[test]
+fn creative_tab_stacks_carry_their_components() {
+    let stage = |stage: u8| TabStack {
+        id: "minecraft:amethyst_cluster".into(),
+        components: [
+            (
+                "minecraft:block_state".to_owned(),
+                serde_json::json!({"stage": stage.to_string()}),
+            ),
+            (
+                "minecraft:custom_model_data".to_owned(),
+                serde_json::json!({"floats": [f32::from(stage)]}),
+            ),
+        ]
+        .into(),
+    };
+    let tab = horizon_mods::content::CreativeTab {
+        id: "test:stages".into(),
+        title: "Stages".into(),
+        icon: "minecraft:amethyst_cluster".into(),
+        items: vec!["minecraft:amethyst_cluster".into(), stage(0), stage(2)],
+    };
+    let plan = Plan {
+        blocks: Vec::new(),
+        items: Vec::new(),
+        vanilla_items: ["minecraft:amethyst_cluster".to_owned()].into(),
+        effects: Vec::new(),
+        fluids: Vec::new(),
+        entity_types: Vec::new(),
+        menu_types: Vec::new(),
+        states: 0,
+        defaults: BTreeMap::new(),
+        sounds: BTreeMap::new(),
+        tabs: vec![&tab],
+        names: BTreeMap::new(),
+    };
+    let mut doc: J = serde_json::from_str(r#"{"tabs":[]}"#).unwrap();
+    plan.creative_tabs(&mut doc).unwrap();
+    let doc: serde_json::Value = serde_json::to_value(doc).unwrap();
+    assert_eq!(
+        doc["tabs"][0]["items"],
+        serde_json::json!([
+            "{count:1,id:\"minecraft:amethyst_cluster\"}",
+            "{components:{\"minecraft:block_state\":{stage:\"0\"},\"minecraft:custom_model_data\":{floats:[0.0d]}},count:1,id:\"minecraft:amethyst_cluster\"}",
+            "{components:{\"minecraft:block_state\":{stage:\"2\"},\"minecraft:custom_model_data\":{floats:[2.0d]}},count:1,id:\"minecraft:amethyst_cluster\"}",
+        ])
+    );
+    // The creative screen reads three stacks, told apart by their components.
+    let creative = crate::creative::Creative::from_json(&doc).unwrap();
+    let stacks = &creative.tabs[0].items;
+    assert_eq!(stacks.len(), 3);
+    assert!(stacks[0].data().is_none());
+    let state = stacks[2].data().unwrap().other("minecraft:block_state");
+    assert_eq!(
+        state.and_then(|s| s.get("stage")),
+        Some(&Tag::String("2".into()))
+    );
+    assert!(!stacks[1].same_item_same_components(&stacks[2]));
+}
+
+/// A tab's stack may only carry component types the game has, as an item's
+/// declaration: a misspelt one refuses the mod.
+#[test]
+fn creative_tab_stacks_of_unknown_components_are_refused() {
+    let tab = |kind: &str| {
+        let mut content = horizon_mods::Content::declared("test");
+        content
+            .creative_tabs
+            .push(horizon_mods::content::CreativeTab {
+                id: "test:tab".into(),
+                title: "Tab".into(),
+                icon: "minecraft:stone".into(),
+                items: vec![TabStack {
+                    id: "minecraft:stone".into(),
+                    components: [(kind.to_owned(), serde_json::json!({}))].into(),
+                }],
+            });
+        content
+    };
+    // The registry names the types no item has of its own and a stack is given.
+    let base = std::env::temp_dir().join(format!("horizon-tab-components-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&base);
+    fs::create_dir_all(&base).unwrap();
+    let items = r#"{"minecraft:stick":{"minecraft:max_stack_size":64}}"#;
+    fs::write(base.join("items.json"), items).unwrap();
+    let only_items: BTreeSet<String> = ["minecraft:max_stack_size".to_owned()].into();
+    assert_eq!(known_components(&base).unwrap(), only_items);
+    let registries = r#"{"minecraft:data_component_type":{"entries":{"minecraft:block_state":{"protocol_id":78}},"protocol_id":63}}"#;
+    fs::write(base.join("registries.json"), registries).unwrap();
+    let known = known_components(&base).unwrap();
+    let _ = fs::remove_dir_all(&base);
+    assert!(known.contains("minecraft:max_stack_size"));
+    validate_components(&tab("minecraft:block_state"), &known).unwrap();
+    let e = validate_components(&tab("minecraft:block_stat"), &known).unwrap_err();
+    assert_eq!(
+        e.to_string(),
+        "creative tab test:tab: minecraft:stone: minecraft:block_stat is not a known component type"
     );
 }
 
