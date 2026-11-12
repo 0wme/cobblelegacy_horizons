@@ -10,6 +10,17 @@
 //!
 //! With a dump directory, the first payloads of each channel are written there as they came, to become
 //! test fixtures. Exits with an error when a spawn does not decode to its last byte.
+//!
+//! With `CAPTURE_BATTLE=<seconds>` in the environment it also fights: that long after joining it
+//! challenges a wild Pokémon with the first Pokémon of its party, then answers every request with that
+//! Pokémon's first move; once its own Pokémon faints (the server says nothing of a move chosen then,
+//! it only waits) it switches to the next Pokémon of the party, which fights on the same way. The wild
+//! Pokémon is the
+//! one that appeared nearest to `CAPTURE_BATTLE_AT=x,y,z`
+//! (the server refuses one farther than 12 blocks from the player without a word), or the last one
+//! seen without it. From the challenge on, every message of a Cobblemon channel but the spawns is
+//! written to the dump directory in the order it came (`flow-007-battle_initialize.bin`).
+use cobblelegacy_cobblemon::party;
 use cobblelegacy_cobblemon::wire::{
     PokedexData, PokemonData, SERVER_SETTINGS, SET_CLIENT_PLAYERDATA, SPAWN_POKEMON,
     ServerSettings, SpawnPokemon,
@@ -17,7 +28,7 @@ use cobblelegacy_cobblemon::wire::{
 use horizon_protocol::{
     Direction, PROTOCOL_VERSION, State,
     adapter::{ServerVersion, UNREAD_ENTITY_DATA},
-    buf::Reader,
+    buf::{Reader, Writer},
     connection::Connection,
     ids,
     packets::{Empty, configuration as cfg, handshake, login, play},
@@ -204,7 +215,121 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The player's Pokédex as the server sent it: messages read, and not.
     let (mut dexes, mut dex_errors) = (0u32, 0u32);
     let mut carried: BTreeMap<String, u32> = BTreeMap::new();
+    // A battle fought from here (see the top of the file).
+    let battle_after: Option<u64> = std::env::var("CAPTURE_BATTLE")
+        .ok()
+        .and_then(|s| s.parse().ok());
+    let battle_at: Option<[f64; 3]> = std::env::var("CAPTURE_BATTLE_AT").ok().and_then(|s| {
+        let at: Vec<f64> = s.split(',').filter_map(|n| n.trim().parse().ok()).collect();
+        at.try_into().ok()
+    });
+    let mut own = party::Storage::new();
+    // The wild Pokémon seen, with where each appeared.
+    let mut wild: Vec<(i32, [f64; 3])> = Vec::new();
+    let mut challenged = false;
+    let mut battle: Option<u128> = None;
+    let mut choose: Option<Instant> = None;
+    // Choices the server refused: the first is made with a target, the next without, the third is a
+    // switch to the next Pokémon of the party, `fighter`.
+    let mut refused = 0u32;
+    let mut fighter = 0usize;
+    let mut flow = 0u32;
+    let custom = |channel: &str, data: Vec<u8>| {
+        play::Serverbound::CustomPayload(cfg::CustomPayload {
+            channel: channel.into(),
+            data,
+        })
+        .encode()
+    };
     while start.elapsed() < Duration::from_secs(seconds) {
+        let lead = own.party().iter().flatten().nth(fighter);
+        if let Some(after) = battle_after
+            && !challenged
+            && start.elapsed() >= Duration::from_secs(after)
+            && let (Some(target), Some(lead)) = (
+                match battle_at {
+                    Some(at) => wild
+                        .iter()
+                        .min_by(|a, b| {
+                            let far =
+                                |p: &[f64; 3]| (0..3).map(|i| (p[i] - at[i]).powi(2)).sum::<f64>();
+                            far(&a.1).total_cmp(&far(&b.1))
+                        })
+                        .map(|w| w.0),
+                    None => wild.last().map(|w| w.0),
+                },
+                lead,
+            )
+        {
+            challenged = true;
+            // `BattleChallengePacket`: the entity, the leading Pokémon, then `BattleFormat.GEN_9_SINGLES`.
+            let mut w = Writer::new();
+            w.i32(target);
+            w.uuid(lead.uuid);
+            w.string("cobblemon");
+            w.string("singles");
+            w.nbt(&horizon_world::nbt::Tag::compound([(
+                "translate",
+                horizon_world::nbt::Tag::String("cobblemon.battle.types.singles".into()),
+            )]));
+            w.u8(1);
+            w.u8(1);
+            w.u8(3);
+            for rule in ["Obtainable", "+Past", "+Unobtainable"] {
+                w.string(rule);
+            }
+            w.i32(-1);
+            println!("battle: challenging entity {target} with {}", lead.species);
+            c.send(&custom("cobblemon:battle_challenge", w.data))?;
+        }
+        if let (Some(asked), Some(id)) = (choose, battle)
+            && refused >= 2
+            && asked.elapsed() >= Duration::from_secs(1)
+            && let Some(next) = own.party().iter().flatten().nth(fighter + 1)
+        {
+            choose = None;
+            refused = 0;
+            fighter += 1;
+            // `SwitchActionResponse` (type 0): the Pokémon to send in.
+            let mut w = Writer::new();
+            w.uuid(id);
+            w.u8(1);
+            w.u8(0);
+            w.uuid(next.uuid);
+            println!("battle: switching to {}", next.species);
+            c.send(&custom("cobblemon:battle_select_actions", w.data))?;
+            continue;
+        }
+        if let (Some(asked), Some(id), Some(lead)) = (choose, battle, lead)
+            && asked.elapsed() >= Duration::from_secs(1)
+        {
+            choose = None;
+            let first_move = match lead.tag.get("MoveSet") {
+                Some(horizon_world::nbt::Tag::List(moves)) => {
+                    moves.first().and_then(|m| match m.get("MoveName") {
+                        Some(horizon_world::nbt::Tag::String(name)) => Some(name.to_string_lossy()),
+                        _ => None,
+                    })
+                }
+                _ => None,
+            };
+            if let Some(first_move) = first_move {
+                // `BattleSelectActionsPacket`: the battle, then one `MoveActionResponse` (type 1).
+                let mut w = Writer::new();
+                w.uuid(id);
+                w.u8(1);
+                w.u8(1);
+                w.string(&first_move);
+                let target = (refused == 0).then_some("p2a");
+                w.bool(target.is_some());
+                if let Some(target) = target {
+                    w.string(target);
+                }
+                w.bool(false);
+                println!("battle: choosing {first_move} at {target:?}");
+                c.send(&custom("cobblemon:battle_select_actions", w.data))?;
+            }
+        }
         let (id, payload) = match c.recv() {
             Ok(p) => p,
             Err(e) if e.is_timed_out() => continue,
@@ -316,6 +441,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             Ok(play::Clientbound::CustomPayload(p)) => {
                 note("play", &p.channel, &p.data);
+                if party::reads(&p.channel) {
+                    let _ = own.read(&p.channel, &p.data);
+                }
+                if challenged && p.channel.starts_with("cobblemon:") && p.channel != SPAWN_POKEMON {
+                    flow += 1;
+                    let name = p.channel.trim_start_matches("cobblemon:").replace('/', "_");
+                    println!("flow {flow:03} {name} {} bytes", p.data.len());
+                    if let Some(dir) = &dump {
+                        let _ =
+                            std::fs::write(dir.join(format!("flow-{flow:03}-{name}.bin")), &p.data);
+                    }
+                    match p.channel.as_str() {
+                        "cobblemon:battle_initialize" => battle = Reader::new(&p.data).uuid().ok(),
+                        "cobblemon:battle_make_choice" => choose = Some(Instant::now()),
+                        "cobblemon:battle_made_invalid_choice" => {
+                            refused += 1;
+                            choose = Some(Instant::now());
+                        }
+                        // `BattleFaintPacket` starts with who fainted (`p1a`): one's own is switched.
+                        "cobblemon:battle_faint"
+                            if p.data.get(1..3).is_some_and(|side| side == b"p1") =>
+                        {
+                            refused = 2;
+                        }
+                        "cobblemon:battle_end" => {
+                            battle = None;
+                            choose = None;
+                        }
+                        _ => {}
+                    }
+                }
                 if p.channel == SERVER_SETTINGS {
                     println!("server settings: {:?}", ServerSettings::read(&p.data));
                 }
@@ -350,6 +506,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     match SpawnPokemon::read(&p.data) {
                         Ok(spawn) => {
                             *species.entry(spawn.species.clone()).or_default() += 1;
+                            if spawn.owner.is_none() {
+                                wild.push((spawn.entity.id, spawn.entity.position));
+                            }
                             if pokemon.len() < 6 {
                                 println!(
                                     "pokemon {} {} {:?} {:?} form {} aspects {:?} scale {} level {} at {:.1?} yaw {:.0} kind {}",
