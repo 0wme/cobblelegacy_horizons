@@ -15,4 +15,5 @@ pub mod party;
 pub mod pose;
 pub mod poser;
 pub mod resolver;
+pub mod sound;
 pub mod wire;
