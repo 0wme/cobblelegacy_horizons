@@ -11,6 +11,10 @@
 //! Ball. A battle's tile shows the same capture as a Ball in place of the portrait
 //! (`remote_pokemon_battle.rs`).
 //!
+//! The files a Ball's look is made of are read ahead, on a thread of their own, as soon as Cobblemon's
+//! resources are known ([`Captures::read_ahead`]): read as a Ball was first thrown, they held the frame
+//! for as long as the disk took, seconds when it was cold.
+//!
 //! Not here yet: the Ball's particles (the stars of a capture: `capturestar`, `capturesparks`,
 //! `afterspark` on the model's `center_particles` locator, the flash of a Pokémon breaking out) and its
 //! own sounds (`poke_ball.open`, `.shut`, `.bounce`, `.shake`, `.capture_succeeded`), which Cobblemon
@@ -37,7 +41,11 @@ use horizon_client::mobs::{
 };
 use horizon_core::geometry::Vec3;
 use horizon_protocol::entity_data::Value;
-use std::{collections::HashMap, sync::Arc, time::Instant};
+use std::{
+    collections::HashMap,
+    sync::{Arc, OnceLock},
+    time::Instant,
+};
 
 /// `ThrowableProjectile.getDefaultGravity`, blocks a tick each tick.
 const GRAVITY: f64 = 0.03;
@@ -214,13 +222,10 @@ pub(super) struct BallAnimator {
 }
 
 impl BallAnimator {
-    /// The animations of the Balls shaped `shape` (`poke_ball`, `ancient_poke_ball`).
-    fn load(assets: &Assets, shape: &str) -> Option<Self> {
-        let path = assets.file(&format!(
-            "bedrock/poke_balls/animations/{shape}.animation.json"
-        ))?;
-        let json = std::fs::read_to_string(path).ok()?;
-        match AnimationFile::parse(&json) {
+    /// The animations of the Balls shaped `shape` (`poke_ball`, `ancient_poke_ball`), from their
+    /// file's text.
+    fn load(json: &str, shape: &str) -> Option<Self> {
+        match AnimationFile::parse(json) {
             Ok(file) => Some(Self::new(file, shape)),
             Err(e) => {
                 log::warn!("Horizon: Cobblemon animations of {shape}: {}", e.0);
@@ -375,6 +380,41 @@ pub(super) struct Captures {
     /// The animations of each shape of Ball, registered once (`own::register` keeps them for good).
     /// `own::NONE` for a shape whose file does not load.
     animators: HashMap<String, u32>,
+    /// The files of the Balls' looks, by their path under `assets/cobblemon`, once the thread that
+    /// reads them ahead is done. None until it is started.
+    files: Option<Arc<OnceLock<HashMap<String, Vec<u8>>>>>,
+}
+
+/// Where the files of the Balls' looks are, under `assets/cobblemon`: their two geometries, their two
+/// sets of animations, a texture a Ball.
+const BALL_FOLDERS: [&str; 3] = [
+    "bedrock/poke_balls/models",
+    "bedrock/poke_balls/animations",
+    "textures/poke_balls",
+];
+
+/// Every file of the Balls' looks, from the root that wins among those that have it.
+fn read_ball_files(assets: &Assets) -> HashMap<String, Vec<u8>> {
+    let mut read = HashMap::new();
+    for folder in BALL_FOLDERS {
+        for root in &assets.assets {
+            let Ok(entries) = std::fs::read_dir(root.join(folder)) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+                    continue;
+                };
+                let path = format!("{folder}/{name}");
+                if !read.contains_key(&path)
+                    && let Ok(bytes) = std::fs::read(entry.path())
+                {
+                    read.insert(path, bytes);
+                }
+            }
+        }
+    }
+    read
 }
 
 impl Captures {
@@ -400,11 +440,51 @@ impl Captures {
             .map(|ball| ball.position + DVec3::Y * MIDDLE)
     }
 
+    /// Starts reading the files of the Balls' looks, once: by the time a Ball is thrown they are in
+    /// memory, and making its look reads nothing.
+    pub(super) fn read_ahead(&mut self, assets: &Arc<Assets>) {
+        if self.files.is_some() {
+            return;
+        }
+        let files = Arc::new(OnceLock::new());
+        self.files = Some(files.clone());
+        let assets = assets.clone();
+        let spawned = std::thread::Builder::new()
+            .name("cobblemon balls".into())
+            .spawn(move || {
+                // Set once here and nowhere else: it cannot be there already.
+                let _ = files.set(read_ball_files(&assets));
+            });
+        if let Err(e) = spawned {
+            log::warn!(
+                "Horizon: no thread to read the Balls' models on ({e}): they are read as thrown"
+            );
+        }
+    }
+
+    /// The file at `path` under `assets/cobblemon`, one of a Ball's look: as it was read ahead, or
+    /// from the disk while that is not done.
+    pub(super) fn file(&self, assets: &Assets, path: &str) -> Option<Vec<u8>> {
+        let ahead = self.files.as_ref().and_then(|files| files.get());
+        match ahead.and_then(|read| read.get(path)) {
+            Some(bytes) => Some(bytes.clone()),
+            None => std::fs::read(assets.file(path)?).ok(),
+        }
+    }
+
     /// The number of the animations of the Balls shaped `shape`, for a type's `Anim::Own`.
     pub(super) fn animator(&mut self, assets: &Assets, shape: &str) -> u32 {
-        *self.animators.entry(shape.to_owned()).or_insert_with(|| {
-            BallAnimator::load(assets, shape).map_or(own::NONE, |a| own::register(Arc::new(a)))
-        })
+        if let Some(known) = self.animators.get(shape) {
+            return *known;
+        }
+        let path = format!("bedrock/poke_balls/animations/{shape}.animation.json");
+        let animator = self
+            .file(assets, &path)
+            .and_then(|bytes| String::from_utf8(bytes).ok())
+            .and_then(|json| BallAnimator::load(&json, shape))
+            .map_or(own::NONE, |animator| own::register(Arc::new(animator)));
+        self.animators.insert(shape.to_owned(), animator);
+        animator
     }
 
     /// The server's motion for entity `id` (`Entity.lerpMotion`). False when it is no Ball.
@@ -571,9 +651,14 @@ impl Game<'_> {
     /// is there to draw it.
     pub(super) fn pokemon_capture_frame(&mut self) {
         let now = self.ticks;
-        let Some(captures) = self.remote.as_mut().map(|r| &mut r.pokemon.captures) else {
+        let Some(pokemon) = self.remote.as_mut().map(|r| &mut r.pokemon) else {
             return;
         };
+        let captures = &mut pokemon.captures;
+        // As soon as a Pokémon or the party had Cobblemon's resources looked for.
+        if let Some(Some(assets)) = &pokemon.assets {
+            captures.read_ahead(assets);
+        }
         let ticks = now.saturating_sub(captures.ticked).min(CATCH_UP);
         captures.ticked = now;
         if captures.balls.is_empty() {
@@ -889,6 +974,54 @@ mod tests {
             unseen.frame(at(2.0)).shown.over.map(|o| o.0),
             Some(Clip::Bob(wobble(1)))
         );
+    }
+
+    #[test]
+    fn a_ball_s_files_are_read_ahead_from_the_root_that_wins() {
+        let folder = std::env::temp_dir().join(format!("horizon-balls-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&folder);
+        let write = |root: &str, path: &str, bytes: &[u8]| {
+            let file = folder.join(root).join("assets/cobblemon").join(path);
+            std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(file, bytes).unwrap();
+        };
+        // Cobblemon's own resources, and a pack over them that repaints one Ball.
+        write("mod", "textures/poke_balls/poke_ball.png", b"red");
+        write("mod", "textures/poke_balls/great_ball.png", b"blue");
+        write("mod", "bedrock/poke_balls/models/poke_ball.geo.json", b"{}");
+        write("pack", "textures/poke_balls/poke_ball.png", b"gold");
+        let assets = Assets {
+            assets: ["pack", "mod"]
+                .map(|root| folder.join(root).join("assets/cobblemon"))
+                .to_vec(),
+            models: HashMap::new(),
+            posers: HashMap::new(),
+            resolvers: HashMap::new(),
+            species: HashMap::new(),
+            animations: HashMap::new(),
+            animation_files: Default::default(),
+        };
+        let read = read_ball_files(&assets);
+        assert_eq!(read.len(), 3);
+        assert_eq!(read["textures/poke_balls/poke_ball.png"], b"gold");
+        assert_eq!(read["textures/poke_balls/great_ball.png"], b"blue");
+        assert_eq!(read["bedrock/poke_balls/models/poke_ball.geo.json"], b"{}");
+        // Before the reading ahead is done, and for a file it did not find, the disk answers.
+        let mut captures = Captures::default();
+        let poke_ball = "textures/poke_balls/poke_ball.png";
+        assert_eq!(captures.file(&assets, poke_ball), Some(b"gold".to_vec()));
+        let ahead = Arc::new(OnceLock::new());
+        ahead
+            .set(HashMap::from([(poke_ball.to_owned(), b"kept".to_vec())]))
+            .unwrap();
+        captures.files = Some(ahead);
+        assert_eq!(captures.file(&assets, poke_ball), Some(b"kept".to_vec()));
+        assert_eq!(
+            captures.file(&assets, "textures/poke_balls/great_ball.png"),
+            Some(b"blue".to_vec())
+        );
+        assert_eq!(captures.file(&assets, "textures/poke_balls/none.png"), None);
+        std::fs::remove_dir_all(&folder).unwrap();
     }
 
     #[test]

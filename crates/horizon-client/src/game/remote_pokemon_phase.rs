@@ -414,12 +414,17 @@ impl Game<'_> {
         } else {
             POKE_BALL
         };
-        let model = assets.file(&format!("bedrock/poke_balls/models/{shape}.geo.json"))?;
-        let geometry = geo::Geometry::parse(&std::fs::read_to_string(model).ok()?).ok()?;
+        // The Ball's files are in memory by now, read ahead (`Captures::read_ahead`).
+        let captures = &mut pokemon.captures;
+        let model = captures.file(
+            assets,
+            &format!("bedrock/poke_balls/models/{shape}.geo.json"),
+        )?;
+        let geometry = geo::Geometry::parse(std::str::from_utf8(&model).ok()?).ok()?;
         let root = geometry.drawn_root(None, shape)?;
-        let animations = pokemon.captures.animator(assets, shape);
+        let animations = captures.animator(assets, shape);
         let texture = format!("textures/poke_balls/{ball}.png");
-        let png = std::fs::read(assets.file(&texture)?).ok()?;
+        let png = captures.file(assets, &texture)?;
         let (width, height, rgba) = horizon_client::hud::decode_bytes(&png).ok()?;
         let body = Part {
             name: "#stand".into(),
