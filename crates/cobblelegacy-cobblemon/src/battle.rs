@@ -1176,6 +1176,85 @@ mod tests {
         assert_eq!(MoveTarget::Myself.in_singles("p1a", "p2a"), None);
     }
 
+    /// The player `battle3` was captured for: the test client's, whose battle with a wild Wooloo ended
+    /// with a Master Ball.
+    const THROWER: u128 = 0x404f_6005_5573_3724_b453_8d5c_7d20_1637;
+
+    #[test]
+    fn a_ball_thrown_in_battle_is_followed_to_the_capture() {
+        let mut battles = Battles::default();
+        let mut steps = captured("battle3").into_iter();
+        // Plays the capture up to the next message of `upto`, and says what that one changed.
+        let mut next = |battles: &mut Battles, upto: &str| {
+            for (channel, payload) in steps.by_ref() {
+                let change = battles.read(&channel, &payload, THROWER).unwrap();
+                if channel == upto {
+                    return change;
+                }
+            }
+            panic!("no {upto} left in the capture");
+        };
+        assert_eq!(next(&mut battles, MAKE_CHOICE), Change::MustChoose);
+        let battle = battles.current().unwrap();
+        assert_eq!((battle.mine, battle.capture.as_ref()), (Some((0, 0)), None));
+        // The Ball hits the wild Pokémon: its position is the second side's first.
+        assert_eq!(next(&mut battles, CAPTURE_START), Change::CaptureStarted);
+        let battle = battles.current().unwrap();
+        let capture = battle.capture.as_ref().unwrap();
+        assert_eq!(
+            (
+                capture.ball.as_str(),
+                capture.target.as_str(),
+                capture.shakes
+            ),
+            ("cobblemon:master_ball", "p2a", 0)
+        );
+        assert!(capture.aspects.is_empty());
+        let wooloo = battle.at(&capture.target).unwrap();
+        assert_eq!(wooloo.species, "cobblemon:wooloo");
+        assert_eq!(battle.opponents()[0].active[0].as_ref(), Some(wooloo));
+        assert!(
+            battle.at("p3a").is_none() && battle.at("p2b").is_none() && battle.at("").is_none()
+        );
+        // The server says it twice (the entity, then the battle's own action), and wants the turn
+        // passed while the Ball decides.
+        assert_eq!(next(&mut battles, CAPTURE_START), Change::CaptureStarted);
+        assert_eq!(next(&mut battles, APPLY_PASS_RESPONSE), Change::MustChoose);
+        assert!(battles.current().unwrap().pass_expected);
+        // A critical capture: one shake, then the Pokémon stays in.
+        assert_eq!(next(&mut battles, CAPTURE_SHAKE), Change::CaptureShook);
+        assert_eq!(
+            battles
+                .current()
+                .unwrap()
+                .capture
+                .as_ref()
+                .map(|c| c.shakes),
+            Some(1)
+        );
+        assert_eq!(next(&mut battles, CAPTURE_END), Change::CaptureEnded(true));
+        assert_eq!(battles.current().unwrap().capture, None);
+        // A shake with no capture under way is nothing; one that failed says so.
+        assert_eq!(
+            battles
+                .read(CAPTURE_SHAKE, b"\x03p2a\x00", THROWER)
+                .unwrap(),
+            Change::None
+        );
+        assert_eq!(
+            battles.read(CAPTURE_END, b"\x03p2a\x00", THROWER).unwrap(),
+            Change::CaptureEnded(false)
+        );
+        assert!(battles.read(CAPTURE_END, b"\x03p2a", THROWER).is_err());
+        assert!(
+            battles
+                .read(CAPTURE_START, b"\x03p2a\x01", THROWER)
+                .is_err()
+        );
+        assert_eq!(next(&mut battles, END), Change::Ended);
+        assert!(battles.current().is_none());
+    }
+
     #[test]
     fn a_challenge_is_what_the_server_took_in_the_capture() {
         // The capture's own challenge started `battle1`: the same bytes, for its entity and lead.
