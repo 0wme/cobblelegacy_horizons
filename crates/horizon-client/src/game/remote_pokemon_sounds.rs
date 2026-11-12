@@ -24,11 +24,12 @@ use super::super::super::Game;
 use super::{Looked, anim};
 use cobblelegacy_cobblemon::{
     animation::{AnimationFile, SoundKeyframe},
+    battle,
     poser::Poser,
     sound::{self, BattleMusic, MusicStep, NamedSounds, PlayAnimation},
 };
 use horizon_client::{
-    audio::ExtraSounds,
+    audio::{Audio, ExtraSounds},
     random_source,
     sound_engine::{
         AMBIENT, Attenuation, InstanceId, MUSIC, NEUTRAL, PLAYERS, RECORDS, SoundEntity,
@@ -37,11 +38,14 @@ use horizon_client::{
     sound_events::SoundRegistry,
 };
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
     path::{Path, PathBuf},
     sync::{Arc, Once, OnceLock},
     time::{Duration, Instant},
 };
+
+/// How many of the sounds started from here are remembered with their moments.
+const RECENT: usize = 32;
 
 /// `BattleMusicController.filteredCategories`: what waits while a battle's music plays.
 const HELD_BY_MUSIC: [usize; 3] = [AMBIENT, MUSIC, RECORDS];
@@ -204,12 +208,17 @@ pub(super) struct Sounds {
     /// The trails of the Pokémon that left the level, to stop.
     stopped: Vec<InstanceId>,
     music: Option<Music>,
-    /// How many of the entries of the engine's `heard` have been looked at for a sound it lacks.
+    /// How many of the sounds asked for (the engine's `heard` and `played`) have been looked at for
+    /// one that nothing plays.
     checked: usize,
-    /// The sounds asked for that the engine has no event or no file for, each told once in the log.
+    /// The sounds asked for that the engine has no event for, each told once in the log.
     unknown: BTreeSet<String>,
+    /// Those it has an event for, which names no file.
+    silent: BTreeSet<String>,
     /// How many times each sound was started from here (`horizon-ctl status`).
     played: BTreeMap<String, u32>,
+    /// The last of them and when, the oldest first: what a test reads their moments from.
+    recent: VecDeque<(Instant, String)>,
     /// Where the last trail was last put, and for which Pokémon (`horizon-ctl status`).
     trail_at: Option<(i32, [f64; 3])>,
 }
@@ -233,6 +242,23 @@ impl Sounds {
 
     fn count(&mut self, sound: &str) {
         *self.played.entry(sound.to_owned()).or_default() += 1;
+        if self.recent.len() == RECENT {
+            self.recent.pop_front();
+        }
+        self.recent.push_back((Instant::now(), sound.to_owned()));
+    }
+
+    /// `BattleMusicController.endMusic` (`BattleMusicInstance.setFade`): a battle's music fades out
+    /// from now, and does not start over.
+    fn end_music(&mut self, audio: &mut Audio) {
+        if let Some(music) = &mut self.music
+            && music.fading.is_none()
+        {
+            music.fading = Some(Instant::now());
+            if let Some(instance) = audio.engine.instance_mut(music.instance) {
+                instance.looping = false;
+            }
+        }
     }
 }
 
@@ -246,17 +272,19 @@ impl Game<'_> {
     /// Once a frame: Cobblemon's sounds given to the engine once they are read, the trails moved with
     /// their Balls, the sounds whose moment has come, a battle's music fading.
     pub(super) fn pokemon_sounds_frame(&mut self) {
+        // From the game's first frame, so that they are read by the time a server is joined: a sound
+        // asked for before they are is not heard.
+        start_reading();
         let now = Instant::now();
         let Some(r) = self.remote.as_mut() else {
             return;
         };
         let sounds = &mut r.pokemon.sounds;
-        if !sounds.known {
-            start_reading();
-            if let Some(read) = READ.get() {
-                self.audio.add_sounds(read.clone());
-                sounds.known = true;
-            }
+        if !sounds.known
+            && let Some(read) = READ.get()
+        {
+            self.audio.add_sounds(read.clone());
+            sounds.known = true;
         }
         for instance in sounds.stopped.drain(..) {
             self.audio.stop_instance(instance);
@@ -294,18 +322,28 @@ impl Game<'_> {
                 }
             }
         }
-        // A sound a mod's server asked for that nothing plays, said once: the engine counts what it
-        // is asked whether or not it has the event.
-        if sounds.known && sounds.checked != self.audio.heard.len() {
-            sounds.checked = self.audio.heard.len();
+        // A mod's sound that was asked for and that nothing plays, said once: the engine counts what
+        // it is asked whether or not it has the event. One the resources define without a file (a
+        // battle's music, which Cobblemon leaves to resource packs) is silent there too.
+        let asked = self.audio.heard.len() + sounds.played.len();
+        if sounds.known && sounds.checked != asked {
+            sounds.checked = asked;
             let registry = &self.audio.engine.registry;
-            for name in self.audio.heard.keys() {
-                if !name.starts_with("minecraft:")
-                    && name.contains(':')
-                    && registry.weight(name) <= 0
-                    && sounds.unknown.insert(name.clone())
+            for name in self.audio.heard.keys().chain(sounds.played.keys()) {
+                if name.starts_with("minecraft:")
+                    || !name.contains(':')
+                    || registry.weight(name) > 0
                 {
-                    log::warn!("Horizon: unknown sound event {name}: nothing plays for it");
+                    continue;
+                }
+                if !registry.contains(name) {
+                    if sounds.unknown.insert(name.clone()) {
+                        log::warn!("Horizon: unknown sound event {name}: nothing plays for it");
+                    }
+                } else if sounds.silent.insert(name.clone()) {
+                    log::info!(
+                        "Horizon: sound event {name} has no sound file: nothing plays for it"
+                    );
                 }
             }
         }
@@ -481,9 +519,23 @@ impl Game<'_> {
         }
     }
 
+    /// What a battle's messages change of what is heard: its music (`BattleMusicHandler`), and its
+    /// end, which fades that music out (`BattleEndHandler`: the server sends no music to end it).
+    pub(super) fn pokemon_battle_sounds(&mut self, channel: &str, data: &[u8]) {
+        match channel {
+            battle::MUSIC => self.pokemon_battle_music(data),
+            battle::END => {
+                if let Some(r) = self.remote.as_mut() {
+                    r.pokemon.sounds.end_music(&mut self.audio);
+                }
+            }
+            _ => {}
+        }
+    }
+
     /// `BattleMusicHandler`: the music a battle asks for starts, takes the place of the one that
     /// plays, or what plays fades out.
-    pub(super) fn pokemon_battle_music(&mut self, data: &[u8]) {
+    fn pokemon_battle_music(&mut self, data: &[u8]) {
         let asked = match BattleMusic::read(data) {
             Ok(asked) => asked,
             Err(e) => {
@@ -502,15 +554,8 @@ impl Game<'_> {
         let step = sound::music_step(&asked, playing.map(|music| music.name.as_str()));
         let name = match (step, asked.music) {
             (MusicStep::Keep, _) | (_, None) => {
-                // `setFade`: it fades out from now, and does not start over.
-                if step == MusicStep::End
-                    && let Some(music) = &mut sounds.music
-                    && music.fading.is_none()
-                {
-                    music.fading = Some(Instant::now());
-                    if let Some(instance) = self.audio.engine.instance_mut(music.instance) {
-                        instance.looping = false;
-                    }
+                if step == MusicStep::End {
+                    sounds.end_music(&mut self.audio);
                 }
                 return;
             }
@@ -566,12 +611,18 @@ impl Game<'_> {
 
     /// The click of Cobblemon's screens (`SimpleSoundInstance.forUI(CobblemonSounds.GUI_CLICK, 1.0F)`).
     pub(super) fn pokemon_ui_click(&mut self) {
+        self.pokemon_ui_sound(sound::GUI_CLICK);
+    }
+
+    /// A sound of one of Cobblemon's screens, by the listener (`SimpleSoundInstance.forUI(sound,
+    /// 1.0F)`: the UI source, a quarter of its volume).
+    pub(super) fn pokemon_ui_sound(&mut self, name: &str) {
         self.audio.play_instance(
-            SoundInstance::for_ui(sound::GUI_CLICK, 1.0, 0.25, random_source::create()),
+            SoundInstance::for_ui(name, 1.0, 0.25, random_source::create()),
             false,
         );
         if let Some(r) = self.remote.as_mut() {
-            r.pokemon.sounds.count(sound::GUI_CLICK);
+            r.pokemon.sounds.count(name);
         }
     }
 
@@ -588,7 +639,13 @@ impl Game<'_> {
             // Whether the sound engine has them.
             "known": sounds.known,
             "unknown": sounds.unknown,
+            "silent": sounds.silent,
             "played": sounds.played,
+            // The last of them, each with how long ago it was started.
+            "recent": sounds.recent.iter().map(|(at, sound)| serde_json::json!({
+                "sound": sound,
+                "ms_ago": at.elapsed().as_millis() as u64,
+            })).collect::<Vec<_>>(),
             "waiting": sounds.later.len(),
             "trail": sounds.trail_at.map(|(id, at)| serde_json::json!({"pokemon": id, "at": at})),
             "music": sounds.music.as_ref().map(|music| serde_json::json!({
@@ -838,11 +895,24 @@ mod tests {
             heard(&mut audio, event);
             audio.stop_all();
         }
-        let music = "cobblemon:battle.pvw.default";
+        // A streamed sound, which is decoded on a thread of its own: the first of them by name.
+        // (Cobblemon's three battle musics are events without a file, left to resource packs.)
+        let registry = &audio.engine.registry;
+        let mut streamed: Vec<String> = registry
+            .names()
+            .filter(|name| {
+                registry
+                    .get(name)
+                    .is_some_and(|event| event.sounds.iter().any(|s| s.stream && !s.event))
+            })
+            .cloned()
+            .collect();
+        streamed.sort();
+        let streamed = streamed.first().expect("a streamed sound").clone();
         audio.play_instance(
-            SoundInstance::for_music(music, random_source::create()),
+            SoundInstance::for_music(&streamed, random_source::create()),
             false,
         );
-        heard(&mut audio, music);
+        heard(&mut audio, &streamed);
     }
 }

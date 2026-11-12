@@ -613,9 +613,7 @@ impl Game<'_> {
             UNREAD_ENTITY_DATA => self.remote_pokemon_data(data),
             cobblelegacy_cobblemon::sound::PLAY_ANIMATION => self.pokemon_animation_sounds(data),
             battle if cobblelegacy_cobblemon::battle::reads(battle) => {
-                if battle == cobblelegacy_cobblemon::battle::MUSIC {
-                    self.pokemon_battle_music(data);
-                }
+                self.pokemon_battle_sounds(battle, data);
                 self.remote_pokemon_battle(battle, data);
             }
             cobblelegacy_cobblemon::moves::MOVES_SYNC => {
