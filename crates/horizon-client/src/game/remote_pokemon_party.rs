@@ -696,8 +696,10 @@ impl Game<'_> {
             * Mat4::from_rotation_y((-32.0 * side).to_radians())
             * Mat4::from_rotation_x(5f32.to_radians())
             * Mat4::from_scale(V::new(-unsized_model, -unsized_model, unsized_model));
-        // As a mount's preview (`mount_menu.rs`): the faces turned to the viewer, the farthest first.
-        let mut quads: Vec<(f32, [[f32; 2]; 4], [[f32; 2]; 4], u32)> = Vec::new();
+        // The faces turned to the viewer, each at its own depth: a model's small parts (an eye on a
+        // cheek) sit a hair in front of the face they are on, and on the cheek turned away their
+        // middle is farther than the face's, so ordering whole faces by distance hid them.
+        let mut quads: Vec<(f32, [[f32; 3]; 4], [[f32; 2]; 4], u32)> = Vec::new();
         for quad in vertices.as_chunks::<4>().0 {
             let p: [V; 4] =
                 std::array::from_fn(|i| gui.transform_point3(V::from_array(quad[i].pos)));
@@ -711,18 +713,19 @@ impl Game<'_> {
             let channel = |shift: u32| ((((colour >> shift) & 255) as f32 * shade) as u32) << shift;
             quads.push((
                 p.iter().map(|v| v.z).sum::<f32>() / 4.0,
-                p.map(|v| [v.x, v.y]),
+                p.map(|v| v.to_array()),
                 std::array::from_fn(|i| quad[i].uv),
                 (colour & 0xFF00_0000) | channel(0) | channel(8) | channel(16),
             ));
         }
+        // Far to near all the same, for the texels that let what is behind show through.
         quads.sort_by(|a, b| a.0.total_cmp(&b.0));
         let start = batch.vertices.len();
         for (_, corners, uv, colour) in quads {
-            batch.quad(corners, uv, colour);
+            batch.quad_3d(corners, uv, colour);
         }
-        let [x0, y0, x1, y1] = framing.clip;
-        batch.clip_since(start, x0, y0, x1, y1);
+        // Tested for depth and cut to the frame, as an item's model in a slot.
+        batch.depth_since(start, framing.clip);
     }
 
     /// A key pressed in play on a server: whether the party took it ([`Party::key`]).
