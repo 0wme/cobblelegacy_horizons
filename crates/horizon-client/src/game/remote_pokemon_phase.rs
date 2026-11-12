@@ -8,7 +8,8 @@
 //!
 //! Cobblemon runs these on three clocks (the frame's, the entity's ticks, the wall's); one is kept here,
 //! the wall's, and the Ball's arc does not depend on the frame rate as it does there. Its particles (the
-//! flash as the Ball opens, the sparks) and its own sounds are not drawn or played yet.
+//! flash as the Ball opens, the sparks) are not drawn yet; its own sounds are played from
+//! `remote_pokemon_sounds.rs`.
 use super::super::super::Game;
 use super::{Assets, GROUND, STAND_IN, fit, part, path_of, pokemon_type};
 use cobblelegacy_cobblemon::geo;
@@ -282,6 +283,12 @@ impl Game<'_> {
                 over: false,
             },
         );
+        // What Cobblemon's client plays of its own as a Pokémon comes out (`remote_pokemon_sounds.rs`).
+        match mode {
+            Mode::Thrown => self.pokemon_thrown_sounds(id, AIR),
+            Mode::Appearing => self.pokemon_appearing_sound(id),
+            Mode::Recalled => {}
+        }
         // At once, so that no frame shows a thrown Pokémon whole before its Ball has landed.
         self.pokemon_phase_frame();
     }
@@ -334,6 +341,13 @@ impl Game<'_> {
             let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32) else {
                 continue;
             };
+            // The Ball's trail is heard from where the Ball is.
+            if let (Mode::Thrown, Some(source)) = (phase.mode, phase.source) {
+                let feet = DVec3::new(mob.position.x, mob.position.y, mob.position.z);
+                pokemon
+                    .sounds
+                    .ball_at(id, flight(source, feet, seconds).0.to_array());
+            }
             mob.extra.model_scale = (own * size(phase.mode, seconds)).max(UNSEEN);
             // How far from white, which `mobs::render::body_color` reads for a Pokémon.
             mob.extra.variant2 = match phase.mode {

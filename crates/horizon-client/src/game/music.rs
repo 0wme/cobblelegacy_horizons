@@ -45,8 +45,11 @@ impl Game<'_> {
                 .remote
                 .as_ref()
                 .is_some_and(|r| r.reconfiguring.is_some());
-        self.music
-            .tick(music.as_ref(), volume, loading, &mut self.audio);
+        // CobbleLegacy: a Cobblemon battle's music holds the manager where it is (`MusicManagerMixin`).
+        if !self.pokemon_battle_music_plays() {
+            self.music
+                .tick(music.as_ref(), volume, loading, &mut self.audio);
+        }
         // Options.musicToast's listener: ToastManager.setMusicToastDisplayState.
         let state = self.settings.file.int("musicToast").clamp(0, 2) as u8;
         if state != self.music_toast_state {

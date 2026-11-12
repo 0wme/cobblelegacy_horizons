@@ -1641,6 +1641,8 @@ impl Game<'_> {
         status["destroying"] = json!(destroying);
         status["physical_keys"] = json!(physical_keys);
         status["heard"] = json!(self.audio.heard);
+        // CobbleLegacy: Cobblemon's sounds, what the client knows of them and started itself.
+        status["pokemon_sounds"] = self.pokemon_sounds_status();
         status["stopped_sounds"] = json!(self.audio.stopped);
         // Boats, minecarts, armor stands, item frames and paintings.
         status["objects"] = json!(self.objects_status());

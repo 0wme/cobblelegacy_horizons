@@ -1150,7 +1150,7 @@ fn configure(
                     }) {
                     Ok((modded, summary)) => {
                         log::info!(
-                            "Horizon: a Fabric server's own numbers: {} block states in all, {} mod blocks matched, {} not here{}; {} mod items matched, {} not here",
+                            "Horizon: a Fabric server's own numbers: {} block states in all, {} mod blocks matched, {} not here{}; {} mod items matched, {} not here; {} mod sounds named",
                             modded.states,
                             summary.blocks_matched,
                             summary.blocks_missing,
@@ -1162,7 +1162,8 @@ fn configure(
                                 ))
                                 .unwrap_or_default(),
                             summary.items_matched,
-                            summary.items_missing
+                            summary.items_missing,
+                            summary.sounds
                         );
                         if let Some(session) = reader.adapter() {
                             session.set_modded(modded);

@@ -72,7 +72,7 @@ impl PlayAnimation {
     pub fn read(data: &[u8]) -> Result<Self> {
         let r = &mut Reader::new(data);
         let entity = r.i32()?;
-        let mut strings = |r: &mut Reader| -> Result<Vec<String>> {
+        let strings = |r: &mut Reader| -> Result<Vec<String>> {
             (0..r.count(r.remaining())?).map(|_| string(r)).collect()
         };
         Ok(Self {

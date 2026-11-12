@@ -551,7 +551,7 @@ impl Game<'_> {
         let Some(button) = hit.filter(|b| b.enabled) else {
             return;
         };
-        self.audio.play_button_click();
+        self.pokemon_ui_click();
         let menu = |game: &mut Self, menu| {
             if let Some(fight) = game.pokemon_fight() {
                 fight.menu = menu;

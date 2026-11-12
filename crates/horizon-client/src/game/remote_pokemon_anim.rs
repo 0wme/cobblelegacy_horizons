@@ -39,7 +39,7 @@ pub(super) fn with_pose(variant: u8, pose: PoseType) -> u8 {
 /// function's answer within one family (ground, air, water). The pose travels in a metadata type of
 /// Cobblemon's, which reaches the window apart from the data vanilla reads (`remote_pokemon_data`): were
 /// that part not to come, this still tells a walk from a stand.
-fn pose_of(variant: u8) -> PoseType {
+pub(super) fn pose_of(variant: u8) -> PoseType {
     use PoseType::*;
     let appeared = PoseType::ALL
         .get(usize::from(variant & !(MOVING | SAID)))
@@ -181,6 +181,12 @@ impl Animator {
                 .and_then(|chosen| poser.poses.iter().position(|p| std::ptr::eq(p, chosen)));
         }
         Self { programs, by_pose }
+    }
+
+    /// The place in the poser's poses of the pose of each `PoseType`, by ordinal: what else is told
+    /// by pose (a cry's sound, `remote_pokemon_sounds.rs`) is told by the pose the model is drawn in.
+    pub(super) fn by_pose(&self) -> [Option<usize>; 14] {
+        self.by_pose
     }
 }
 
