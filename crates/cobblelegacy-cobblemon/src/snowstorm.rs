@@ -1261,6 +1261,65 @@ fn read_event(names: &mut Names, name: &str, event: &Value) -> Result<Event> {
     })
 }
 
+/// `SpawnSnowstormParticlePacket`'s channel: an effect to play at a place in the world.
+pub const SPAWN_PARTICLE: &str = "cobblemon:spawn_snowstorm_particle";
+/// `SpawnSnowstormEntityParticlePacket`'s channel: an effect to play on an entity.
+pub const SPAWN_ENTITY_PARTICLE: &str = "cobblemon:spawn_snowstorm_entity_particle";
+
+/// Whether `channel` carries one of the two messages that start an effect.
+pub fn reads(channel: &str) -> bool {
+    matches!(channel, SPAWN_PARTICLE | SPAWN_ENTITY_PARTICLE)
+}
+
+/// `SpawnSnowstormParticlePacket`: the effect `effect`, at `position`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SpawnParticle {
+    pub effect: String,
+    pub position: [f64; 3],
+}
+
+impl SpawnParticle {
+    pub fn read(data: &[u8]) -> Result<Self> {
+        let mut r = horizon_protocol::buf::Reader::new(data);
+        let effect = crate::wire::string(&mut r)?;
+        let position = [r.f64()?, r.f64()?, r.f64()?];
+        Ok(Self { effect, position })
+    }
+}
+
+/// `SpawnSnowstormEntityParticlePacket`: the effect `effect` on entity `entity`, at the first of
+/// `locators` its model has, aimed at entity `target` when there is one.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SpawnEntityParticle {
+    pub effect: String,
+    pub entity: i32,
+    pub locators: Vec<String>,
+    pub target: Option<i32>,
+    pub target_locators: Option<Vec<String>>,
+}
+
+impl SpawnEntityParticle {
+    pub fn read(data: &[u8]) -> Result<Self> {
+        let mut r = horizon_protocol::buf::Reader::new(data);
+        let strings = |r: &mut horizon_protocol::buf::Reader| -> Result<Vec<String>> {
+            // No effect names more than a handful of locators.
+            (0..r.count(256)?).map(|_| crate::wire::string(r)).collect()
+        };
+        let effect = crate::wire::string(&mut r)?;
+        let entity = r.i32()?;
+        let locators = strings(&mut r)?;
+        let target = crate::wire::nullable(&mut r, |r| r.i32())?;
+        let target_locators = crate::wire::nullable(&mut r, |r| strings(r))?;
+        Ok(Self {
+            effect,
+            entity,
+            locators,
+            target,
+            target_locators,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1450,6 +1509,53 @@ mod tests {
         );
         assert_eq!(effect.particle.expiration_events, ["spark"]);
         assert_eq!(effect.children().collect::<Vec<_>>(), ["cobblemon:shine"]);
+    }
+
+    #[test]
+    fn a_message_cut_short_or_with_too_many_locators_is_an_error() {
+        let mut w = horizon_protocol::buf::Writer::new();
+        w.string("cobblemon:shiny_ring");
+        w.f64(1.5);
+        w.f64(64.0);
+        assert!(SpawnParticle::read(&w.data).is_err());
+        w.f64(-3.25);
+        assert_eq!(
+            SpawnParticle::read(&w.data).unwrap(),
+            SpawnParticle {
+                effect: "cobblemon:shiny_ring".into(),
+                position: [1.5, 64.0, -3.25]
+            }
+        );
+        // An effect aimed at another entity, at one of its locators.
+        let mut w = horizon_protocol::buf::Writer::new();
+        w.string("cobblemon:ember_actor");
+        w.i32(41);
+        w.varint(1);
+        w.string("special");
+        w.bool(true);
+        w.i32(57);
+        w.bool(true);
+        w.varint(2);
+        w.string("target");
+        w.string("middle");
+        assert_eq!(
+            SpawnEntityParticle::read(&w.data).unwrap(),
+            SpawnEntityParticle {
+                effect: "cobblemon:ember_actor".into(),
+                entity: 41,
+                locators: vec!["special".into()],
+                target: Some(57),
+                target_locators: Some(vec!["target".into(), "middle".into()]),
+            }
+        );
+        assert!(SpawnEntityParticle::read(&w.data[..w.data.len() - 3]).is_err());
+        let mut w = horizon_protocol::buf::Writer::new();
+        w.string("cobblemon:ember_actor");
+        w.i32(41);
+        w.varint(100_000);
+        assert!(SpawnEntityParticle::read(&w.data).is_err());
+        assert!(reads(SPAWN_PARTICLE) && reads(SPAWN_ENTITY_PARTICLE));
+        assert!(!reads("cobblemon:spawn_pokemon_entity"));
     }
 
     #[test]
