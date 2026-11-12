@@ -87,6 +87,13 @@ pub const ARGUMENT_TYPES: &[&str] = &[
     "minecraft:uuid",
 ];
 
+/// `brigadier:string` in [`ARGUMENT_TYPES`], and its property for the rest of the line
+/// (`StringArgumentType.StringType.GREEDY_PHRASE`).
+const STRING: i32 = 5;
+const GREEDY_PHRASE: u8 = 2;
+/// The suggestion provider that asks the server (`SuggestionProviders.ASK_SERVER`).
+const ASK_SERVER: &str = "minecraft:ask_server";
+
 /// The properties of an argument parser (`ArgumentTypeInfo.Template`) as
 /// one of the 26.3 parsers decoded from the network.
 #[derive(Clone, Debug, PartialEq)]
@@ -257,11 +264,25 @@ impl Codec<Commands> for Commands {
             }
             if kind == 2 {
                 let id = crate::adapter::ids::command_argument_type(r.varint()?);
-                let start = r.position();
-                read_argument_properties(r, id)?;
-                parser = Some((id, r.since(start).to_vec()));
-                if flags & 16 != 0 {
-                    suggestions = Some(r.string(32767)?);
+                if usize::try_from(id).is_ok_and(|i| i < ARGUMENT_TYPES.len()) {
+                    let start = r.position();
+                    read_argument_properties(r, id)?;
+                    parser = Some((id, r.since(start).to_vec()));
+                    if flags & 16 != 0 {
+                        suggestions = Some(r.string(32767)?);
+                    }
+                } else {
+                    // A parser this game does not have: a mod's on the server (Cobblemon's species,
+                    // its Pokémon properties). The rest of the line stands for it, completed by the
+                    // server, which has the parser. A mod's parser is read as one without properties
+                    // (`SingletonArgumentInfo`, which all sixteen of Cobblemon 1.8.1 are): one with
+                    // properties leaves bytes that do not read as a tree, and the packet is refused
+                    // as it was before.
+                    if flags & 16 != 0 {
+                        r.string(32767)?;
+                    }
+                    parser = Some((STRING, vec![GREEDY_PHRASE]));
+                    suggestions = Some(ASK_SERVER.to_owned());
                 }
             }
             nodes.push(CommandNode {

@@ -69,6 +69,9 @@ pub struct Session {
     pub(super) incoming: Mutex<VecDeque<(i32, Vec<u8>)>>,
     /// Packet bodies to send right after the one being sent.
     pub(super) outgoing: Mutex<Vec<Vec<u8>>>,
+    /// What a modded server's own blocks and items are numbered here (`set_modded`), once its
+    /// table was read; none on a server without mods.
+    modded: std::sync::RwLock<Option<Arc<super::fabric::Modded>>>,
 }
 
 impl Session {
@@ -94,7 +97,19 @@ impl Session {
             kinds: Mutex::new(HashMap::new()),
             incoming: Mutex::new(VecDeque::new()),
             outgoing: Mutex::new(Vec::new()),
+            modded: std::sync::RwLock::new(None),
         }
+    }
+    /// Translates from here on with a modded server's own numbers: its chunk sections are as wide
+    /// as its state count says, and its mods' block states and items become the client's.
+    pub fn set_modded(&self, modded: super::fabric::Modded) {
+        *self.modded.write().unwrap_or_else(|e| e.into_inner()) = Some(Arc::new(modded));
+    }
+    pub(super) fn modded(&self) -> Option<Arc<super::fabric::Modded>> {
+        self.modded
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
     pub fn reading(&self) -> State {
         from_u8(self.reading.load(Ordering::Acquire))
@@ -371,6 +386,350 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// A modded 1.21.1 server (Fabric with Cobblemon) sends its own sound events after vanilla's 1,611:
+    /// such a packet is dropped, where it used to reach the reader as an inline sound with no location
+    /// ("needed 8 bytes, 2 left"). A vanilla sound and an inline one still go through.
+    #[test]
+    fn a_sound_the_pinned_version_lacks_is_dropped_not_misread() {
+        use crate::packets::play;
+        let s = Session::new(ServerVersion::V1_21_1);
+        s.set_reading(State::Play);
+        let sound = |holder: &dyn Fn(&mut Writer)| {
+            let mut w = Writer::new();
+            holder(&mut w);
+            w.varint(4); // blocks
+            for v in [8, 64, -8] {
+                w.i32(v);
+            }
+            w.f32(1.0);
+            w.f32(1.0);
+            w.i64(7);
+            w.data
+        };
+        let sound_id = old_play_id(s.version, ids::play::clientbound::SOUND);
+        // The first id past vanilla 1.21.1's registry, as a holder (id + 1).
+        let modded = sound(&|w| w.varint(1611 + 1));
+        assert_eq!(s.clientbound(sound_id, modded).unwrap(), None);
+        // Vanilla's first sound still renumbers and decodes.
+        let (id, payload) = s
+            .clientbound(sound_id, sound(&|w| w.varint(1)))
+            .unwrap()
+            .unwrap();
+        let play::Clientbound::Sound(p) = play::Clientbound::decode(id, &payload).unwrap() else {
+            panic!("sound")
+        };
+        assert!(p.sound.0 >= 0 && p.sound.1.is_none());
+        assert_eq!((p.source, p.seed), (4, 7));
+        // An inline sound names itself: it needs no registry entry.
+        let inline = sound(&|w| {
+            w.varint(0);
+            w.string("cobblemon:pokemon.pikachu.cry");
+            w.bool(false);
+        });
+        let (id, payload) = s.clientbound(sound_id, inline).unwrap().unwrap();
+        let play::Clientbound::Sound(p) = play::Clientbound::decode(id, &payload).unwrap() else {
+            panic!("inline sound")
+        };
+        assert_eq!(
+            p.sound,
+            (-1, Some(("cobblemon:pokemon.pikachu.cry".into(), None)))
+        );
+
+        let mut entity = Writer::new();
+        entity.varint(1611 + 1);
+        entity.varint(6); // neutral
+        entity.varint(12);
+        entity.f32(1.0);
+        entity.f32(1.0);
+        entity.i64(7);
+        let entity_id = old_play_id(s.version, ids::play::clientbound::SOUND_ENTITY);
+        assert_eq!(s.clientbound(entity_id, entity.data).unwrap(), None);
+    }
+
+    /// A modded 1.21.1 server (Fabric with Cobblemon) has argument parsers of its own after vanilla's
+    /// (`cobblemon:pokemon`, a species): the tree used to be refused whole ("unknown argument type -1"),
+    /// so every command read as unknown. Such an argument is now the rest of the line, completed by the
+    /// server, and the nodes around it keep theirs.
+    #[test]
+    fn a_command_argument_the_pinned_version_lacks_asks_the_server() {
+        use crate::packets::play;
+        let s = Session::new(ServerVersion::V1_21_1);
+        s.set_reading(State::Play);
+        let mut w = Writer::new();
+        w.varint(5);
+        // The root, over two commands.
+        w.u8(0);
+        w.varint(2);
+        w.varint(1);
+        w.varint(3);
+        // `pokespawn <pokemon>`: a mod's parser, which writes no property.
+        w.u8(1);
+        w.varint(1);
+        w.varint(2);
+        w.string("pokespawn");
+        w.u8(2 | 4);
+        w.varint(0);
+        w.string("pokemon");
+        w.varint(200);
+        // `level <amount>`: vanilla's integer with a minimum, after the mod's in the packet.
+        w.u8(1);
+        w.varint(1);
+        w.varint(4);
+        w.string("level");
+        w.u8(2 | 4);
+        w.varint(0);
+        w.string("amount");
+        w.varint(3);
+        w.u8(1);
+        w.i32(1);
+        w.varint(0);
+        let (id, payload) = s
+            .clientbound(
+                old_play_id(s.version, ids::play::clientbound::COMMANDS),
+                w.data,
+            )
+            .unwrap()
+            .unwrap();
+        let play::Clientbound::Commands(tree) = play::Clientbound::decode(id, &payload).unwrap()
+        else {
+            panic!("commands")
+        };
+        let pokemon = &tree.nodes[2];
+        assert_eq!(
+            (pokemon.name.as_str(), pokemon.executable),
+            ("pokemon", true)
+        );
+        // brigadier:string, greedy.
+        assert_eq!(pokemon.parser, Some((5, vec![2])));
+        assert_eq!(pokemon.suggestions.as_deref(), Some("minecraft:ask_server"));
+        let amount = &tree.nodes[4];
+        assert_eq!(amount.name, "amount");
+        assert_eq!(amount.suggestions, None);
+        assert_eq!(
+            play::ArgumentProperties::decode(amount.parser.as_ref().unwrap().0, &[1, 0, 0, 0, 1])
+                .unwrap(),
+            play::ArgumentProperties::Integer {
+                min: Some(1),
+                max: None
+            }
+        );
+        assert_eq!(tree.root, 0);
+    }
+
+    /// A modded 1.21.1 server (Fabric with Cobblemon) numbers its mods' block states after the game's
+    /// 26,684. They were all air here; once the session has the server's table (`set_modded`), such a
+    /// state is the client's state of that block, and one the client has no block for stays air. The
+    /// game's own states are renumbered as before.
+    #[test]
+    fn a_mod_s_block_state_becomes_the_client_s_once_the_table_is_known() {
+        use crate::{adapter::fabric::Modded, packets::play};
+        let s = Session::new(ServerVersion::V1_21_1);
+        s.set_reading(State::Play);
+        let update_id = old_play_id(s.version, ids::play::clientbound::BLOCK_UPDATE);
+        let state_at = |s: &Session, state: i32| {
+            let sent = play::Clientbound::BlockUpdate(play::BlockUpdate {
+                pos: [1, 64, -3],
+                state,
+            })
+            .encode();
+            // The packet without its id: the position is laid out alike in both releases.
+            let mut r = Reader::new(&sent);
+            r.varint().unwrap();
+            let (id, payload) = s
+                .clientbound(update_id, r.rest().to_vec())
+                .unwrap()
+                .unwrap();
+            let play::Clientbound::BlockUpdate(p) =
+                play::Clientbound::decode(id, &payload).unwrap()
+            else {
+                panic!("a block update")
+            };
+            assert_eq!(p.pos, [1, 64, -3]);
+            p.state
+        };
+        let stone = state_at(&s, 1);
+        assert_ne!(stone, 0);
+        // Without the table, a state past the game's own is air.
+        assert_eq!(state_at(&s, 26_684 + 1), 0);
+        s.set_modded(Modded {
+            states: 59_579,
+            first_state: 26_684,
+            block_states: vec![0, 40_001, 40_002],
+            ..Default::default()
+        });
+        assert_eq!(state_at(&s, 26_684 + 1), 40_001);
+        assert_eq!(state_at(&s, 26_684 + 2), 40_002);
+        // A block the client has none for, and a state past the table's end.
+        assert_eq!(state_at(&s, 26_684), 0);
+        assert_eq!(state_at(&s, 26_684 + 3), 0);
+        assert_eq!(state_at(&s, 1), stone);
+    }
+
+    /// A mod's item arrived as an empty slot, and a stack that carried one of a mod's components failed
+    /// its whole packet ("unsupported item component -1"): nothing says how long a component's value
+    /// is. With the server's table, the item is the client's of that name, and the mods' components are
+    /// read past (an NBT tag, or the boolean of Cobblemon's `crafted`) and left out of the stack.
+    #[test]
+    fn a_mod_s_item_is_the_client_s_and_keeps_none_of_the_mods_components() {
+        use crate::{
+            adapter::fabric::{Modded, Skip},
+            packets::play,
+        };
+        let equipment_id = old_play_id(
+            ServerVersion::V1_21_1,
+            ids::play::clientbound::SET_EQUIPMENT,
+        );
+        // An entity's main hand: three of the server's item 1333 (a berry), with two components added
+        // and one removed, all of them a mod's.
+        let mut w = Writer::new();
+        w.varint(42);
+        w.u8(0);
+        w.varint(3);
+        w.varint(1333);
+        w.varint(2);
+        w.varint(1);
+        w.varint(57);
+        // `cobblemon:flavour` as a tag: a string, "abc".
+        w.data.extend_from_slice(&[8, 0, 3, b'a', b'b', b'c']);
+        w.varint(67);
+        w.bool(true);
+        w.varint(59);
+        let sent = w.data;
+
+        let stack = |s: &Session| {
+            let (id, payload) = s
+                .clientbound(equipment_id, sent.clone())
+                .map_err(|e| e.0)?
+                .ok_or("dropped")?;
+            match play::Clientbound::decode(id, &payload).map_err(|e| e.0)? {
+                play::Clientbound::SetEquipment(p) => Ok(p.slots),
+                _ => Err("another packet".to_owned()),
+            }
+        };
+        let s = Session::new(ServerVersion::V1_21_1);
+        s.set_reading(State::Play);
+        s.set_modded(
+            Modded {
+                components: [(57, Skip::Nbt), (59, Skip::Nbt), (67, Skip::Bool)].into(),
+                ..Default::default()
+            }
+            .with_items([(1333, 1600)]),
+        );
+        let slots: std::result::Result<_, String> = stack(&s);
+        let slots = slots.expect("the packet reads");
+        assert_eq!(slots.len(), 1);
+        let held = slots[0].1.as_ref().expect("a stack");
+        assert_eq!((slots[0].0, held.item, held.count), (0, 1600, 3));
+        assert!(held.added.is_empty() && held.removed.is_empty());
+    }
+
+    /// 1.21.1's entity teleport is what its tracker syncs an entity's position with: it sets the base the
+    /// next moves are relative to, as 26.3's position sync does and its teleport does not. Read as a
+    /// teleport, a Pokémon a command moved nine blocks was drawn back where it stood at its next move.
+    /// 1.21.3 already sends the sync itself, and its teleport stays one.
+    #[test]
+    fn an_entity_teleport_up_to_1_21_1_is_a_position_sync() {
+        use crate::packets::play;
+        let teleport = ids::play::clientbound::TELEPORT_ENTITY;
+        let s = Session::new(ServerVersion::V1_21_1);
+        s.set_reading(State::Play);
+        let mut w = Writer::new();
+        w.varint(611);
+        for v in [-389.5, 120.0, -66.5] {
+            w.f64(v);
+        }
+        // A quarter turn and an eighth, as bytes of a turn; on the ground.
+        w.i8(64);
+        w.i8(32);
+        w.bool(true);
+        let (id, payload) = s
+            .clientbound(old_play_id(s.version, teleport), w.data)
+            .unwrap()
+            .unwrap();
+        let play::Clientbound::EntityPositionSync(p) =
+            play::Clientbound::decode(id, &payload).unwrap()
+        else {
+            panic!("a position sync")
+        };
+        assert_eq!(p.id, 611);
+        assert_eq!(p.path.end(), [-389.5, 120.0, -66.5]);
+        assert_eq!((p.yaw, p.pitch, p.on_ground), (90.0, 45.0, true));
+        assert!(s.next_incoming().is_none());
+
+        let later = Session::new(ServerVersion::V1_21_3);
+        later.set_reading(State::Play);
+        let sent = play::Clientbound::TeleportEntity(play::TeleportEntity {
+            id: 611,
+            position: [1.0, 2.0, 3.0],
+            delta: [0.0; 3],
+            yaw: 90.0,
+            pitch: 45.0,
+            relatives: 0,
+            on_ground: true,
+        })
+        .encode();
+        // The packet without its id, as a server of that release lays it out (as 26.3 does).
+        let mut r = Reader::new(&sent);
+        r.varint().unwrap();
+        let (id, payload) = later
+            .clientbound(old_play_id(later.version, teleport), r.rest().to_vec())
+            .unwrap()
+            .unwrap();
+        assert!(matches!(
+            play::Clientbound::decode(id, &payload).unwrap(),
+            play::Clientbound::TeleportEntity(p) if p.position == [1.0, 2.0, 3.0]
+        ));
+    }
+
+    /// A modded 1.21.1 server (Fabric with Cobblemon) numbers its own entity data serializers after
+    /// vanilla's 31. Nothing says how long their values are, so the data is read up to the first of
+    /// them; what the server sent from there on used to be lost (a Pokémon's pose, at index 32), and now
+    /// follows the packet as it came, for the reader that knows the entity's layout.
+    #[test]
+    fn entity_data_past_a_mod_s_serializer_follows_as_a_payload() {
+        use crate::{entity_data::Value, packets::play};
+        let s = Session::new(ServerVersion::V1_21_1);
+        s.set_reading(State::Play);
+        let data_id = old_play_id(s.version, ids::play::clientbound::SET_ENTITY_DATA);
+        let moving = |w: &mut Writer| {
+            w.varint(611);
+            // PokemonEntity.MOVING: vanilla's boolean, 8 in 1.21.1.
+            w.u8(24);
+            w.varint(8);
+            w.bool(true);
+        };
+        // POSE_TYPE under Cobblemon's serializer (an Int ordinal), then vanilla's Int of LABEL_LEVEL.
+        let rest = [32, 33, 0, 0, 0, 1, 33, 1, 4, 0xFF];
+        let mut w = Writer::new();
+        moving(&mut w);
+        w.bytes(&rest);
+        let (id, payload) = s.clientbound(data_id, w.data).unwrap().unwrap();
+        let play::Clientbound::SetEntityData(p) = play::Clientbound::decode(id, &payload).unwrap()
+        else {
+            panic!("entity data")
+        };
+        assert_eq!(p.id, 611);
+        let read: Vec<(u8, &Value)> = p.values.iter().map(|(i, _, v)| (*i, v)).collect();
+        assert_eq!(read, [(24, &Value::Bool(true))]);
+        let (id, payload) = s.next_incoming().unwrap();
+        let play::Clientbound::CustomPayload(p) = play::Clientbound::decode(id, &payload).unwrap()
+        else {
+            panic!("payload")
+        };
+        assert_eq!(p.channel, crate::adapter::UNREAD_ENTITY_DATA);
+        // The entity's id as a VarInt, then the server's bytes.
+        assert_eq!(p.data[..2], [0xE3, 0x04]);
+        assert_eq!(p.data[2..], rest);
+        assert!(s.next_incoming().is_none());
+
+        // Data vanilla's readers know to its end has nothing follow it.
+        let mut w = Writer::new();
+        moving(&mut w);
+        w.u8(0xFF);
+        assert!(s.clientbound(data_id, w.data).unwrap().is_some());
+        assert!(s.next_incoming().is_none());
     }
 
     #[test]

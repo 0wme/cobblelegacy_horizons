@@ -239,6 +239,38 @@ thread_local! {
     static TRIM_PATTERNS: RefCell<HashMap<i32,i32>> = RefCell::new(HashMap::new());
     static LEGACY_REGISTRIES: RefCell<Option<Arc<LegacyRegistries>>> = const { RefCell::new(None) };
     static LEGACY_ITEMS: RefCell<Option<Arc<Mutex<crate::item::v1_20_3::Cache>>>> = const { RefCell::new(None) };
+    static MODDED: RefCell<Option<Arc<super::fabric::Modded>>> = const { RefCell::new(None) };
+}
+
+/// A modded server's own numbers, for what is read or written on this thread until the guard drops
+/// (`Session::set_modded`): an item the tables have no entry for is looked up there.
+pub(crate) fn modded(modded: Option<Arc<super::fabric::Modded>>) -> ModdedGuard {
+    ModdedGuard(MODDED.replace(modded))
+}
+/// Restores the previous modded numbers when dropped.
+pub(crate) struct ModdedGuard(Option<Arc<super::fabric::Modded>>);
+impl Drop for ModdedGuard {
+    fn drop(&mut self) {
+        MODDED.set(self.0.take());
+    }
+}
+/// How to read past the value of a modded server's item component `id` (its own number), while a
+/// packet of that server is read on this thread.
+pub(crate) fn modded_component(id: i32) -> Option<super::fabric::Skip> {
+    if !matches!(ACTIVE.get(), Some((_, Way::Up))) {
+        return None;
+    }
+    MODDED.with_borrow(|modded| modded.as_ref()?.components.get(&id).copied())
+}
+/// A mod's item the other side numbers otherwise, in the direction being renumbered.
+fn modded_item(id: i32, way: Way) -> Option<i32> {
+    MODDED.with_borrow(|modded| {
+        let modded = modded.as_ref()?;
+        match way {
+            Way::Up => modded.items_up.get(&id).copied(),
+            Way::Down => modded.items_down.get(&id).copied(),
+        }
+    })
 }
 
 pub(crate) fn legacy_items(cache: Arc<Mutex<crate::item::v1_20_3::Cache>>) -> LegacyItemGuard {
@@ -328,10 +360,17 @@ fn apply(id: i32, pick: impl Fn(&Ids) -> Remap) -> i32 {
 /// lacks becomes its stand-in.
 pub fn item(id: i32) -> i32 {
     match ACTIVE.get() {
-        Some((ids, Way::Down)) => {
+        // A mod's item first: the client numbers it past its own, where an older server may have one
+        // of the game's.
+        Some((ids, Way::Down)) => modded_item(id, Way::Down).unwrap_or_else(|| {
             down_or_substitute(ids.item, ids.substitutes.item, id).unwrap_or(-1)
-        }
-        _ => apply(id, |ids| ids.item),
+        }),
+        Some((ids, Way::Up)) => ids
+            .item
+            .up(id)
+            .or_else(|| modded_item(id, Way::Up))
+            .unwrap_or(-1),
+        None => id,
     }
 }
 /// A data component type id as read or about to be written on this thread.

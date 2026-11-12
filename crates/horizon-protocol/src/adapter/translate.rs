@@ -67,6 +67,10 @@ pub fn clientbound(
     let Some(ids) = session.version.ids() else {
         return Ok(Some((id, None)));
     };
+    // A modded server's own numbers (`Session::set_modded`), for the items read below.
+    let modded = session.modded();
+    let _modded = ids::modded(modded.clone());
+    let modded = modded.as_deref();
     use packet_ids::play::clientbound as cb;
     let normalized_text = if session.version.at_most(ServerVersion::V1_20_2) {
         v1_20_2::text::clientbound(session, state, id, payload)?
@@ -260,6 +264,25 @@ pub fn clientbound(
         (State::Play, cb::MOVE_ENTITY_POS_ROT) => move_entity(payload, true, true)?,
         (State::Play, cb::MOVE_ENTITY_ROT) => move_entity(payload, false, true)?,
         (State::Play, cb::ENTITY_POSITION_SYNC) => position_sync(payload)?,
+        // Up to 1.21.1 an entity's tracker sent a teleport where later releases send the position sync, and
+        // its handler did what the sync's does: it set the base the moves after it are relative to
+        // (`syncPacketPositionCodec`) and left a mount the client steers where it is. 26.3's teleport does
+        // neither, so an entity that jumped 8 blocks or more went back to where it was at its next move.
+        (State::Play, cb::TELEPORT_ENTITY) if session.version.at_most(ServerVersion::V1_21_1) => {
+            let p = play::TeleportEntity::read(&mut Reader::new(payload))?;
+            let mut w = Writer::new();
+            play::EntityPositionSync::write(
+                &play::EntityPositionSync {
+                    id: p.id,
+                    path: play::PositionPath::Linear(p.position),
+                    yaw: p.yaw,
+                    pitch: p.pitch,
+                    on_ground: p.on_ground,
+                },
+                &mut w,
+            );
+            return Ok(Some((cb::ENTITY_POSITION_SYNC, Some(w.data))));
+        }
         (State::Play, cb::ANIMATE) => {
             return animate(payload).map(|(id, body)| Some((id, Some(body))));
         }
@@ -269,7 +292,7 @@ pub fn clientbound(
                 session.legacy_metadata.lock().unwrap().forget(e.id);
                 let falling_block = ids.entity_type.down(packet_ids_entity::FALLING_BLOCK);
                 if Some(e.kind) == falling_block {
-                    e.data = ids.block_state.up(e.data).unwrap_or(0);
+                    e.data = state_up(ids, modded, e.data);
                 }
                 let Some(kind) = ids.entity_type.up(e.kind) else {
                     return Ok(None);
@@ -295,7 +318,7 @@ pub fn clientbound(
         (State::Play, cb::BLOCK_UPDATE) => {
             let mut p = decode_play(ids, id, payload)?;
             if let play::Clientbound::BlockUpdate(b) = &mut p {
-                b.state = ids.block_state.up(b.state).unwrap_or(0);
+                b.state = state_up(ids, modded, b.state);
             }
             strip_id(p.encode())
         }
@@ -303,7 +326,7 @@ pub fn clientbound(
             let mut p = decode_play(ids, id, payload)?;
             if let play::Clientbound::SectionBlocksUpdate(s) = &mut p {
                 for change in &mut s.changes {
-                    let state = ids.block_state.up((*change >> 12) as i32).unwrap_or(0);
+                    let state = state_up(ids, modded, (*change >> 12) as i32);
                     *change = i64::from(state) << 12 | (*change & 0xfff);
                 }
             }
@@ -314,7 +337,7 @@ pub fn clientbound(
             if let play::Clientbound::LevelEvent(e) = &mut p {
                 // LevelEvent.PARTICLES_DESTROY_BLOCK and the brush's BLOCK_FINISHED_BRUSHING carry a state.
                 if matches!(e.kind, 2001 | 3008) {
-                    e.data = ids.block_state.up(e.data).unwrap_or(0);
+                    e.data = state_up(ids, modded, e.data);
                 }
             }
             strip_id(p.encode())
@@ -352,6 +375,23 @@ pub fn clientbound(
                 }
                 v1_21_11::entity_data(session, d);
             }
+            forward_unread_entity_data(session, ids, payload);
+            strip_id(p.encode())
+        }
+        // A sound the pinned version has no entry for (a mod's on a modded server, or one a later release
+        // removed) renumbers to -1, and -1 writes back as holder 0: the marker of an inline sound, with no
+        // location after it, so the reader took the source for the location's length. Drop the packet: the
+        // client has no such sound to play.
+        (State::Play, cb::SOUND | cb::SOUND_ENTITY) => {
+            let p = decode_play(ids, id, payload)?;
+            let unknown = match &p {
+                play::Clientbound::Sound(s) => s.sound.0 == -1 && s.sound.1.is_none(),
+                play::Clientbound::SoundEntity(s) => s.sound.0 == -1 && s.sound.1.is_none(),
+                _ => false,
+            };
+            if unknown {
+                return Ok(None);
+            }
             strip_id(p.encode())
         }
         (
@@ -363,8 +403,6 @@ pub fn clientbound(
             | cb::SET_PLAYER_INVENTORY
             | cb::SET_EQUIPMENT
             | cb::MERCHANT_OFFERS
-            | cb::SOUND
-            | cb::SOUND_ENTITY
             | cb::RECIPE_BOOK_ADD
             | cb::PLACE_GHOST_RECIPE
             | cb::COMMANDS,
@@ -375,6 +413,37 @@ pub fn clientbound(
 }
 
 pub(super) use super::pinned_ids::entity_type as packet_ids_entity;
+
+/// The channel of the payload that follows an older server's entity data when a serializer the pinned
+/// version does not have stopped its reading: the entity's id (VarInt), then the server's own bytes from
+/// that entry on, to the 0xFF that ends them.
+pub const UNREAD_ENTITY_DATA: &str = "horizon:unread_entity_data";
+
+/// Entity data is read up to the first serializer the pinned version lacks: a mod's on a modded server
+/// (Cobblemon's pose of a Pokémon), whose value nothing here can measure, so that entry and those after
+/// it are not in the translated packet. They follow it as a payload of [`UNREAD_ENTITY_DATA`], for
+/// whoever knows the entity's layout to read. `payload` is the server's packet.
+fn forward_unread_entity_data(session: &Session, ids: &'static Ids, payload: &[u8]) {
+    let _up = ids::renumbering(ids, Way::Up);
+    let mut r = Reader::new(payload);
+    let Ok(entity) = r.varint() else {
+        return;
+    };
+    let Ok((_, Some(unread))) = crate::entity_data::EntityData::read_until_unknown(&mut r) else {
+        return;
+    };
+    let mut data = Writer::new();
+    data.varint(entity);
+    data.bytes(&payload[unread..]);
+    let packet = play::Clientbound::CustomPayload(configuration::CustomPayload {
+        channel: UNREAD_ENTITY_DATA.into(),
+        data: data.data,
+    });
+    session.incoming.lock().unwrap().push_back((
+        packet_ids::play::clientbound::CUSTOM_PAYLOAD,
+        strip_id(packet.encode()),
+    ));
+}
 
 /// A serverbound packet with Horizon's `id`, as the older server numbers and lays it out: its id there and
 /// the payload. `None`: nothing is sent.
@@ -393,6 +462,8 @@ pub fn serverbound(
     let Some(ids) = session.version.ids() else {
         return renumbered(id, payload.to_vec());
     };
+    // A mod's item goes back under the server's own number.
+    let _modded = ids::modded(session.modded());
     use packet_ids::play::serverbound as sb;
     if session.version.at_most(ServerVersion::V1_20_2) {
         if matches!(
@@ -785,11 +856,16 @@ pub(super) fn chunk(session: &Session, ids: &'static Ids, payload: &[u8]) -> Res
     });
     let light = light(&mut r)?;
     let (old_bits, new_bits) = ids.state_bits();
+    // A modded server has more states than the game's own, and its sections' global palette is as
+    // wide as that count says: 16 bits with Cobblemon's 32,895 states, where 1.21.1 alone has 15.
+    let modded = session.modded();
+    let modded = modded.as_deref();
+    let old_bits = modded.map_or(old_bits, super::fabric::Modded::state_bits);
     let mut sections = Reader::new(&buffer);
     let mut out = Vec::new();
     while sections.remaining() > 0 {
         let mut s = Section::read(&mut sections, old_bits, 0)?;
-        s.states = renumber_states(ids, &s.states, new_bits);
+        s.states = renumber_states_with(ids, modded, &s.states, new_bits);
         out.push(s);
     }
     let mut w = Writer::new();
@@ -843,8 +919,36 @@ pub(super) fn light_update(payload: &[u8]) -> Result<Vec<u8>> {
     Ok(w.data)
 }
 
+/// The pinned state of an older server's `state`: the tables', else a modded server's own
+/// (`Session::set_modded`), else air.
+fn state_up(ids: &Ids, modded: Option<&super::fabric::Modded>, state: i32) -> i32 {
+    ids.block_state
+        .up(state)
+        .or_else(|| modded?.state(state))
+        .unwrap_or(0)
+}
+
+#[cfg(test)]
 fn renumber_states(ids: &Ids, states: &Paletted, new_bits: u8) -> Paletted {
-    let up = |id: i32| ids.block_state.up(id).unwrap_or(0);
+    renumber_states_with(ids, None, states, new_bits)
+}
+
+/// [`renumber_states`], a modded server's own states among them. One of those the client numbers past
+/// what `new_bits` holds becomes air: the section could not say it.
+fn renumber_states_with(
+    ids: &Ids,
+    modded: Option<&super::fabric::Modded>,
+    states: &Paletted,
+    new_bits: u8,
+) -> Paletted {
+    let up = |id: i32| {
+        let state = state_up(ids, modded, id);
+        if i64::from(state) < 1i64 << new_bits {
+            state
+        } else {
+            0
+        }
+    };
     if !states.palette.is_empty() {
         // A palette: renumbering its entries is enough.
         let mut out = states.clone();

@@ -7,6 +7,7 @@
 //! pinned ones. A Horizon server runs the ids the other way for a client of an older release
 //! ([`ClientSession`], roadmap `older-clients`), when its owner lets such clients join.
 pub mod client_session;
+pub mod fabric;
 pub mod ids;
 pub mod layout_26_2;
 mod legacy;
@@ -43,6 +44,7 @@ mod v26_2_ids;
 
 pub use client_session::ClientSession;
 pub use session::Session;
+pub use translate::UNREAD_ENTITY_DATA;
 
 use crate::{
     Direction, Result, State,

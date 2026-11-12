@@ -885,7 +885,7 @@ fn read_removed(r: &mut Reader, negative: usize) -> Result<Vec<i32>> {
     let mut removed = Vec::with_capacity(negative.min(64));
     for _ in 0..negative {
         let raw = r.varint()?;
-        if ids::dropped_component(raw).is_none() {
+        if ids::dropped_component(raw).is_none() && ids::modded_component(raw).is_none() {
             removed.push(ids::component(raw));
         }
     }
@@ -903,6 +903,11 @@ fn read_added<'a>(
     let _nested = Nested::enter()?;
     if let Some(name) = ids::dropped_component(raw) {
         skip_dropped(name, r)?;
+        return Ok(None);
+    }
+    // A component of a modded server's mods, which nothing here holds: read past, the stack kept.
+    if let Some(skip) = ids::modded_component(raw) {
+        skip.pass(r)?;
         return Ok(None);
     }
     let kind = ids::component(raw);

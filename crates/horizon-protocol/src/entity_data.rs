@@ -518,11 +518,29 @@ fn write_value(kind: i32, v: &Value, w: &mut Writer) {
 pub struct EntityData;
 impl Codec<Vec<(u8, i32, Value)>> for EntityData {
     fn read(r: &mut Reader) -> Result<Vec<(u8, i32, Value)>> {
+        Self::read_until_unknown(r).map(|(entries, _)| entries)
+    }
+    fn write(v: &Vec<(u8, i32, Value)>, w: &mut Writer) {
+        for (index, kind, value) in v {
+            w.u8(*index);
+            w.varint(*kind);
+            write_value(*kind, value, w);
+        }
+        w.u8(0xFF);
+    }
+}
+
+impl EntityData {
+    /// The entries, and where in `r` the first one starts whose serializer is not known here: a mod's,
+    /// on a modded server. Nothing says how long such a value is, so that entry and those after it are
+    /// not among the entries (`None`: every entry was read).
+    pub fn read_until_unknown(r: &mut Reader) -> Result<(Vec<(u8, i32, Value)>, Option<usize>)> {
         let mut out = Vec::new();
         loop {
+            let entry = r.position();
             let index = r.u8()?;
             if index == 0xFF {
-                return Ok(out);
+                return Ok((out, None));
             }
             let wire_kind = r.varint()?;
             if wire_kind == 16 && ids::quirks().shoulder_parrots_as_nbt {
@@ -546,18 +564,10 @@ impl Codec<Vec<(u8, i32, Value)>> for EntityData {
                 Some(v) => out.push((index, kind, v)),
                 None => {
                     r.rest();
-                    return Ok(out);
+                    return Ok((out, Some(entry)));
                 }
             }
         }
-    }
-    fn write(v: &Vec<(u8, i32, Value)>, w: &mut Writer) {
-        for (index, kind, value) in v {
-            w.u8(*index);
-            w.varint(*kind);
-            write_value(*kind, value, w);
-        }
-        w.u8(0xFF);
     }
 }
 

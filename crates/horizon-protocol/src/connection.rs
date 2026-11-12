@@ -636,6 +636,12 @@ impl ConnReader {
         Ok(self.stream.set_read_timeout(timeout)?)
     }
 }
+impl ConnReader {
+    /// The session that translates an older server's packets, when this connection has one.
+    pub fn adapter(&self) -> Option<&Arc<crate::adapter::Session>> {
+        self.adapter.as_ref()
+    }
+}
 impl ConnWriter {
     /// The server release selected for this connection (local play uses the pinned release).
     pub fn server_version(&self) -> crate::adapter::ServerVersion {

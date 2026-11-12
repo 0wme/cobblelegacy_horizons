@@ -48,6 +48,11 @@ pub(super) fn read_stack(r: &mut Reader) -> Result<Option<Stack>> {
                 .push((FIRE_RESISTANT, Component::Raw(fire_types())));
             continue;
         }
+        // A component of a modded server's mods, which nothing here holds: read past, the stack kept.
+        if let Some(skip) = ids::modded_component(old) {
+            skip.pass(r)?;
+            continue;
+        }
         let kind = ids::component(old);
         let value = match kind {
             16 if v1_20_5::active() => Component::Raw(v1_20_5::read_attributes(r)?),
