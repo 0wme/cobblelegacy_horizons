@@ -15,4 +15,6 @@ pub mod party;
 pub mod pose;
 pub mod poser;
 pub mod resolver;
+pub mod species;
+pub mod stats;
 pub mod wire;

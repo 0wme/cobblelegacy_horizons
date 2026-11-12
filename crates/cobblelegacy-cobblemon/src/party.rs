@@ -14,15 +14,25 @@
 //! experience its level starts and ends at. Cobblemon's client works them out from the species' base
 //! stats and experience group ([`max_health`], [`ExperienceGroup`]).
 //!
-//! The other way, the client asks for one thing so far: [`send_out`], what the key that throws the
-//! selected Pokémon sends. The server then sends the Pokémon out or calls it back, whichever it is not,
-//! and says so with the Pokémon's new [`State`].
+//! The other way, the client asks: [`send_out`], what the key that throws the selected Pokémon sends
+//! (the server then sends the Pokémon out or calls it back, whichever it is not, and says so with the
+//! Pokémon's new [`State`]); and what the summary screen does to a Pokémon, each a message the server
+//! answers with the update of what changed: two moves changing places ([`request_move_swap`]), a move
+//! given up for one learnt before ([`bench_move`]), a nickname ([`set_nickname`]), the six markings
+//! ([`set_markings`]), the mark worn ([`set_active_mark`]), the held item shown or hidden
+//! ([`set_item_hidden`]), and two slots of the party changing places ([`swap_party_pokemon`],
+//! [`move_party_pokemon`]).
 //!
-//! Not read yet: the PC's stores (`cobblemon:initialize_pc`, `set_pc_box`...), a Pokémon's moves,
-//! ability, nature and evolutions (kept as sent in [`PartyPokemon::tag`]), and the updates of the fields
-//! the overlay does not show.
+//! Not read yet: the PC's stores (`cobblemon:initialize_pc`, `set_pc_box`...), a Pokémon's evolutions,
+//! species features and ride boosts (kept as sent in [`PartyPokemon::tag`]), and the updates of a held
+//! or cosmetic item (`cobblemon:held_item_update`: an item stack in the server's own numbering), of a
+//! form, of the marks earned and of the fields no screen shows.
+use crate::stats::{self, Ivs, Stat};
 use crate::wire::{Gender, nullable, string};
-use horizon_protocol::{Error, Result, buf::Reader};
+use horizon_protocol::{
+    Error, Result,
+    buf::{Reader, Writer},
+};
 use horizon_world::nbt::Tag;
 use std::collections::HashMap;
 
@@ -58,6 +68,30 @@ pub const GENDER_UPDATE: &str = "cobblemon:gender_update";
 pub const SHINY_UPDATE: &str = "cobblemon:shiny_update";
 /// `PokemonStateUpdatePacket.ID`.
 pub const STATE_UPDATE: &str = "cobblemon:state_update";
+/// `MoveSetUpdatePacket.ID`.
+pub const MOVESET_UPDATE: &str = "cobblemon:moveset_update";
+/// `BenchedMovesUpdatePacket.ID`.
+pub const BENCHED_MOVES_UPDATE: &str = "cobblemon:benched_moves_update";
+/// `NatureUpdatePacket.ID`.
+pub const NATURE_UPDATE: &str = "cobblemon:nature_update";
+/// `AbilityUpdatePacket.ID`.
+pub const ABILITY_UPDATE: &str = "cobblemon:ability_update";
+/// `IVsUpdatePacket.ID`.
+pub const IV_UPDATE: &str = "cobblemon:iv_update";
+/// `EVsUpdatePacket.ID`.
+pub const EV_UPDATE: &str = "cobblemon:ev_update";
+/// `FriendshipUpdatePacket.ID`.
+pub const FRIENDSHIP_UPDATE: &str = "cobblemon:friendship_update";
+/// `FullnessUpdatePacket.ID`.
+pub const FULLNESS_UPDATE: &str = "cobblemon:fullness_update";
+/// `MarkingsUpdatePacket.ID`.
+pub const MARKINGS_UPDATE: &str = "cobblemon:markings_update";
+/// `ActiveMarkUpdatePacket.ID`.
+pub const ACTIVE_MARK_UPDATE: &str = "cobblemon:active_mark_update";
+/// `TeraTypeUpdatePacket.ID`.
+pub const TERA_TYPE_UPDATE: &str = "cobblemon:tera_type_update";
+/// `OriginalTrainerUpdatePacket.ID`.
+pub const ORIGINAL_TRAINER_UPDATE: &str = "cobblemon:original_trainer_update";
 
 /// `SendOutPokemonPacket.ID`, which the client sends.
 pub const SEND_OUT_POKEMON: &str = "cobblemon:send_out_pokemon";
@@ -66,6 +100,115 @@ pub const SEND_OUT_POKEMON: &str = "cobblemon:send_out_pokemon";
 /// player's party, or to call it back when it is out.
 pub fn send_out(slot: u8) -> Vec<u8> {
     vec![slot]
+}
+
+/// `RequestMoveSwapPacket.ID`, which the client sends.
+pub const REQUEST_MOVE_SWAP: &str = "cobblemon:request_move_swap";
+/// `BenchMovePacket.ID`, which the client sends.
+pub const BENCH_MOVE: &str = "cobblemon:bench_move";
+/// `SetNicknamePacket.ID`, which the client sends.
+pub const SET_NICKNAME: &str = "cobblemon:set_nickname";
+/// `SetMarkingsPacket.ID`, which the client sends.
+pub const SET_MARKINGS: &str = "cobblemon:set_markings";
+/// `SetActiveMarkPacket.ID`, which the client sends.
+pub const SET_ACTIVE_MARK: &str = "cobblemon:set_active_mark";
+/// `SetItemHiddenPacket.ID`, which the client sends.
+pub const SET_ITEM_HIDDEN: &str = "cobblemon:set_item_hidden";
+/// `SwapPartyPokemonPacket.ID`, which the client sends.
+pub const SWAP_PARTY_POKEMON: &str = "cobblemon:swap_party_pokemon";
+/// `MovePartyPokemonPacket.ID`, which the client sends.
+pub const MOVE_PARTY_POKEMON: &str = "cobblemon:move_party_pokemon";
+
+/// `SetNicknameHandler.MAX_NAME_LENGTH`: the server refuses a longer nickname.
+pub const MAX_NICKNAME: usize = 12;
+
+/// `RequestMoveSwapPacket`: asks that the moves at `first` and `second` of the Pokémon in `slot` of
+/// the party change places. The server answers with the move set ([`MOVESET_UPDATE`]).
+pub fn request_move_swap(first: usize, second: usize, slot: usize) -> Vec<u8> {
+    let mut w = Writer::new();
+    for value in [first, second, slot] {
+        w.i32(value as i32);
+    }
+    w.data
+}
+
+/// `BenchMovePacket`: asks that a Pokémon of the party (`party`, else of the PC) gives up the move
+/// `old` for `new`, one it may take back. No `old` fills an empty place; no `new` forgets the move.
+pub fn bench_move(party: bool, pokemon: u128, old: Option<&str>, new: Option<&str>) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.bool(party);
+    w.uuid(pokemon);
+    for name in [old, new] {
+        w.bool(name.is_some());
+        if let Some(name) = name {
+            w.string(name);
+        }
+    }
+    w.data
+}
+
+/// `SetNicknamePacket`: names a Pokémon, or with no nickname gives it back its species' name.
+pub fn set_nickname(pokemon: u128, party: bool, nickname: Option<&str>) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.uuid(pokemon);
+    w.bool(party);
+    w.bool(nickname.is_some());
+    if let Some(nickname) = nickname {
+        w.string(nickname);
+    }
+    w.data
+}
+
+/// `SetMarkingsPacket`: the state of each of a Pokémon's six markings (0 off, 1 and 2 its two
+/// colours).
+pub fn set_markings(pokemon: u128, markings: &[i32], party: bool) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.uuid(pokemon);
+    w.varint(markings.len() as i32);
+    for &state in markings {
+        w.i32(state);
+    }
+    w.bool(party);
+    w.data
+}
+
+/// `SetActiveMarkPacket`: the mark a Pokémon wears by its identifier, or none.
+pub fn set_active_mark(pokemon: u128, mark: Option<&str>) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.uuid(pokemon);
+    w.bool(mark.is_some());
+    if let Some(mark) = mark {
+        w.string(mark);
+    }
+    w.data
+}
+
+/// `SetItemHiddenPacket`: whether a Pokémon's held item shows on its model.
+pub fn set_item_hidden(pokemon: u128, visible: bool) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.uuid(pokemon);
+    w.bool(visible);
+    w.data
+}
+
+/// `SwapPartyPokemonPacket`: two Pokémon of the party change places, each named with the slot it is
+/// in (`writePartyPosition`: two bytes).
+pub fn swap_party_pokemon(first: (u128, usize), second: (u128, usize)) -> Vec<u8> {
+    let mut w = Writer::new();
+    for (pokemon, slot) in [first, second] {
+        w.uuid(pokemon);
+        w.u16(slot as u16);
+    }
+    w.data
+}
+
+/// `MovePartyPokemonPacket`: a Pokémon of the party goes from slot `from` to the empty slot `to`.
+pub fn move_party_pokemon(pokemon: u128, from: usize, to: usize) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.uuid(pokemon);
+    w.u16(from as u16);
+    w.u16(to as u16);
+    w.data
 }
 
 /// `PokemonState`: where a Pokémon of the party is.
@@ -127,6 +270,18 @@ pub fn reads(channel: &str) -> bool {
             | GENDER_UPDATE
             | SHINY_UPDATE
             | STATE_UPDATE
+            | MOVESET_UPDATE
+            | BENCHED_MOVES_UPDATE
+            | NATURE_UPDATE
+            | ABILITY_UPDATE
+            | IV_UPDATE
+            | EV_UPDATE
+            | FRIENDSHIP_UPDATE
+            | FULLNESS_UPDATE
+            | MARKINGS_UPDATE
+            | ACTIVE_MARK_UPDATE
+            | TERA_TYPE_UPDATE
+            | ORIGINAL_TRAINER_UPDATE
     )
 }
 
@@ -215,7 +370,39 @@ pub fn status_name(id: &str) -> Option<&'static str> {
     })
 }
 
-/// A Pokémon as `Pokemon.CLIENT_CODEC` writes it: what the party shows of it, and the compound itself.
+/// `Move`: one of the moves a Pokémon knows now.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Move {
+    /// The move's Showdown id (`firespin`), which the server's registry knows it by
+    /// ([`crate::moves::Moves`]).
+    pub id: String,
+    /// `currentPp`.
+    pub pp: u32,
+    /// How many PP Up it took, 0 to 3.
+    pub raised_pp_stages: u32,
+}
+
+impl Move {
+    /// `Move.maxPp`: the template's PP, and a fifth more for each PP Up.
+    pub fn max_pp(&self, template_pp: u32) -> u32 {
+        max_pp(template_pp, self.raised_pp_stages)
+    }
+}
+
+/// `template.pp + raisedPpStages * template.pp / 5`.
+pub fn max_pp(template_pp: u32, raised_pp_stages: u32) -> u32 {
+    template_pp + raised_pp_stages * template_pp / 5
+}
+
+/// `BenchedMove`: a move a Pokémon knew and gave up, which it may take back.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BenchedMove {
+    pub id: String,
+    pub raised_pp_stages: u32,
+}
+
+/// A Pokémon as `Pokemon.CLIENT_CODEC` writes it: what the party and the summary show of it, and the
+/// compound itself.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PartyPokemon {
     pub uuid: u128,
@@ -246,6 +433,38 @@ pub struct PartyPokemon {
     /// Where it is. A Pokémon comes in its ball or on a shoulder (`ShoulderedState.CODEC`); the server
     /// says when it is sent out.
     pub state: State,
+    /// 0 to the server's `maxPokemonFriendship` (255).
+    pub friendship: u32,
+    /// `currentFullness`: how much it ate, 0 to what its species' weight allows.
+    pub fullness: u32,
+    pub ivs: Ivs,
+    /// By `Stat as usize`.
+    pub evs: stats::Values,
+    /// The nature's id (`cobblemon:bold`).
+    pub nature: String,
+    /// The nature a mint gave it, which is the one that counts when it has one.
+    pub minted_nature: Option<String>,
+    /// The ability's name (`blaze`).
+    pub ability: String,
+    /// The moves it knows, at most four, in the order of its move set.
+    pub moves: Vec<Move>,
+    pub benched_moves: Vec<BenchedMove>,
+    /// The Tera type's id (`cobblemon:flying`).
+    pub tera_type: String,
+    /// Who first had it: a player's UUID as text, or an NPC's name.
+    pub original_trainer: Option<String>,
+    /// That player's name, when the server knows it.
+    pub original_trainer_name: Option<String>,
+    /// Whether the held item shows on the model.
+    pub held_item_visible: bool,
+    /// The cosmetic item's id, when it wears one.
+    pub cosmetic_item: Option<String>,
+    /// The six markings, each 0 (off), 1 or 2 (its two colours).
+    pub markings: Vec<i32>,
+    /// The marks it earned, by identifier, and the one it wears.
+    pub marks: Vec<String>,
+    pub active_mark: Option<String>,
+    pub alpha: bool,
     /// Everything the server sent, for what is not picked out above.
     pub tag: Tag,
 }
@@ -269,6 +488,42 @@ fn flag(tag: &Tag, key: &str) -> bool {
     matches!(tag.get(key), Some(&Tag::Byte(value)) if value != 0)
 }
 
+/// The strings of the list at `key`; none without it.
+fn texts(tag: &Tag, key: &str) -> Vec<String> {
+    match tag.get(key) {
+        Some(Tag::List(list)) => list
+            .iter()
+            .filter_map(|entry| match entry {
+                Tag::String(entry) => Some(entry.to_string_lossy()),
+                _ => None,
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// A number a codec wrote as an int, or as a byte (`BenchedMove.saveToNBT`); 0 without it.
+fn small(tag: &Tag, key: &str) -> u32 {
+    match tag.get(key) {
+        Some(&Tag::Int(value)) => u32::try_from(value).unwrap_or(0),
+        Some(&Tag::Byte(value)) => u32::try_from(value).unwrap_or(0),
+        _ => 0,
+    }
+}
+
+/// The compounds of the list at `key`, each with the string it has at `name`.
+fn named<'a>(tag: &'a Tag, key: &str, name: &'a str) -> impl Iterator<Item = (String, &'a Tag)> {
+    let list = match tag.get(key) {
+        Some(Tag::List(list)) => list.as_slice(),
+        _ => &[],
+    };
+    list.iter()
+        .filter_map(move |entry| Some((text(entry, name).ok()?, entry)))
+}
+
+/// `Pokemon.markings` before any is set: six, all off.
+const NO_MARKINGS: [i32; 6] = [0; 6];
+
 /// `Gender.CODEC`: the constant's name.
 fn gender(name: &str) -> Result<Gender> {
     Ok(match name {
@@ -289,23 +544,32 @@ impl PartyPokemon {
                 .fold(0u128, |uuid, &part| (uuid << 32) | u128::from(part as u32)),
             _ => return Err(Error::new("a Pokémon without a UUID")),
         };
-        let health_stat = |of: Option<&Tag>| match of.and_then(|stats| stats.get("cobblemon:hp")) {
-            Some(&Tag::Int(value)) => u32::try_from(value).ok(),
-            _ => None,
-        };
-        let ivs = tag.get("IVs");
-        let health_iv = health_stat(ivs.and_then(|ivs| ivs.get("HyperTrained")))
-            .or_else(|| health_stat(ivs.and_then(|ivs| ivs.get("Base"))))
-            .unwrap_or(0);
-        let aspects = match tag.get("ForcedAspects") {
+        let ivs = Ivs::from_tag(tag.get("IVs"));
+        let evs = stats::evs(tag.get("EVs"));
+        let aspects = texts(&tag, "ForcedAspects");
+        // `MoveSet.CODEC` and `BenchedMoves.CODEC`: a list each, the moves that are there.
+        let moves = named(&tag, "MoveSet", "MoveName")
+            .map(|(id, entry)| Move {
+                id,
+                pp: small(entry, "MovePP"),
+                raised_pp_stages: small(entry, "RaisedPPStages"),
+            })
+            .collect();
+        let benched_moves = named(&tag, "BenchedMoves", "MoveName")
+            .map(|(id, entry)| BenchedMove {
+                id,
+                raised_pp_stages: small(entry, "RaisedPPStages"),
+            })
+            .collect();
+        let markings = match tag.get("Markings") {
             Some(Tag::List(list)) => list
                 .iter()
-                .filter_map(|aspect| match aspect {
-                    Tag::String(aspect) => Some(aspect.to_string_lossy()),
-                    _ => None,
+                .map(|state| match state {
+                    &Tag::Int(state) => state,
+                    _ => 0,
                 })
                 .collect(),
-            _ => Vec::new(),
+            _ => NO_MARKINGS.to_vec(),
         };
         Ok(Self {
             uuid,
@@ -322,8 +586,8 @@ impl PartyPokemon {
                 .get("Status")
                 .and_then(|status| text(status, "StatusName").ok()),
             aspects,
-            health_iv,
-            health_ev: health_stat(tag.get("EVs")).unwrap_or(0),
+            health_iv: ivs.effective(Stat::Hp),
+            health_ev: evs[Stat::Hp as usize],
             scale_modifier: match tag.get("ScaleModifier") {
                 Some(&Tag::Float(bits)) => f32::from_bits(bits),
                 _ => 1.0,
@@ -335,8 +599,50 @@ impl PartyPokemon {
                 },
                 None => State::Inactive,
             },
+            friendship: small(&tag, "Friendship"),
+            fullness: small(&tag, "Fullness"),
+            ivs,
+            evs,
+            nature: text(&tag, "Nature")?,
+            minted_nature: text(&tag, "MintedNature").ok(),
+            ability: tag
+                .get("Ability")
+                .and_then(|ability| text(ability, "AbilityName").ok())
+                .ok_or_else(|| Error::new("a Pokémon without an ability"))?,
+            moves,
+            benched_moves,
+            tera_type: text(&tag, "TeraType")?,
+            original_trainer: text(&tag, "PokemonOriginalTrainer").ok(),
+            original_trainer_name: text(&tag, "PokemonOriginalTrainerName").ok(),
+            // `Pokemon.heldItemVisible` is true until the server says otherwise.
+            held_item_visible: !matches!(tag.get("HeldItemVisible"), Some(&Tag::Byte(0))),
+            cosmetic_item: tag
+                .get("CosmeticItem")
+                .and_then(|item| text(item, "id").ok()),
+            markings,
+            marks: texts(&tag, "Marks"),
+            active_mark: text(&tag, "ActiveMark").ok(),
+            alpha: flag(&tag, "Alpha"),
             tag,
         })
+    }
+
+    /// `Pokemon.effectiveNature`: the minted nature over its own.
+    pub fn effective_nature(&self) -> Option<&'static stats::Nature> {
+        stats::nature(self.minted_nature.as_deref().unwrap_or(&self.nature))
+    }
+
+    /// `Pokemon.getStat`: what `stat` is with the form's `base` stats, at the level it has.
+    pub fn stat(&self, stat: Stat, base: &stats::Values) -> u32 {
+        stats::stat(
+            stat,
+            &self.species,
+            base[stat as usize],
+            self.ivs.effective(stat),
+            self.evs[stat as usize],
+            self.level,
+            self.effective_nature(),
+        )
     }
 
     /// `Pokemon.isFainted`.
@@ -563,6 +869,61 @@ impl Storage {
                     }
                     SHINY_UPDATE => p.shiny = r.bool()?,
                     STATE_UPDATE => p.state = State::read(r)?,
+                    // `MoveSet.saveToBuffer`: how many, then each move's name, PP and PP Ups.
+                    MOVESET_UPDATE => {
+                        let count = usize::from(r.u8()?);
+                        p.moves = (0..count)
+                            .map(|_| {
+                                Ok(Move {
+                                    id: string(r)?,
+                                    pp: u32::from(r.u8()?),
+                                    raised_pp_stages: u32::from(r.u8()?),
+                                })
+                            })
+                            .collect::<Result<_>>()?;
+                    }
+                    // `BenchedMoves.saveToBuffer`: the count in two bytes.
+                    BENCHED_MOVES_UPDATE => {
+                        let count = usize::try_from(r.i16()?)
+                            .map_err(|_| Error::new("benched moves below none"))?;
+                        p.benched_moves = (0..count)
+                            .map(|_| {
+                                Ok(BenchedMove {
+                                    id: string(r)?,
+                                    raised_pp_stages: u32::from(r.u8()?),
+                                })
+                            })
+                            .collect::<Result<_>>()?;
+                    }
+                    // `NatureUpdatePacket.applyToPokemon`: the nature, or the mint's; no nature takes
+                    // a mint away, and is nothing for the Pokémon's own.
+                    NATURE_UPDATE => {
+                        let nature = nullable(r, string)?;
+                        match (r.bool()?, nature) {
+                            (true, minted) => p.minted_nature = minted,
+                            (false, Some(nature)) => p.nature = nature,
+                            (false, None) => {}
+                        }
+                    }
+                    ABILITY_UPDATE => p.ability = string(r)?,
+                    // `IVs.STREAM_CODEC` and `EVs.STREAM_CODEC`: the codec's compound.
+                    IV_UPDATE => {
+                        p.ivs = Ivs::from_tag(Some(&r.nbt()?));
+                        p.health_iv = p.ivs.effective(Stat::Hp);
+                    }
+                    EV_UPDATE => {
+                        p.evs = stats::evs(Some(&r.nbt()?));
+                        p.health_ev = p.evs[Stat::Hp as usize];
+                    }
+                    FRIENDSHIP_UPDATE => p.friendship = u32::from(r.u8()?),
+                    FULLNESS_UPDATE => p.fullness = u32::from(r.u8()?),
+                    MARKINGS_UPDATE => {
+                        let count = r.count(64)?;
+                        p.markings = (0..count).map(|_| r.i32()).collect::<Result<_>>()?;
+                    }
+                    ACTIVE_MARK_UPDATE => p.active_mark = nullable(r, string)?,
+                    TERA_TYPE_UPDATE => p.tera_type = string(r)?,
+                    ORIGINAL_TRAINER_UPDATE => p.original_trainer_name = nullable(r, string)?,
                     other => return Err(Error::new(format!("{other} is not read here"))),
                 }
                 true
@@ -858,5 +1219,337 @@ mod tests {
         long.push(0);
         assert!(storage.read(HEALTH_UPDATE, &long).is_err());
         assert!(Storage::new().read(SET_PARTY_REFERENCE, REFERENCE).is_err());
+    }
+
+    #[test]
+    fn what_the_summary_shows_is_read_from_a_login_s_party() {
+        let storage = logged_in();
+        let party = storage.party();
+        let charizard = party[1].as_ref().unwrap();
+        assert_eq!(charizard.nature, "cobblemon:bold");
+        assert_eq!(charizard.minted_nature, None);
+        assert_eq!(charizard.ability, "blaze");
+        let moves: Vec<_> = charizard
+            .moves
+            .iter()
+            .map(|m| (m.id.as_str(), m.pp, m.raised_pp_stages))
+            .collect();
+        assert_eq!(
+            moves,
+            [
+                ("firespin", 15, 0),
+                ("scaryface", 10, 0),
+                ("flamethrower", 15, 0),
+                ("slash", 20, 0)
+            ]
+        );
+        assert!(charizard.benched_moves.is_empty());
+        // HP, attack, defence, special attack, special defence, speed.
+        assert_eq!(charizard.ivs.base, [4, 6, 14, 26, 14, 8]);
+        assert_eq!(charizard.ivs.hyper_trained, [None; 6]);
+        assert_eq!(charizard.evs, [0; 6]);
+        assert_eq!((charizard.friendship, charizard.fullness), (50, 0));
+        assert_eq!(charizard.tera_type, "cobblemon:flying");
+        assert_eq!(
+            charizard.original_trainer.as_deref(),
+            Some("c63dc98f-3301-33bd-8ec0-c1a8d3c6f512")
+        );
+        assert_eq!(
+            charizard.original_trainer_name.as_deref(),
+            Some("HorizonProbe")
+        );
+        assert!(charizard.held_item_visible && charizard.cosmetic_item.is_none());
+        assert_eq!(charizard.markings, [0; 6]);
+        assert!(charizard.marks.is_empty() && charizard.active_mark.is_none());
+        assert!(!charizard.alpha);
+        // Its stats from its species' base stats: bold raises defence and lowers attack. Its health
+        // is the one the server gave it, just healed.
+        let stats = Stat::ALL.map(|stat| charizard.stat(stat, &[78, 84, 78, 109, 85, 100]));
+        assert_eq!(stats, [140, 82, 99, 127, 97, 109]);
+        assert_eq!(stats[0], charizard.health);
+        // Pikachu at level 13, brave: attack up, speed down.
+        let pikachu = party[0].as_ref().unwrap();
+        assert_eq!(
+            (pikachu.nature.as_str(), pikachu.ability.as_str()),
+            ("cobblemon:brave", "static")
+        );
+        let stats = Stat::ALL.map(|stat| pikachu.stat(stat, &[35, 55, 40, 50, 50, 90]));
+        assert_eq!(stats, [33, 22, 17, 21, 19, 27]);
+        assert_eq!(stats[0], pikachu.health);
+        // Bulbasaur knows three moves: its move set has no fourth.
+        let bulbasaur = party[2].as_ref().unwrap();
+        let moves: Vec<_> = bulbasaur.moves.iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(moves, ["vinewhip", "growl", "tackle"]);
+        assert_eq!(bulbasaur.tera_type, "cobblemon:grass");
+    }
+
+    #[test]
+    fn what_a_battle_changed_of_a_pokemon_reaches_it() {
+        // Captured after a battle the first Pokémon won with its first move, and during one the
+        // second fought: the EVs the win gave, the moves with the PP they have left, the friendship
+        // a faint cost.
+        let mut storage = logged_in();
+        let update =
+            |storage: &mut Storage, channel, bytes: &[u8]| storage.read(channel, bytes).unwrap();
+        assert!(update(
+            &mut storage,
+            EV_UPDATE,
+            include_bytes!("../tests/fixtures/battle1/flow-025-ev_update.bin")
+        ));
+        assert!(update(
+            &mut storage,
+            MOVESET_UPDATE,
+            include_bytes!("../tests/fixtures/battle1/flow-029-moveset_update.bin")
+        ));
+        assert!(update(
+            &mut storage,
+            FRIENDSHIP_UPDATE,
+            include_bytes!("../tests/fixtures/battle2/flow-023-friendship_update.bin")
+        ));
+        assert!(update(
+            &mut storage,
+            MOVESET_UPDATE,
+            include_bytes!("../tests/fixtures/battle2/flow-182-moveset_update.bin")
+        ));
+        let party = storage.party();
+        let pikachu = party[0].as_ref().unwrap();
+        assert_eq!(pikachu.evs, [2, 0, 0, 0, 0, 0]);
+        assert_eq!(pikachu.health_ev, 2);
+        assert_eq!(pikachu.friendship, 47);
+        let left: Vec<_> = pikachu
+            .moves
+            .iter()
+            .map(|m| (m.id.as_str(), m.pp))
+            .collect();
+        assert_eq!(
+            left,
+            [
+                ("electroball", 9),
+                ("doubleteam", 15),
+                ("thunderwave", 20),
+                ("tailwhip", 30)
+            ]
+        );
+        let charizard = party[1].as_ref().unwrap();
+        assert_eq!(
+            (charizard.moves[0].id.as_str(), charizard.moves[0].pp),
+            ("firespin", 11)
+        );
+        assert_eq!(charizard.moves.len(), 4);
+        // The third was in neither battle.
+        assert_eq!(party[2].as_ref().unwrap().friendship, 50);
+    }
+
+    /// A `PokemonUpdatePacket` about the logged-in party's second Pokémon, with `value` after the two ids.
+    fn about_charizard(value: &[u8]) -> Vec<u8> {
+        let mut bytes = REFERENCE.to_vec();
+        bytes.extend_from_slice(&0x0aa2_3eda_48cb_433f_81d7_7823_a286_0ae6u128.to_be_bytes());
+        bytes.extend_from_slice(value);
+        bytes
+    }
+
+    #[test]
+    fn the_other_fields_of_the_summary_follow_their_updates() {
+        let mut storage = logged_in();
+        let mut update = |channel, value: &[u8]| {
+            assert!(
+                storage.read(channel, &about_charizard(value)).unwrap(),
+                "{channel}"
+            );
+        };
+        // `MoveSet.saveToBuffer` after the first two moves changed places and one took a PP Up.
+        let mut moves = vec![2];
+        for (name, pp, raised) in [("scaryface", 12u8, 1u8), ("firespin", 15, 0)] {
+            moves.push(name.len() as u8);
+            moves.extend_from_slice(name.as_bytes());
+            moves.extend_from_slice(&[pp, raised]);
+        }
+        update(MOVESET_UPDATE, &moves);
+        // `BenchedMoves.saveToBuffer`: a count in two bytes, then a name and its PP Ups.
+        let mut benched = vec![0, 1, 5];
+        benched.extend_from_slice(b"slash");
+        benched.push(2);
+        update(BENCHED_MOVES_UPDATE, &benched);
+        // A nature of its own, then a mint's.
+        let nature = |id: &str, minted: bool| {
+            let mut bytes = vec![1, id.len() as u8];
+            bytes.extend_from_slice(id.as_bytes());
+            bytes.push(u8::from(minted));
+            bytes
+        };
+        update(NATURE_UPDATE, &nature("cobblemon:timid", false));
+        update(NATURE_UPDATE, &nature("cobblemon:modest", true));
+        update(ABILITY_UPDATE, b"\x0asolarpower");
+        update(FULLNESS_UPDATE, &[3]);
+        update(FRIENDSHIP_UPDATE, &[255]);
+        update(
+            MARKINGS_UPDATE,
+            &[
+                6, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
+        update(ACTIVE_MARK_UPDATE, b"\x01\x17cobblemon:mark_gourmand");
+        update(TERA_TYPE_UPDATE, b"\x0fcobblemon:water");
+        update(ORIGINAL_TRAINER_UPDATE, b"\x01\x05Sacha");
+        let limits = horizon_world::nbt::Limits::default();
+        let nbt = |snbt: &str| {
+            let (tag, _) = horizon_world::nbt::parse_snbt(snbt).unwrap();
+            horizon_world::nbt::write_network(&tag, limits).unwrap()
+        };
+        update(
+            IV_UPDATE,
+            &nbt(
+                r#"{Base:{"cobblemon:hp":4,"cobblemon:speed":8},HyperTrained:{"cobblemon:hp":31}}"#,
+            ),
+        );
+        update(
+            EV_UPDATE,
+            &nbt(r#"{"cobblemon:hp":252,"cobblemon:speed":4}"#),
+        );
+        let charizard = storage.party()[1].as_ref().unwrap();
+        assert_eq!(charizard.moves.len(), 2);
+        assert_eq!(
+            (charizard.moves[0].id.as_str(), charizard.moves[0].pp),
+            ("scaryface", 12)
+        );
+        // Scary Face has 10 PP: 12 with one PP Up, 16 with three.
+        assert_eq!(charizard.moves[0].max_pp(10), 12);
+        assert_eq!(max_pp(10, 3), 16);
+        assert_eq!(max_pp(35, 3), 56);
+        assert_eq!(
+            charizard.benched_moves,
+            [BenchedMove {
+                id: "slash".into(),
+                raised_pp_stages: 2
+            }]
+        );
+        assert_eq!(charizard.nature, "cobblemon:timid");
+        assert_eq!(charizard.minted_nature.as_deref(), Some("cobblemon:modest"));
+        // The mint's nature is the one that counts.
+        assert_eq!(charizard.effective_nature().unwrap().name, "modest");
+        assert_eq!(charizard.ability, "solarpower");
+        assert_eq!((charizard.fullness, charizard.friendship), (3, 255));
+        assert_eq!(charizard.markings, [1, 2, 0, 0, 0, 0]);
+        assert_eq!(
+            charizard.active_mark.as_deref(),
+            Some("cobblemon:mark_gourmand")
+        );
+        assert_eq!(charizard.tera_type, "cobblemon:water");
+        assert_eq!(charizard.original_trainer_name.as_deref(), Some("Sacha"));
+        assert_eq!(charizard.ivs.base, [4, 0, 0, 0, 0, 8]);
+        assert_eq!(charizard.ivs.effective(Stat::Hp), 31);
+        assert_eq!((charizard.health_iv, charizard.health_ev), (31, 252));
+        assert_eq!(charizard.evs, [252, 0, 0, 0, 0, 4]);
+        // Full health with them: 78 base, 31 and 252 at level 50.
+        assert_eq!(charizard.stat(Stat::Hp, &[78, 84, 78, 109, 85, 100]), 185);
+        // Taking the mint away leaves its own nature; no nature for its own changes nothing.
+        assert!(
+            storage
+                .read(NATURE_UPDATE, &about_charizard(&[0, 1]))
+                .unwrap()
+        );
+        assert!(
+            storage
+                .read(NATURE_UPDATE, &about_charizard(&[0, 0]))
+                .unwrap()
+        );
+        let charizard = storage.party()[1].as_ref().unwrap();
+        assert_eq!(charizard.minted_nature, None);
+        assert_eq!(charizard.effective_nature().unwrap().name, "timid");
+        // No mark worn, and a name the server forgot.
+        assert!(
+            storage
+                .read(ACTIVE_MARK_UPDATE, &about_charizard(&[0]))
+                .unwrap()
+        );
+        assert!(
+            storage
+                .read(ORIGINAL_TRAINER_UPDATE, &about_charizard(&[0]))
+                .unwrap()
+        );
+        let charizard = storage.party()[1].as_ref().unwrap();
+        assert!(charizard.active_mark.is_none() && charizard.original_trainer_name.is_none());
+        // Cut short, each is an error; about a Pokémon that is not there, nothing.
+        assert!(
+            storage
+                .read(MOVESET_UPDATE, &about_charizard(&[2, 3]))
+                .is_err()
+        );
+        assert!(
+            storage
+                .read(BENCHED_MOVES_UPDATE, &about_charizard(&[255, 255]))
+                .is_err()
+        );
+        let mut elsewhere = REFERENCE.to_vec();
+        elsewhere.extend_from_slice(&[9; 16]);
+        elsewhere.push(40);
+        assert!(!storage.read(FRIENDSHIP_UPDATE, &elsewhere).unwrap());
+    }
+
+    #[test]
+    fn what_the_summary_asks_the_server_is_written_as_cobblemon_reads_it() {
+        let pokemon = 0x0aa2_3eda_48cb_433f_81d7_7823_a286_0ae6u128;
+        let id = pokemon.to_be_bytes();
+        let other = [7u8; 16];
+        // `RequestMoveSwapPacket.decode`: three ints.
+        assert_eq!(
+            request_move_swap(0, 3, 5),
+            [0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5]
+        );
+        // `BenchMovePacket.decode`: the store's kind, the Pokémon, then each move if there is one.
+        let mut expected = vec![1];
+        expected.extend_from_slice(&id);
+        expected.extend_from_slice(b"\x01\x05slash\x01\x07inferno");
+        assert_eq!(
+            bench_move(true, pokemon, Some("slash"), Some("inferno")),
+            expected
+        );
+        let mut expected = vec![0];
+        expected.extend_from_slice(&id);
+        expected.extend_from_slice(b"\x00\x01\x07inferno");
+        assert_eq!(bench_move(false, pokemon, None, Some("inferno")), expected);
+        let mut expected = vec![1];
+        expected.extend_from_slice(&id);
+        expected.extend_from_slice(b"\x01\x05slash\x00");
+        assert_eq!(bench_move(true, pokemon, Some("slash"), None), expected);
+        // `SetNicknamePacket.decode`: the Pokémon, the store's kind, a nullable string.
+        let mut expected = id.to_vec();
+        expected.extend_from_slice("\u{1}\u{1}\u{6}Dracau".as_bytes());
+        assert_eq!(set_nickname(pokemon, true, Some("Dracau")), expected);
+        let mut expected = id.to_vec();
+        expected.extend_from_slice(&[0, 0]);
+        assert_eq!(set_nickname(pokemon, false, None), expected);
+        // A name's length is in bytes, as `writeString` counts it.
+        assert_eq!(
+            set_nickname(pokemon, true, Some("Évoli"))[17..20],
+            [1, 6, 0xC3]
+        );
+        // `SetMarkingsPacket.decode`: a list of ints, then the store's kind.
+        let mut expected = id.to_vec();
+        expected.extend_from_slice(&[3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 1]);
+        assert_eq!(set_markings(pokemon, &[1, 0, 2], true), expected);
+        // `SetActiveMarkPacket.decode`: a nullable identifier.
+        let mut expected = id.to_vec();
+        expected.extend_from_slice(b"\x01\x17cobblemon:mark_gourmand");
+        assert_eq!(
+            set_active_mark(pokemon, Some("cobblemon:mark_gourmand")),
+            expected
+        );
+        assert_eq!(set_active_mark(pokemon, None)[16..], [0]);
+        // `SetItemHiddenPacket.decode`: whether the item shows.
+        assert_eq!(set_item_hidden(pokemon, false)[16..], [0]);
+        assert_eq!(set_item_hidden(pokemon, true)[..16], id);
+        // `SwapPartyPokemonPacket.decode` and `MovePartyPokemonPacket.decode`: a slot is two bytes.
+        let mut expected = id.to_vec();
+        expected.extend_from_slice(&[0, 1]);
+        expected.extend_from_slice(&other);
+        expected.extend_from_slice(&[0, 4]);
+        assert_eq!(
+            swap_party_pokemon((pokemon, 1), (u128::from_be_bytes(other), 4)),
+            expected
+        );
+        let mut expected = id.to_vec();
+        expected.extend_from_slice(&[0, 1, 0, 5]);
+        assert_eq!(move_party_pokemon(pokemon, 1, 5), expected);
     }
 }
