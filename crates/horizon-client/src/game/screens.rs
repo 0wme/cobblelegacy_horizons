@@ -63,6 +63,8 @@ impl Screen {
             // draw over it (the emote wheel, a native mod's screen and
             // Studio) leave it running as they always have.
             | Self::Playing | Self::EmoteWheel | Self::Mod | Self::Studio
+            // CobbleLegacy: a Cobblemon battle's menu, over the world as they are.
+            | Self::PokemonBattle
             // WinScreen.isPauseScreen is `!poem`: Game::win_screen_pauses.
             | Self::Win => false,
             // Every other screen, and the game-master block editors
@@ -101,6 +103,7 @@ impl Screen {
             Self::Playing
             | Self::GameModeSwitcher
             | Self::EmoteWheel
+            | Self::PokemonBattle
             | Self::Chat
             | Self::Creative
             | Self::Inventory
@@ -981,6 +984,7 @@ mod tests {
             Screen::Social,
             Screen::Playing,
             Screen::EmoteWheel,
+            Screen::PokemonBattle,
             Screen::Mod,
             Screen::Studio,
             Screen::Win,

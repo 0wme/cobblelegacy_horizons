@@ -39,6 +39,8 @@ use std::{
 
 #[path = "remote_pokemon_anim.rs"]
 mod anim;
+#[path = "remote_pokemon_battle.rs"]
+mod fight;
 #[path = "remote_pokemon_label.rs"]
 mod label;
 #[path = "remote_pokemon_party.rs"]
@@ -52,6 +54,7 @@ pub(super) fn reads(channel: &str) -> bool {
         channel,
         SPAWN_POKEMON | UNREAD_ENTITY_DATA | SERVER_SETTINGS | SET_CLIENT_PLAYERDATA
     ) || cobblelegacy_cobblemon::party::reads(channel)
+        || cobblelegacy_cobblemon::battle::reads(channel)
 }
 
 /// The vanilla type that lends a Pokémon its attributes, and its body when Cobblemon's own cannot be
@@ -81,6 +84,8 @@ pub(super) struct Pokemon {
     labels: label::Labels,
     /// The player's own Pokémon, which the overlay down the left of the screen shows.
     party: party::Party,
+    /// The battle the player is in.
+    fight: fight::Fight,
 }
 
 /// A look ready to draw: the mob type a model and its texture make, and how the model's poser frames
@@ -503,6 +508,9 @@ impl Game<'_> {
         match channel {
             SPAWN_POKEMON => self.remote_pokemon_spawn(data),
             UNREAD_ENTITY_DATA => self.remote_pokemon_data(data),
+            battle if cobblelegacy_cobblemon::battle::reads(battle) => {
+                self.remote_pokemon_battle(battle, data);
+            }
             _ => {
                 let Some(r) = self.remote.as_mut() else {
                     return;

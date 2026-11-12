@@ -60,6 +60,19 @@ pub(super) struct Facts {
     pub(super) experience: Option<ExperienceGroup>,
 }
 
+/// Where `drawPosablePortrait` is asked to draw a portrait.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Framing {
+    /// Where the caller moves to before the call, in GUI pixels.
+    pub(super) origin: (f32, f32),
+    /// Pixels a block of the model: 13 in the party's tiles, 18 in a battle's.
+    pub(super) scale: f32,
+    /// Mirrored, for a tile on the right of the screen.
+    pub(super) reversed: bool,
+    /// The frame the model is cut to: left, top, right, bottom.
+    pub(super) clip: [f32; 4],
+}
+
 /// The look a Pokémon's portrait was given, and what it was made for.
 struct Portrait {
     species: String,
@@ -368,7 +381,7 @@ fn slot_top(height: i32, slots: usize, index: usize) -> i32 {
 
 /// `getDepletableRedGreen`: green down to half, through yellow to red at a fifth; and the overlay's
 /// own dimming and blue.
-fn health_colour(ratio: f32) -> u32 {
+pub(super) fn health_colour(ratio: f32) -> u32 {
     let red = if ratio > 0.2 { 2.0 - 2.0 * ratio } else { 1.0 };
     let green = if ratio > 0.5 {
         1.0
@@ -387,7 +400,7 @@ fn image(batch: &mut HudBatch, atlas: &HudAtlas, name: &str, x: f32, y: f32, w: 
 }
 
 /// `drawScaledText` at the overlay's half scale: white, from `x` or centred on it.
-fn small_text(
+pub(super) fn small_text(
     batch: &mut HudBatch,
     atlas: &HudAtlas,
     text: &Text,
@@ -430,7 +443,12 @@ impl Game<'_> {
         if !matches!(self.screen, Screen::Playing | Screen::Chat) || self.debug {
             return;
         }
-        if self.remote.as_ref().is_some_and(|r| r.pokemon.party.hidden) {
+        // `CobblemonClient.beforeChatRender`: during a battle its own overlay takes this one's place.
+        if self
+            .remote
+            .as_ref()
+            .is_some_and(|r| r.pokemon.party.hidden || r.pokemon.fight.fighting())
+        {
             return;
         }
         let Some((tiles, selected)) = self.pokemon_party_tiles() else {
@@ -441,7 +459,10 @@ impl Game<'_> {
         };
         let looks: Vec<Option<Look>> = tiles
             .iter()
-            .map(|tile| self.pokemon_portrait(tile.as_ref()?, &template))
+            .map(|tile| {
+                let tile = tile.as_ref()?;
+                self.pokemon_portrait(tile.uuid, &tile.species, &tile.aspects, &template)
+            })
             .collect();
         let (_, height) = self.gui_size();
         let atlas = &self.gui.atlas;
@@ -463,7 +484,14 @@ impl Game<'_> {
                     PORTRAIT,
                 );
                 if let Some(look) = &looks[index] {
-                    self.draw_pokemon_portrait(batch, look, x, y);
+                    // `PartyOverlay`: the model 12 pixels above the frame's top, at 13 a block.
+                    let framing = Framing {
+                        origin: (x + PORTRAIT / 2.0 - 1.0, y - 12.0),
+                        scale: 13.0,
+                        reversed: false,
+                        clip: [x, y, x + PORTRAIT, y + PORTRAIT],
+                    };
+                    self.draw_pokemon_portrait(batch, look, framing);
                 }
             }
             let slot = match tile {
@@ -592,21 +620,27 @@ impl Game<'_> {
     }
 
     /// The look of `tile`'s portrait: the one it has, or a new one when its species or aspects changed.
-    fn pokemon_portrait(&mut self, tile: &Tile, template: &MobType) -> Option<Look> {
+    pub(super) fn pokemon_portrait(
+        &mut self,
+        uuid: u128,
+        species: &str,
+        aspects: &[String],
+        template: &MobType,
+    ) -> Option<Look> {
         let portraits = &self.remote.as_ref()?.pokemon.party.portraits;
-        if let Some(portrait) = portraits.get(&tile.uuid)
-            && portrait.species == tile.species
-            && portrait.aspects == tile.aspects
+        if let Some(portrait) = portraits.get(&uuid)
+            && portrait.species == species
+            && portrait.aspects == aspects
         {
             return Some(portrait.look.clone());
         }
         // A look that does not load is asked for again each frame; `pokemon_look` remembers which.
-        let look = self.pokemon_look(&tile.species, &tile.aspects, template)?;
+        let look = self.pokemon_look(species, aspects, template)?;
         self.remote.as_mut()?.pokemon.party.portraits.insert(
-            tile.uuid,
+            uuid,
             Portrait {
-                species: tile.species.clone(),
-                aspects: tile.aspects.clone(),
+                species: species.to_owned(),
+                aspects: aspects.to_vec(),
                 look: look.clone(),
             },
         );
@@ -614,8 +648,13 @@ impl Game<'_> {
     }
 
     /// `drawPosablePortrait`: the model in its portrait pose, turned a little to its right, framed by
-    /// its poser and cut to the tile's frame, whose top left corner is (`left`, `top`).
-    fn draw_pokemon_portrait(&self, batch: &mut HudBatch, look: &Look, left: f32, top: f32) {
+    /// its poser and cut to `framing`'s rectangle.
+    pub(super) fn draw_pokemon_portrait(
+        &self,
+        batch: &mut HudBatch,
+        look: &Look,
+        framing: Framing,
+    ) {
         use glam::{Mat4, Vec3 as V};
         // Stood at the origin, facing the viewer, at rest: Cobblemon's portraits do not move unless
         // its client is set to.
@@ -645,13 +684,16 @@ impl Game<'_> {
         // The mob renderer stood the model in the world, y up and sized by its species; the frame
         // is laid out around the model itself, y down and unsized.
         let unsized_model = 1.0 / look.base_scale;
-        let gui = Mat4::from_translation(V::new(left + PORTRAIT / 2.0 - 1.0, top - 12.0, 0.0))
+        // `reversed`: the model looks the other way, for the tiles on the right.
+        let side = if framing.reversed { -1.0 } else { 1.0 };
+        let by = framing.scale;
+        let gui = Mat4::from_translation(V::new(framing.origin.0, framing.origin.1, 0.0))
             * Mat4::from_translation(V::new(0.0, FRAMING + 2.0, 0.0))
-            * Mat4::from_scale(V::new(13.0, 13.0, -13.0))
+            * Mat4::from_scale(V::new(by, by, -by))
             * Mat4::from_translation(V::new(0.0, -FRAMING / 18.0, 0.0))
-            * Mat4::from_translation(V::new(x, y + 1.5 * scale, z - 4.0))
+            * Mat4::from_translation(V::new(x * side, y + 1.5 * scale, z - 4.0))
             * Mat4::from_scale(V::new(scale, scale, 1.0 / scale))
-            * Mat4::from_rotation_y((-32f32).to_radians())
+            * Mat4::from_rotation_y((-32.0 * side).to_radians())
             * Mat4::from_rotation_x(5f32.to_radians())
             * Mat4::from_scale(V::new(-unsized_model, -unsized_model, unsized_model));
         // As a mount's preview (`mount_menu.rs`): the faces turned to the viewer, the farthest first.
@@ -679,7 +721,8 @@ impl Game<'_> {
         for (_, corners, uv, colour) in quads {
             batch.quad(corners, uv, colour);
         }
-        batch.clip_since(start, left, top, left + PORTRAIT, top + PORTRAIT);
+        let [x0, y0, x1, y1] = framing.clip;
+        batch.clip_since(start, x0, y0, x1, y1);
     }
 
     /// A key pressed in play on a server: whether the party took it ([`Party::key`]).
@@ -709,35 +752,66 @@ impl Game<'_> {
         if self.screen != Screen::Playing || self.spectator() {
             return;
         }
-        // `canSendOutPokemon`: nothing alive in the way, or one's own Pokémon. Anything else there is
-        // a battle's challenge or an interaction in Cobblemon, and nothing here yet.
+        // In a battle the key brings its screen back (`toggleBattleScreen`).
+        if self
+            .remote
+            .as_ref()
+            .is_some_and(|r| r.pokemon.fight.fighting())
+        {
+            self.open_pokemon_battle_screen();
+            return;
+        }
+        // `checkForTargetInteractions`: with nothing alive in the way, or one's own Pokémon, the
+        // selected Pokémon is thrown or called back; a wild Pokémon there is challenged. A player there
+        // has interactions in Cobblemon, which are not here yet: nothing is sent.
         let own = |id| {
             self.remote
                 .as_ref()
                 .is_some_and(|r| r.pokemon.party.sent_out(id))
         };
-        if self.pokemon_party_target().is_some_and(|id| !own(id)) {
-            return;
+        match self.pokemon_party_target() {
+            Some(id) if !own(id) => self.pokemon_battle_challenge(id, usize::from(slot)),
+            _ => {
+                if std::env::var_os("HORIZON_COBBLEMON_TRACE").is_some() {
+                    log::info!(
+                        "Horizon: asked the server to send out or call back party slot {slot}"
+                    );
+                }
+                self.pokemon_send(party::SEND_OUT_POKEMON, party::send_out(slot));
+            }
         }
+    }
+
+    /// A message for the Cobblemon server, once the player is in the game.
+    pub(super) fn pokemon_send(&self, channel: &str, data: Vec<u8>) {
         let joined = self
             .remote
             .as_ref()
             .is_some_and(|r| r.joined && r.reconfiguring.is_none());
         if joined {
-            if std::env::var_os("HORIZON_COBBLEMON_TRACE").is_some() {
-                log::info!("Horizon: asked the server to send out or call back party slot {slot}");
-            }
             self.send(Serverbound::CustomPayload(CustomPayload {
-                channel: party::SEND_OUT_POKEMON.into(),
-                data: party::send_out(slot),
+                channel: channel.into(),
+                data,
             }));
         }
+    }
+
+    /// The Pokémon in slot `slot` of the player's party.
+    pub(super) fn pokemon_party_member(&self, slot: usize) -> Option<&PartyPokemon> {
+        self.remote
+            .as_ref()?
+            .pokemon
+            .party
+            .storage
+            .party()
+            .get(slot)?
+            .as_ref()
     }
 
     /// `traceFirstEntityCollision` as the throwing key asks it: the nearest mob the player's view
     /// goes through within Cobblemon's 64 blocks, unless a block in the player's reach stands before
     /// it. Other players are not looked for yet.
-    fn pokemon_party_target(&self) -> Option<i32> {
+    pub(super) fn pokemon_party_target(&self) -> Option<i32> {
         let (eye, view) = self.aim()?;
         self.mobs
             .iter()

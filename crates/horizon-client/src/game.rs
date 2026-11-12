@@ -638,6 +638,9 @@ enum Screen {
     GameModeSwitcher,
     /// Horizon's emote wheel (`game/cosmetics/emote_wheel.rs`): over the world, not pausing.
     EmoteWheel,
+    /// CobbleLegacy: the menu of a Cobblemon battle (`game/remote_pokemon_battle.rs`), over the
+    /// world, not pausing.
+    PokemonBattle,
     Paused,
     Options,
     Chat,
@@ -687,6 +690,7 @@ impl Screen {
             Screen::Playing => "playing",
             Screen::GameModeSwitcher => "game_mode_switcher",
             Screen::EmoteWheel => "emote_wheel",
+            Screen::PokemonBattle => "pokemon_battle",
             Screen::Paused => "paused",
             Screen::Options => "options",
             Screen::Chat => "chat",
@@ -6030,6 +6034,10 @@ impl Game<'_> {
             self.gui_layer("cobblemon:party_overlay", &mut batch, |g, batch| {
                 g.draw_pokemon_party(batch);
             });
+            // And a battle's tiles and log in its place while the player fights (`BattleOverlay`).
+            self.gui_layer("cobblemon:battle_overlay", &mut batch, |g, batch| {
+                g.draw_pokemon_battle_overlay(batch);
+            });
             self.draw_extras(&mut batch);
         }
         if show_hud {
@@ -6236,6 +6244,7 @@ impl Game<'_> {
             }
             Screen::GameModeSwitcher => self.draw_gamemode_switcher(&mut batch),
             Screen::EmoteWheel => self.draw_emote_wheel(&mut batch),
+            Screen::PokemonBattle => self.draw_pokemon_battle_screen(&mut batch),
             Screen::Dead => self.draw_death_screen(&mut batch),
             Screen::Stats => self.draw_stats(&mut batch),
             Screen::Advancements => self.draw_advancements(&mut batch),
@@ -10859,6 +10868,9 @@ impl Game<'_> {
                         }
                         Screen::ConfirmLink if pressed && button == MouseButton::Left => {
                             self.confirm_link_click()
+                        }
+                        Screen::PokemonBattle if pressed && button == MouseButton::Left => {
+                            self.pokemon_battle_click()
                         }
                         Screen::DialogWarning if pressed && button == MouseButton::Left => {
                             self.dialog_warning_click()?

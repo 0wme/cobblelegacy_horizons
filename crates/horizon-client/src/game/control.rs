@@ -1401,6 +1401,7 @@ impl Game<'_> {
             Screen::Playing => "playing",
             Screen::GameModeSwitcher => "gamemode-switcher",
             Screen::EmoteWheel => "emote-wheel",
+            Screen::PokemonBattle => "pokemon-battle",
             Screen::Paused => "paused",
             Screen::Options => "options",
             Screen::Inventory => "inventory",
@@ -1621,6 +1622,7 @@ impl Game<'_> {
                 .map(|e| self.shown_name_tags(glam::DVec3::from_array(e))),
             // CobbleLegacy: the player's party on a Cobblemon server, as its overlay shows it.
             "pokemon_party": self.pokemon_party_status(),
+            "pokemon_battle": self.pokemon_battle_status(),
         });
         status["lod"] = lod;
         let (target, sampled) = self.lod.as_ref().map_or((0, 0), |lod| lod.progress());

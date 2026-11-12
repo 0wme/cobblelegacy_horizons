@@ -75,6 +75,7 @@ impl Game<'_> {
                 }
                 Screen::GameModeSwitcher => self.close_gamemode_switcher(false),
                 Screen::EmoteWheel => self.close_emote_wheel(None),
+                Screen::PokemonBattle => self.close_pokemon_battle_screen(),
                 Screen::Dead => {
                     if self.ui.death_confirm.is_some() {
                         self.death_confirm_answer(false)?;
@@ -171,6 +172,10 @@ impl Game<'_> {
                 self.open_emote_wheel();
             }
             KeyCode::KeyB if self.screen == Screen::EmoteWheel => self.close_emote_wheel(None),
+            // CobbleLegacy: Cobblemon's throwing key also puts a battle's menu away (`PartySendBinding`).
+            KeyCode::KeyR if self.screen == Screen::PokemonBattle => {
+                self.close_pokemon_battle_screen();
+            }
             KeyCode::Digit1
             | KeyCode::Digit2
             | KeyCode::Digit3

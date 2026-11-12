@@ -201,6 +201,20 @@ pub fn max_health(species: &str, base: u32, iv: u32, ev: u32, level: u32) -> u32
     (2 * base + iv + ev / 4 + 100) * level / 100 + 10
 }
 
+/// A persistent status' Showdown name (`par`), which names its icons and its label, from its id
+/// (`cobblemon:paralysis`).
+pub fn status_name(id: &str) -> Option<&'static str> {
+    Some(match id {
+        "cobblemon:burn" => "brn",
+        "cobblemon:frozen" => "frz",
+        "cobblemon:paralysis" => "par",
+        "cobblemon:poison" => "psn",
+        "cobblemon:poisonbadly" => "tox",
+        "cobblemon:sleep" => "slp",
+        _ => return None,
+    })
+}
+
 /// A Pokémon as `Pokemon.CLIENT_CODEC` writes it: what the party shows of it, and the compound itself.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PartyPokemon {
@@ -332,15 +346,7 @@ impl PartyPokemon {
 
     /// The status' Showdown name, which names its icon (`status_par.png`).
     pub fn status_icon(&self) -> Option<&'static str> {
-        Some(match self.status.as_deref()? {
-            "cobblemon:burn" => "brn",
-            "cobblemon:frozen" => "frz",
-            "cobblemon:paralysis" => "par",
-            "cobblemon:poison" => "psn",
-            "cobblemon:poisonbadly" => "tox",
-            "cobblemon:sleep" => "slp",
-            _ => return None,
-        })
+        status_name(self.status.as_deref()?)
     }
 }
 
