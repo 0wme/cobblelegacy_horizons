@@ -42,6 +42,10 @@ pub struct Poser {
     /// `profileScale` and `profileTranslation`: the same for the whole model in a screen (the summary).
     pub profile_scale: f32,
     pub profile_translation: [f32; 3],
+    /// `profileSummaryScale` and `profileSummaryTranslation`: the summary's own, for the few posers
+    /// whose model does not sit well there with the profile's.
+    pub profile_summary_scale: Option<f32>,
+    pub profile_summary_translation: Option<[f32; 3]>,
     /// In the order of the file, which is the order Cobblemon looks through them in: `poses` is an object
     /// keyed by pose name, and both of Gson's maps it goes through keep the order they were filled in.
     pub poses: Vec<Pose>,
@@ -1303,6 +1307,10 @@ struct RawPoser {
     #[serde(default, deserialize_with = "given")]
     profile_translation: Option<[f32; 3]>,
     #[serde(default, deserialize_with = "given")]
+    profile_summary_scale: Option<f32>,
+    #[serde(default, deserialize_with = "given")]
+    profile_summary_translation: Option<[f32; 3]>,
+    #[serde(default, deserialize_with = "given")]
     animations: Option<Ordered<String>>,
     #[serde(default, deserialize_with = "given")]
     poses: Option<Ordered<RawPose>>,
@@ -1651,6 +1659,8 @@ impl Poser {
             portrait_translation: file.portrait_translation.unwrap_or_default(),
             profile_scale: file.profile_scale.unwrap_or(1.0),
             profile_translation: file.profile_translation.unwrap_or_default(),
+            profile_summary_scale: file.profile_summary_scale,
+            profile_summary_translation: file.profile_summary_translation,
             poses,
             named_animations,
             transformed_parts: file
@@ -1821,6 +1831,24 @@ mod tests {
         assert_eq!(
             (poser.profile_scale, poser.profile_translation),
             (1.0, [0.0; 3])
+        );
+        assert_eq!(
+            (
+                poser.profile_summary_scale,
+                poser.profile_summary_translation
+            ),
+            (None, None)
+        );
+        // Drapion's: the summary moves it where its profile's framing would not.
+        let drapion = Poser::parse(
+            r#"{"profileScale": 0.5, "profileTranslation": [0, 0.9, 0],
+                "profileSummaryTranslation": [-0.30, 0.87, 0], "poses": {}}"#,
+        )
+        .unwrap();
+        assert_eq!(drapion.profile_summary_scale, None);
+        assert_eq!(
+            drapion.profile_summary_translation,
+            Some([-0.30, 0.87, 0.0])
         );
         let names: Vec<&str> = poser.poses.iter().map(|pose| pose.name.as_str()).collect();
         assert_eq!(

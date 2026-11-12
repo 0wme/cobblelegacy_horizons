@@ -641,6 +641,9 @@ enum Screen {
     /// CobbleLegacy: the menu of a Cobblemon battle (`game/remote_pokemon_battle.rs`), over the
     /// world, not pausing.
     PokemonBattle,
+    /// CobbleLegacy: the summary of one of the player's Pokémon (`game/remote_pokemon_summary.rs`),
+    /// over the world, not pausing.
+    PokemonSummary,
     Paused,
     Options,
     Chat,
@@ -691,6 +694,7 @@ impl Screen {
             Screen::GameModeSwitcher => "game_mode_switcher",
             Screen::EmoteWheel => "emote_wheel",
             Screen::PokemonBattle => "pokemon_battle",
+            Screen::PokemonSummary => "pokemon_summary",
             Screen::Paused => "paused",
             Screen::Options => "options",
             Screen::Chat => "chat",
@@ -6245,6 +6249,7 @@ impl Game<'_> {
             Screen::GameModeSwitcher => self.draw_gamemode_switcher(&mut batch),
             Screen::EmoteWheel => self.draw_emote_wheel(&mut batch),
             Screen::PokemonBattle => self.draw_pokemon_battle_screen(&mut batch),
+            Screen::PokemonSummary => self.draw_pokemon_summary(&mut batch),
             Screen::Dead => self.draw_death_screen(&mut batch),
             Screen::Stats => self.draw_stats(&mut batch),
             Screen::Advancements => self.draw_advancements(&mut batch),
@@ -10606,6 +10611,10 @@ impl Game<'_> {
                     {
                         self.station_scroll(d);
                     }
+                    // CobbleLegacy: the lists of a Pokémon's summary.
+                    if self.screen == Screen::PokemonSummary && d != 0.0 {
+                        self.pokemon_summary_scroll(d);
+                    }
                     if self.screen == Screen::Stats && d != 0.0 {
                         self.stats_scroll(d);
                     }
@@ -10875,6 +10884,9 @@ impl Game<'_> {
                         Screen::PokemonBattle if pressed && button == MouseButton::Left => {
                             self.pokemon_battle_click()
                         }
+                        Screen::PokemonSummary if button == MouseButton::Left => {
+                            self.pokemon_summary_mouse(pressed)
+                        }
                         Screen::DialogWarning if pressed && button == MouseButton::Left => {
                             self.dialog_warning_click()?
                         }
@@ -11027,6 +11039,25 @@ impl Game<'_> {
                 {
                     // A mod's item panel's search box, as the recipe book's.
                     self.mod_browser_key(&event);
+                }
+                // CobbleLegacy: the name box of a Pokémon's summary takes every key but Escape.
+                WindowEvent::KeyboardInput { event, .. }
+                    if self.pokemon_summary_typing()
+                        && event.state == ElementState::Pressed
+                        && !matches!(event.physical_key, PhysicalKey::Code(KeyCode::Escape)) =>
+                {
+                    match event.physical_key {
+                        PhysicalKey::Code(
+                            key @ (KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Backspace),
+                        ) => {
+                            self.pokemon_summary_key(key);
+                        }
+                        _ => {
+                            if let Some(text) = event.text.as_deref() {
+                                self.pokemon_summary_type(text);
+                            }
+                        }
+                    }
                 }
                 WindowEvent::KeyboardInput { event, .. }
                     if self.station_typing()

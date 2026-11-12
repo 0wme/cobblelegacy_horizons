@@ -250,6 +250,10 @@ impl Game<'_> {
                     self.social_backspace();
                     return Ok(());
                 }
+                Screen::PokemonSummary if self.pokemon_summary_typing() => {
+                    self.pokemon_summary_backspace();
+                    return Ok(());
+                }
                 _ => {}
             }
         }
@@ -296,6 +300,9 @@ impl Game<'_> {
             Screen::Chat => self.chat_type(text),
             Screen::CommandBlock => self.command_block_type(text),
             Screen::Social => self.social_type(text),
+            Screen::PokemonSummary if self.pokemon_summary_typing() => {
+                self.pokemon_summary_type(text);
+            }
             Screen::BlockEditor => self.block_editor_type(text),
             Screen::DebugOptions => self.debug_options_type(text),
             Screen::Options => self.ui.options.type_text(&self.gui.atlas, text),
@@ -1402,6 +1409,7 @@ impl Game<'_> {
             Screen::GameModeSwitcher => "gamemode-switcher",
             Screen::EmoteWheel => "emote-wheel",
             Screen::PokemonBattle => "pokemon-battle",
+            Screen::PokemonSummary => "pokemon-summary",
             Screen::Paused => "paused",
             Screen::Options => "options",
             Screen::Inventory => "inventory",
@@ -1624,6 +1632,9 @@ impl Game<'_> {
             "pokemon_party": self.pokemon_party_status(),
             "pokemon_battle": self.pokemon_battle_status(),
         });
+        // And the summary of one of its Pokémon (after the macro: one more key in it is one too many
+        // for its recursion).
+        status["pokemon_summary"] = self.pokemon_summary_status();
         status["lod"] = lod;
         let (target, sampled) = self.lod.as_ref().map_or((0, 0), |lod| lod.progress());
         status["lod"]["target_tiles"] = target.into();

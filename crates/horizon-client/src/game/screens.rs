@@ -65,6 +65,8 @@ impl Screen {
             | Self::Playing | Self::EmoteWheel | Self::Mod | Self::Studio
             // CobbleLegacy: a Cobblemon battle's menu, over the world as they are.
             | Self::PokemonBattle
+            // And a Pokémon's summary (`Summary.isPauseScreen`).
+            | Self::PokemonSummary
             // WinScreen.isPauseScreen is `!poem`: Game::win_screen_pauses.
             | Self::Win => false,
             // Every other screen, and the game-master block editors
@@ -104,6 +106,7 @@ impl Screen {
             | Self::GameModeSwitcher
             | Self::EmoteWheel
             | Self::PokemonBattle
+            | Self::PokemonSummary
             | Self::Chat
             | Self::Creative
             | Self::Inventory
@@ -985,6 +988,7 @@ mod tests {
             Screen::Playing,
             Screen::EmoteWheel,
             Screen::PokemonBattle,
+            Screen::PokemonSummary,
             Screen::Mod,
             Screen::Studio,
             Screen::Win,

@@ -47,6 +47,8 @@ mod looks;
 mod party;
 #[path = "remote_pokemon_phase.rs"]
 mod phase;
+#[path = "remote_pokemon_summary.rs"]
+mod summary;
 
 /// Whether `channel` carries one of the messages of a Cobblemon server that are read here: a Pokémon in
 /// place of AddEntity, the part of its data the adapter could not read, the server's settings, the
@@ -98,6 +100,8 @@ pub(super) struct Pokemon {
     moves: Option<cobblelegacy_cobblemon::moves::Moves>,
     /// The Pokémon coming out of their Balls and going back in.
     phases: phase::Phases,
+    /// The summary screen of one of the player's Pokémon.
+    summary: summary::Summary,
 }
 
 /// What there is of a look when it is asked for.
@@ -119,6 +123,12 @@ struct Look {
     /// The poser's `portraitScale` and `portraitTranslation`.
     portrait_scale: f32,
     portrait_translation: [f32; 3],
+    /// The poser's `profileScale` and `profileTranslation`, which stand the whole model in a slot of
+    /// the summary's party, and the summary's own for the model it shows large.
+    profile_scale: f32,
+    profile_translation: [f32; 3],
+    summary_scale: f32,
+    summary_translation: [f32; 3],
 }
 
 impl Pokemon {
@@ -519,11 +529,17 @@ impl Game<'_> {
         kind.height = f64::from(height * base_scale);
         kind.eye_height = kind.height * 0.85;
         let (portrait_scale, portrait_translation) = read.portrait;
+        let (profile_scale, profile_translation) = read.profile;
+        let (summary_scale, summary_translation) = read.summary;
         let look = Look {
             kind: Arc::new(kind),
             base_scale,
             portrait_scale,
             portrait_translation,
+            profile_scale,
+            profile_translation,
+            summary_scale,
+            summary_translation,
         };
         self.remote
             .as_mut()?
