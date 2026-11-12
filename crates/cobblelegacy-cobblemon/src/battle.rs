@@ -236,7 +236,8 @@ impl MoveTarget {
         Self::Scripted,
     ];
 
-    fn read(r: &mut Reader) -> Result<Self> {
+    /// `writeEnumConstant`: the ordinal in four bytes, in a request's moves as in the moves' registry.
+    pub(crate) fn read(r: &mut Reader) -> Result<Self> {
         let ordinal = r.i32()?;
         usize::try_from(ordinal)
             .ok()

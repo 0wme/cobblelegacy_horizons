@@ -10,6 +10,7 @@ pub mod coded_posers;
 pub mod geo;
 mod json;
 pub mod molang;
+pub mod moves;
 pub mod party;
 pub mod pose;
 pub mod poser;
