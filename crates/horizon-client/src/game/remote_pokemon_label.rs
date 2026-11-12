@@ -154,6 +154,13 @@ impl Labels {
             .unwrap_or(100)
     }
 
+    /// Whether the party's last Pokémon stays in it (`ServerSettings.preventCompletePartyDeposit`),
+    /// which Cobblemon's own default says until the server does.
+    pub(super) fn keeps_one_in_party(&self) -> bool {
+        self.settings
+            .is_none_or(|s| s.prevent_complete_party_deposit)
+    }
+
     /// `ServerSettingsPacket`.
     pub(super) fn settings(&mut self, payload: &[u8]) {
         match ServerSettings::read(payload) {

@@ -641,6 +641,9 @@ enum Screen {
     /// CobbleLegacy: the menu of a Cobblemon battle (`game/remote_pokemon_battle.rs`), over the
     /// world, not pausing.
     PokemonBattle,
+    /// CobbleLegacy: the PC of a Cobblemon server (`game/remote_pokemon_pc.rs`), over the world,
+    /// not pausing.
+    PokemonPc,
     Paused,
     Options,
     Chat,
@@ -691,6 +694,7 @@ impl Screen {
             Screen::GameModeSwitcher => "game_mode_switcher",
             Screen::EmoteWheel => "emote_wheel",
             Screen::PokemonBattle => "pokemon_battle",
+            Screen::PokemonPc => "pokemon_pc",
             Screen::Paused => "paused",
             Screen::Options => "options",
             Screen::Chat => "chat",
@@ -6245,6 +6249,7 @@ impl Game<'_> {
             Screen::GameModeSwitcher => self.draw_gamemode_switcher(&mut batch),
             Screen::EmoteWheel => self.draw_emote_wheel(&mut batch),
             Screen::PokemonBattle => self.draw_pokemon_battle_screen(&mut batch),
+            Screen::PokemonPc => self.draw_pokemon_pc_screen(&mut batch),
             Screen::Dead => self.draw_death_screen(&mut batch),
             Screen::Stats => self.draw_stats(&mut batch),
             Screen::Advancements => self.draw_advancements(&mut batch),
@@ -10582,6 +10587,10 @@ impl Game<'_> {
                     if self.screen == Screen::Chat && d != 0.0 {
                         self.chat_scroll(d);
                     }
+                    // CobbleLegacy: over a Cobblemon PC's screen it goes from box to box.
+                    if self.screen == Screen::PokemonPc && d != 0.0 {
+                        self.pokemon_pc_scroll(d);
+                    }
                     if self.screen == Screen::Social && d != 0.0 {
                         self.social_scroll(d);
                     }
@@ -10874,6 +10883,9 @@ impl Game<'_> {
                         }
                         Screen::PokemonBattle if pressed && button == MouseButton::Left => {
                             self.pokemon_battle_click()
+                        }
+                        Screen::PokemonPc if pressed && button == MouseButton::Left => {
+                            self.pokemon_pc_click()
                         }
                         Screen::DialogWarning if pressed && button == MouseButton::Left => {
                             self.dialog_warning_click()?

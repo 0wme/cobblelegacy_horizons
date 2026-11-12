@@ -522,6 +522,7 @@ fn debug_options_interrupts(screen: Screen, playing_overlay: bool) -> bool {
         | Screen::GameModeSwitcher
         | Screen::EmoteWheel
         | Screen::PokemonBattle
+        | Screen::PokemonPc
         | Screen::Stats
         | Screen::Advancements
         | Screen::Friends
