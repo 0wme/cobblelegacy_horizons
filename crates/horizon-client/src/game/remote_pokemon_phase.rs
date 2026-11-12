@@ -14,7 +14,7 @@ use super::{Assets, GROUND, STAND_IN, fit, part, path_of, pokemon_type};
 use cobblelegacy_cobblemon::geo;
 use glam::{DVec3, Mat4};
 use horizon_client::mesher::Vertex;
-use horizon_client::mobs::{Anim, Mob, MobType, Part, own};
+use horizon_client::mobs::{Anim, Mob, MobType, Part};
 use horizon_core::geometry::Vec3;
 use horizon_protocol::entity_data::Value;
 use std::{collections::HashMap, sync::Arc, time::Instant};
@@ -130,6 +130,9 @@ struct Phase {
     /// it back (it sends a Pokémon's whole data after its spawn, the mode with it:
     /// `PokemonClientDelegate.ballDone`).
     over: bool,
+    /// The server took the mode back while the Pokémon was still growing: the entry goes when it is
+    /// whole.
+    released: bool,
 }
 
 /// The Pokémon coming out and going in, and the Balls that draw them.
@@ -180,6 +183,21 @@ impl Phases {
         self.of
             .get(&id)
             .is_some_and(|p| !p.over && size(p.mode, p.since.elapsed().as_secs_f32()) <= 0.0)
+    }
+
+    /// The look of Ball `ball` (`poke_ball`), once [`Game::pokemon_ball`] made it.
+    pub(super) fn ball(&self, ball: &str) -> Option<&Arc<MobType>> {
+        self.balls.get(ball)?.as_ref()
+    }
+
+    /// The textures of the Balls `names`, thrown at Pokémon to catch them: they keep their slots too.
+    pub(super) fn ball_textures<'a>(
+        &'a self,
+        names: impl Iterator<Item = &'a str> + 'a,
+    ) -> impl Iterator<Item = String> + 'a {
+        names
+            .filter_map(|name| self.ball(name))
+            .map(|kind| kind.texture.clone())
     }
 
     /// `texture` lost its slot in the atlas: the Ball that wore it is made again when next thrown.
@@ -254,7 +272,17 @@ impl Game<'_> {
         let pokemon = &mut r.pokemon;
         let own = pokemon.seen.get(&id).map_or(1.0, |s| s.scale_modifier);
         let Some(mode) = Mode::of(beam_mode) else {
-            // Nothing under way any more: whatever was is cut short, the Pokémon whole.
+            // `PokemonClientDelegate` does nothing at 0, so a Pokémon coming out goes on growing: the
+            // server says 0 a tenth of a second after one breaks out of a Ball. Its entry goes once
+            // it is whole.
+            if let Some(phase) = pokemon.phases.of.get_mut(&id)
+                && phase.mode != Mode::Recalled
+                && !phase.over
+            {
+                phase.released = true;
+                return;
+            }
+            // Nothing under way any more: one called back is whole again.
             if pokemon.phases.of.remove(&id).is_some_and(|p| !p.over)
                 && let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32)
             {
@@ -280,6 +308,7 @@ impl Game<'_> {
                 source: None,
                 ball,
                 over: false,
+                released: false,
             },
         );
         // At once, so that no frame shows a thrown Pokémon whole before its Ball has landed.
@@ -288,6 +317,10 @@ impl Game<'_> {
 
     /// The hand of entity `target`, the player's own or another trainer's.
     fn pokemon_phase_hand(&self, target: i32) -> Option<DVec3> {
+        // A capture: the beam goes into the Ball that hit the Pokémon.
+        if let Some(ball) = self.remote.as_ref()?.pokemon.captures.beam_end(target) {
+            return Some(ball);
+        }
         if target == self.remote.as_ref()?.entity_id {
             let [x, y, z] = self.eye_position()?;
             return Some(hand(DVec3::new(x, y, z), self.yaw, true));
@@ -341,13 +374,17 @@ impl Game<'_> {
                 _ => 0,
             };
         }
+        pokemon
+            .phases
+            .of
+            .retain(|_, phase| !(phase.over && phase.released));
         for ball in thrown {
             self.pokemon_ball(&ball);
         }
     }
 
     /// The look of Ball `ball` (`poke_ball`), made the first time one is thrown.
-    fn pokemon_ball(&mut self, ball: &str) {
+    pub(super) fn pokemon_ball(&mut self, ball: &str) {
         let known = |game: &Self| {
             game.remote
                 .as_ref()
@@ -366,7 +403,8 @@ impl Game<'_> {
     }
 
     /// A Ball as a mob type, like a Pokémon's look: Cobblemon's Ball geometry (the old Balls of Hisui
-    /// have their own) under the Ball's texture, shut, which is how it is drawn in flight.
+    /// have their own) under the Ball's texture. It is shut, which is how it is drawn in flight, until
+    /// a draw names animations for it (`remote_pokemon_capture.rs`).
     fn pokemon_ball_type(&mut self, ball: &str) -> Option<Arc<MobType>> {
         let template = self.res.mob_types().get(STAND_IN).cloned()?;
         let pokemon = &mut self.remote.as_mut()?.pokemon;
@@ -379,6 +417,7 @@ impl Game<'_> {
         let model = assets.file(&format!("bedrock/poke_balls/models/{shape}.geo.json"))?;
         let geometry = geo::Geometry::parse(&std::fs::read_to_string(model).ok()?).ok()?;
         let root = geometry.drawn_root(None, shape)?;
+        let animations = pokemon.captures.animator(assets, shape);
         let texture = format!("textures/poke_balls/{ball}.png");
         let png = std::fs::read(assets.file(&texture)?).ok()?;
         let (width, height, rgba) = horizon_client::hud::decode_bytes(&png).ok()?;
@@ -394,7 +433,7 @@ impl Game<'_> {
         self.pokemon_skin(&sprite, fit(width, height, rgba))?;
         let mut kind = pokemon_type(&template, "cobblemon:poke_ball");
         kind.model = Arc::new(body);
-        kind.anim = Anim::Own(own::NONE);
+        kind.anim = Anim::Own(animations);
         kind.texture = sprite;
         Some(Arc::new(kind))
     }
@@ -407,6 +446,8 @@ impl Game<'_> {
         alpha: f64,
         out: &mut Vec<Vertex>,
     ) {
+        // The Balls thrown at Pokémon (`remote_pokemon_capture.rs`).
+        self.pokemon_capture_geometry(camera, alpha, out);
         let Some(r) = self.remote.as_ref() else {
             return;
         };

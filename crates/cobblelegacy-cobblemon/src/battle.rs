@@ -16,8 +16,11 @@
 //! A Pokémon's health comes two ways: its own trainer's side is told the points it has left, the other
 //! side a share of its full health ([`BattlePokemon::flat`]).
 //!
+//! A Ball thrown at the wild Pokémon is told three ways (`battle_capture_start`, `_shake`, `_end`): the
+//! battle keeps the capture under way ([`Capture`]) for the tile that shows the Ball.
+//!
 //! Not read yet: challenges between players and teams (`battle_challenge_notification`,
-//! `team_*`), and what a capture in battle shows (`battle_capture_*` are read past).
+//! `team_*`).
 use crate::party::PartyPokemon;
 use crate::wire::{nullable, string};
 use horizon_protocol::{
@@ -466,14 +469,42 @@ pub struct Battle {
     pub must_choose: bool,
     /// A capture or an item is under way: the answer it waits for is [`Response::ForcePass`].
     pub pass_expected: bool,
+    /// The Ball thrown at one of the battle's Pokémon, until the server says how it ended.
+    pub capture: Option<Capture>,
     /// Every line the server sent, text components in the order they came.
     pub messages: Vec<Tag>,
     /// The music the server asked for, a sound's id.
     pub music: Option<String>,
 }
 
+/// A capture under way in a battle (`ActiveClientBattlePokemon.ballCapturing`): the Ball is thrown
+/// in the world, and the tile of the Pokémon it hit shows it too.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Capture {
+    /// The Ball's id, such as `cobblemon:poke_ball`.
+    pub ball: String,
+    pub aspects: Vec<String>,
+    /// The position of the Pokémon it was thrown at (`p2a`).
+    pub target: String,
+    /// How many times the server said the Ball shook.
+    pub shakes: u32,
+}
+
 impl Battle {
     /// The Pokémon at a position (`p2a`: the actor's Showdown id, then the slot's letter).
+    pub fn at(&self, pnx: &str) -> Option<&BattlePokemon> {
+        let (actor, slot) = pnx.split_at_checked(2)?;
+        let slot = usize::from(slot.bytes().next()?.checked_sub(b'a')?);
+        self.sides
+            .iter()
+            .flatten()
+            .find(|a| a.showdown_id == actor)?
+            .active
+            .get(slot)?
+            .as_ref()
+    }
+
+    /// [`Self::at`], to change it.
     pub fn at_mut(&mut self, pnx: &str) -> Option<&mut BattlePokemon> {
         let (actor, slot) = pnx.split_at_checked(2)?;
         let slot = usize::from(slot.bytes().next()?.checked_sub(b'a')?);
@@ -620,6 +651,12 @@ pub enum Change {
     MustChoose,
     /// Something else of the battle's state.
     State,
+    /// A Ball hit one of the battle's Pokémon: [`Battle::capture`] says which.
+    CaptureStarted,
+    /// That Ball shook.
+    CaptureShook,
+    /// The capture is over: whether the Pokémon stayed in the Ball.
+    CaptureEnded(bool),
 }
 
 /// The client's side of the battles a server runs: one at a time (`CobblemonClient.battle`).
@@ -718,6 +755,7 @@ impl Battles {
                     request: self.early.take(),
                     must_choose: false,
                     pass_expected: false,
+                    capture: None,
                     messages: Vec::new(),
                     music: None,
                 });
@@ -840,17 +878,37 @@ impl Battles {
                         Change::State
                     }
                     CAPTURE_START => {
-                        string(r)?;
-                        for _ in 0..r.count(4096)? {
-                            string(r)?;
-                        }
-                        string(r)?;
-                        Change::None
+                        let ball = string(r)?;
+                        let aspects = (0..r.count(4096)?)
+                            .map(|_| string(r))
+                            .collect::<Result<_>>()?;
+                        let target = string(r)?;
+                        battle.capture = Some(Capture {
+                            ball,
+                            aspects,
+                            target,
+                            shakes: 0,
+                        });
+                        Change::CaptureStarted
                     }
-                    CAPTURE_SHAKE | CAPTURE_END => {
-                        string(r)?;
+                    CAPTURE_SHAKE => {
+                        let target = string(r)?;
+                        // Which way the Ball leans, which nothing draws.
                         r.bool()?;
-                        Change::None
+                        match &mut battle.capture {
+                            Some(capture) if capture.target == target => {
+                                capture.shakes += 1;
+                                Change::CaptureShook
+                            }
+                            _ => Change::None,
+                        }
+                    }
+                    CAPTURE_END => {
+                        // The position, which a battle with one capture at a time need not check.
+                        string(r)?;
+                        let succeeded = r.bool()?;
+                        battle.capture = None;
+                        Change::CaptureEnded(succeeded)
                     }
                     other => return Err(Error::new(format!("{other} is not read here"))),
                 }

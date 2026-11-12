@@ -6,6 +6,7 @@
 //! no vanilla reference; the reference is Cobblemon 1.8.1 itself, whose layouts these files follow.
 pub mod animation;
 pub mod battle;
+pub mod capture;
 pub mod coded_posers;
 pub mod geo;
 mod json;
