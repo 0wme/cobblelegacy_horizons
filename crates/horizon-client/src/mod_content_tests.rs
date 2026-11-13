@@ -5349,6 +5349,111 @@ fn roots_unused_for_a_day_are_removed() {
     prune_roots(&roots, &current, KEEP_ROOTS);
     assert!(!roots.join(STAMP).exists() && !roots.join("assets").exists());
     assert!(current.exists() && recent.exists());
+    // The mark of a root that stays is not the old layout's: it stays with its root.
+    assert!(reused.exists() && used_path(&reused).exists());
+    fs::remove_dir_all(&scratch).unwrap();
+}
+
+/// A reused root is marked used now, the hundredth time as the first: its
+/// mark is an empty file, and writing nothing into it again left its time at
+/// the first reuse, so a root read every day counted as unused for a day.
+#[test]
+fn a_reused_root_is_marked_used_now() {
+    use std::time::{Duration, SystemTime};
+    let scratch = std::env::temp_dir().join(format!("horizon-mod-used-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&scratch);
+    let root = scratch.join("00000000000000aa");
+    fs::create_dir_all(&root).unwrap();
+    let age = || {
+        let mark = fs::metadata(used_path(&root)).unwrap();
+        assert_eq!(mark.len(), 0);
+        mark.modified().unwrap().elapsed().unwrap()
+    };
+    mark_used(&root);
+    assert!(age() < Duration::from_secs(60));
+    // Two days pass.
+    let mark = fs::File::options()
+        .write(true)
+        .open(used_path(&root))
+        .unwrap();
+    mark.set_modified(SystemTime::now() - Duration::from_secs(2 * 86400))
+        .unwrap();
+    drop(mark);
+    assert!(age() > Duration::from_secs(86400));
+    mark_used(&root);
+    assert!(
+        age() < Duration::from_secs(60),
+        "the mark kept the time of the first use"
+    );
+    fs::remove_dir_all(&scratch).unwrap();
+}
+
+/// What a start waits for is a rename: an old root leaves its name at once,
+/// and its files go apart, on a thread when the start asks. A root another
+/// game is still building and the root in use are never touched, and what a
+/// removal left unfinished is taken up.
+#[test]
+fn old_roots_leave_their_name_at_once_and_go_apart() {
+    use std::time::{Duration, SystemTime};
+    let scratch = std::env::temp_dir().join(format!("horizon-mod-apart-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&scratch);
+    let roots = scratch.join("mod-content");
+    let root = |name: &str, age_s: u64| {
+        let dir = roots.join(name);
+        fs::create_dir_all(dir.join("assets/minecraft")).unwrap();
+        fs::write(dir.join("assets/minecraft/file"), b"x").unwrap();
+        let stamp = dir.join(STAMP);
+        fs::write(&stamp, b"x").unwrap();
+        let file = fs::File::options().write(true).open(&stamp).unwrap();
+        file.set_modified(SystemTime::now() - Duration::from_secs(age_s))
+            .unwrap();
+        dir
+    };
+    let removing = |path: &PathBuf| path.extension().is_some_and(|e| e == REMOVING);
+    let current = root("00000000000000aa", 3 * 86400);
+    let stale = root("00000000000000cc", 2 * 86400);
+    // Another game is building this one: no stamp yet.
+    let building = roots.join("00000000000000ee");
+    fs::create_dir_all(building.join("assets")).unwrap();
+    // A game quit in the middle of removing this one.
+    let left = roots.join("00000000000000ff.removing");
+    fs::create_dir_all(left.join("assets")).unwrap();
+
+    let doomed = doomed_roots(&roots, &current, KEEP_ROOTS);
+    assert!(!stale.exists(), "the old root kept its name");
+    assert_eq!(doomed.len(), 2, "{doomed:?}");
+    assert!(doomed.contains(&left));
+    // Nothing is removed yet: that is the slow part.
+    assert!(doomed.iter().all(|p| removing(p) && p.is_dir()));
+    assert!(current.join(STAMP).exists() && building.exists());
+
+    // The same root built again and old again, while its first removal is still there.
+    let again = root("00000000000000cc", 2 * 86400);
+    let more = doomed_roots(&roots, &current, KEEP_ROOTS);
+    assert!(!again.exists());
+    assert_eq!(more.len(), 3, "{more:?}");
+    remove_doomed(&more);
+    assert!(more.iter().all(|p| !p.exists()));
+    assert!(current.join(STAMP).exists() && building.exists());
+
+    // A start: no thread with nothing to remove, else the name is free before the thread ends.
+    assert!(prune_roots_apart(&roots, &current, Duration::ZERO).is_none());
+    let stale = root("00000000000000cc", 2 * 86400);
+    let thread = prune_roots_apart(&roots, &current, Duration::ZERO).expect("something to remove");
+    assert!(!stale.exists());
+    thread.join().unwrap();
+    let rest: Vec<PathBuf> = fs::read_dir(&roots)
+        .unwrap()
+        .flatten()
+        .map(|e| e.path())
+        .collect();
+    assert!(!rest.iter().any(removing), "{rest:?}");
+    assert!(current.join(STAMP).exists() && building.exists());
+
+    // A root no game finished building goes once its folder is old: here, with no delay at all.
+    std::thread::sleep(Duration::from_millis(50));
+    remove_doomed(&doomed_roots(&roots, &current, Duration::ZERO));
+    assert!(!building.exists() && current.join(STAMP).exists());
     fs::remove_dir_all(&scratch).unwrap();
 }
 
