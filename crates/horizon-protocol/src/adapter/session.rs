@@ -136,6 +136,26 @@ impl Session {
         *self.legacy_secure_chat_enforcement.lock().unwrap()
     }
 
+    /// One item stack as this session's server wrote it, at the start of `bytes`: the stack as the
+    /// pinned version numbers it, and how many bytes it took. For whoever reads what reaches the
+    /// client unread ([`super::UNREAD_ENTITY_DATA`]) and knows an item is there: nothing else says
+    /// how long a stack is. Not for a server from before the items' components (1.20.3 and older).
+    pub fn read_item(&self, bytes: &[u8]) -> Result<(Option<crate::item::Stack>, usize)> {
+        if self.version.at_most(ServerVersion::V1_20_3) {
+            return Err(crate::Error::new(
+                "an item of a server from before the items' components",
+            ));
+        }
+        let _modded = super::ids::modded(self.modded());
+        let _up = self
+            .version
+            .ids()
+            .map(|ids| super::ids::renumbering(ids, super::ids::Way::Up));
+        let mut r = Reader::new(bytes);
+        let stack = <crate::item::Slot as crate::buf::Codec<_>>::read(&mut r)?;
+        Ok((stack, r.position()))
+    }
+
     pub(super) fn set_legacy_secure_chat_enforcement(&self, value: Option<bool>) {
         *self.legacy_secure_chat_enforcement.lock().unwrap() = value;
     }

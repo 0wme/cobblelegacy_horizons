@@ -18,7 +18,8 @@
 //! vanilla body stands in.
 //!
 //! A Pokémon whose species or aspects change where it stands (it evolves, it is sheared) gets the
-//! look they now pick ([`Game::pokemon_relook`]).
+//! look they now pick ([`Game::pokemon_relook`]). The item it holds is drawn on its model
+//! (`remote_pokemon_held.rs`).
 //!
 //! The same looks draw the portraits of the player's own party (`remote_pokemon_party.rs`).
 use super::super::Game;
@@ -45,6 +46,8 @@ mod anim;
 mod capture;
 #[path = "remote_pokemon_battle.rs"]
 mod fight;
+#[path = "remote_pokemon_held.rs"]
+mod held;
 #[path = "remote_pokemon_host.rs"]
 mod host;
 #[path = "remote_pokemon_label.rs"]
@@ -134,6 +137,8 @@ pub(super) struct Pokemon {
     particles: particles::Particles,
     /// What poses each Pokémon of the level, and so what it plays.
     players: anim::Players,
+    /// The items the Pokémon of the level show.
+    held: held::Held,
     /// The summary screen of one of the player's Pokémon.
     summary: summary::Summary,
     /// The process that draws the screens of the server's mods, and the one it shows.
@@ -181,6 +186,7 @@ impl Pokemon {
         self.captures.forget(id);
         self.particles.forget(id);
         self.players.forget(id);
+        self.held.forget(id);
     }
 }
 
@@ -650,6 +656,7 @@ impl Game<'_> {
     pub(in super::super) fn pokemon_frame(&mut self) {
         self.pokemon_looks_frame();
         self.pokemon_animation_frame();
+        self.pokemon_held_frame();
         self.pokemon_phase_frame();
         self.pokemon_sounds_frame();
         self.pokemon_capture_frame();
@@ -797,8 +804,8 @@ impl Game<'_> {
     /// A Pokémon's data from Cobblemon's own types on, which the protocol adapter sends after the data
     /// vanilla reads (`horizon_protocol::adapter::UNREAD_ENTITY_DATA`: the entity's id, then the
     /// server's bytes). The pose the server puts the Pokémon in is there (asleep, in flight, swimming),
-    /// whether it is in a battle, its aspects, and what its label says of its level. Its raft is
-    /// read and not used yet.
+    /// whether it is in a battle, its aspects, the item it shows, and what its label says of its
+    /// level. Its raft is read and not used yet.
     fn remote_pokemon_data(&mut self, data: &[u8]) {
         let mut r = horizon_protocol::buf::Reader::new(data);
         let Ok(id) = r.varint() else {
@@ -817,7 +824,15 @@ impl Game<'_> {
         {
             return;
         }
-        let data = match PokemonData::read_rest(rest) {
+        // The item it shows is laid out by the protocol, which the session reads and measures.
+        let session = self.remote.as_ref().map(|r| &r.session);
+        let mut shown = None;
+        let read = PokemonData::read_rest_measuring(rest, &mut |bytes| {
+            let (stack, length) = session?.read_server_item(bytes)?;
+            shown = stack;
+            Some(length)
+        });
+        let data = match read {
             Ok(data) => data,
             Err(e) => {
                 log::debug!("Horizon: the data of Pokémon {id} does not decode: {e}");
@@ -838,6 +853,10 @@ impl Game<'_> {
         }
         if let Some(aspects) = data.aspects {
             self.pokemon_relook(id, None, Some(aspects));
+        }
+        if data.shown_item.is_some() {
+            let stack = self.to_stack(&shown);
+            self.pokemon_shown_item(id, stack);
         }
         if let Some(pose) = data.pose
             && let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32)

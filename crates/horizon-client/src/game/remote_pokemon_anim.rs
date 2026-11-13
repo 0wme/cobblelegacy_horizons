@@ -175,6 +175,8 @@ pub(super) struct Animator {
     programs: Vec<Program>,
     /// The poses' names, for what is said of them.
     names: Vec<String>,
+    /// The poser's `properties`: how the model holds an item at a locator.
+    properties: Vec<(String, String)>,
     /// What the model plays beyond its poses' animations, and which pose an entity is in.
     script: Script,
     /// For each animation the script may start (`Clip::id`), the parts its bones pose.
@@ -355,6 +357,7 @@ impl Animator {
                 .collect(),
             programs,
             names: poser.poses.iter().map(|pose| pose.name.clone()).collect(),
+            properties: poser.properties.clone(),
             script,
             bound,
             by_pose,
@@ -378,6 +381,7 @@ impl Animator {
             parts: Vec::new(),
             programs: Vec::new(),
             names: Vec::new(),
+            properties: Vec::new(),
             script: Script::default(),
             bound: HashMap::new(),
             by_pose: [None; 14],
@@ -393,6 +397,14 @@ impl Animator {
     pub(super) fn dressed(mut self, skin: Option<Texture>, overlays: Vec<Overlay>) -> Self {
         (self.skin, self.overlays) = (skin, overlays);
         self
+    }
+
+    /// `PosableModel.getLocatorDisplayContext`: the name of the way an item shown at `locator` is
+    /// held, when the poser says (`Poser::display_context`).
+    pub(super) fn display_context(&self, locator: &str) -> Option<&str> {
+        let wanted = format!("{locator}_display_context");
+        let found = self.properties.iter().rev().find(|(key, _)| *key == wanted);
+        found.map(|(_, context)| context.as_str())
     }
 
     /// Whether one of its layers is seen from both sides: it is drawn on `own::TRANSLUCENT_LAYER`,
