@@ -8,8 +8,8 @@
 //!
 //! Cobblemon runs these on three clocks (the frame's, the entity's ticks, the wall's); one is kept here,
 //! the wall's, and the Ball's arc does not depend on the frame rate as it does there. Its particles (the
-//! flash as the Ball opens, the sparks) are not drawn yet; its own sounds are played from
-//! `remote_pokemon_sounds.rs`.
+//! flash as the Ball opens, the sparks) are drawn by `remote_pokemon_particles.rs` and its own sounds
+//! played by `remote_pokemon_sounds.rs`, both asked for from here at Cobblemon's moments.
 use super::super::super::Game;
 use super::{Assets, GROUND, STAND_IN, fit, part, path_of, pokemon_type};
 use cobblelegacy_cobblemon::geo;
