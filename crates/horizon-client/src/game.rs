@@ -396,6 +396,7 @@ mod remote_mob_data;
 mod remote_mob_particles;
 mod remote_mob_use;
 mod remote_objects;
+mod remote_pick;
 mod remote_projectiles;
 mod remote_stations;
 mod remote_vehicles;
