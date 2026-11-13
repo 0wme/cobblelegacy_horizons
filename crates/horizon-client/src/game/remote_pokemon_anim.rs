@@ -8,14 +8,16 @@
 //!
 //! The same object says what the model is drawn with as time goes: the frame of a texture that has
 //! several, and the layers Cobblemon draws over the model (`PosableModel.render`: the model once more
-//! for each `ModelLayer` of its look, under that layer's texture).
+//! for each `ModelLayer` of its look, under that layer's texture). And it says which of a pose's
+//! animations start particle effects as they go (Gastly's gas), for `remote_pokemon_particles.rs`
+//! to play them.
 //!
 //! Not here yet: quirks (blinks), the blend from one pose into the next, named animations (cries,
 //! attacks), battle poses, and conditions on the world around the Pokémon (dusk, rain); a layer's
 //! `tint` and `scrolling`, and frames blended into one another (`interpolation`), which no Pokémon
 //! file of Cobblemon 1.8.1 has.
 use cobblelegacy_cobblemon::{
-    animation::AnimationFile,
+    animation::{Animation, AnimationFile},
     molang::{Context, Expression},
     pose::Delta,
     poser::{self, Poser},
@@ -136,6 +138,32 @@ fn seconds(age: f32) -> f32 {
     age / 20.0
 }
 
+/// What a pose's conditions and its animations' MoLang ask of the entity, as it is at `state`.
+pub(super) fn context(state: &State) -> Context {
+    Context {
+        anim_time: seconds(state.age),
+        age_in_ticks: state.age,
+        limb_swing: state.pos,
+        limb_swing_amount: state.speed,
+    }
+}
+
+/// One of a pose's Bedrock animations that starts particle effects as it goes.
+pub(super) struct Emitting<'a> {
+    /// What tells the animation from the model's others. Cobblemon knows a keyframe by which object
+    /// it is, and two poses that name one animation share its keyframes.
+    pub(super) id: (usize, usize),
+    pub(super) animation: &'a Animation,
+    condition: Option<&'a Expression>,
+}
+
+impl Emitting<'_> {
+    /// Whether the pose runs the animation for an entity as `context` has it.
+    pub(super) fn runs(&self, context: &Context) -> bool {
+        self.condition.is_none_or(|c| c.eval(context) != 0.0)
+    }
+}
+
 /// A MoLang source's value with nothing known of the entity: what a pose's conditions and a part's
 /// visibility are asked once, as the model is built. 0 for one that does not parse.
 fn value(source: &str) -> f64 {
@@ -249,6 +277,34 @@ impl Animator {
     pub(super) fn by_pose(&self) -> [Option<usize>; 14] {
         self.by_pose
     }
+
+    /// The place in the poser's poses of the pose a Pokémon whose `Mob::extra.variant` is `variant`
+    /// is drawn in.
+    pub(super) fn program(&self, variant: u8) -> Option<usize> {
+        self.by_pose[pose_of(variant) as usize]
+    }
+
+    /// The animations of the pose at `program` that start particle effects, in the pose's order.
+    pub(super) fn emitting(&self, program: usize) -> impl Iterator<Item = Emitting<'_>> {
+        let steps = self.programs.get(program).map(|p| &p.steps[..]);
+        steps
+            .into_iter()
+            .flatten()
+            .filter_map(|(condition, step)| match step {
+                Step::Bedrock { file, index, .. } => Some(Emitting {
+                    id: (Arc::as_ptr(file) as usize, *index),
+                    animation: &file.animations[*index],
+                    condition: condition.as_ref(),
+                }),
+                Step::Coded(_) => None,
+            })
+            .filter(|emitting| !emitting.animation.particles.is_empty())
+    }
+
+    /// Whether an animation of any pose starts a particle effect.
+    pub(super) fn emits(&self) -> bool {
+        (0..self.programs.len()).any(|program| self.emitting(program).next().is_some())
+    }
 }
 
 impl OwnAnimation for Animator {
@@ -308,13 +364,8 @@ impl Animator {
             }
         }
         // `PosableState.animationSeconds`: the entity's age, with the partial tick.
-        let seconds = state.age / 20.0;
-        let context = Context {
-            anim_time: seconds,
-            age_in_ticks: state.age,
-            limb_swing: state.pos,
-            limb_swing_amount: state.speed,
-        };
+        let seconds = seconds(state.age);
+        let context = context(state);
         let motion = poser::Motion {
             limb_swing: state.pos,
             limb_swing_amount: state.speed,

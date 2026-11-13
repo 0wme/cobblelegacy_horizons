@@ -15,13 +15,21 @@
 //! A slot is 256 texels square and some sheets of frames are wider: such a sheet is cut into rows of
 //! whole frames ([`pack`]), and halved first when even that does not fit.
 //!
-//! Not done: the locators of a Pokémon's model (an effect on an entity is at its feet, its middle or
-//! its top, which Cobblemon also has for every model, and an effect asked for at any other locator
-//! goes to the next one it names); additive blending (an `add` effect is blended as the others); and
-//! what `storm` leaves out.
+//! A third kind starts by itself: the effects the animations of a Pokémon's pose carry
+//! (`particle_effects`: Gastly's gas, Slugma's bubbles of lava), which Cobblemon's `PosableState`
+//! starts as the pose is taken and as the animations' time comes up to them ([`Emitter`]). Those of
+//! the animations a server plays by name (cries, attacks) are not: such animations are not played.
+//!
+//! An effect on an entity is at one of its model's locators, where the model's poser has it now
+//! ([`Game::pokemon_locator`]): the model's own, or the three Cobblemon gives every model.
+//!
+//! Not done: a keyframe's `pre_effect_script`; additive blending (an `add` effect is blended as the
+//! others); and what `storm` leaves out.
 use super::super::super::Game;
-use super::Assets;
+use super::{Assets, anim};
 use cobblelegacy_cobblemon::{
+    animation::{ParticleKeyframe, moments_passed},
+    geo::LOCATOR_PREFIX,
     snowstorm::{
         Effect, Facing, Material, SPAWN_ENTITY_PARTICLE, SPAWN_PARTICLE, SpawnEntityParticle,
         SpawnParticle,
@@ -31,6 +39,7 @@ use cobblelegacy_cobblemon::{
 use glam::{DVec3, Quat, Vec3};
 use horizon_client::hud::POKEMON_SLOT_SIZE;
 use horizon_client::mesher::Vertex;
+use horizon_client::mobs::{Mob, MobType, Species, anim::State};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -392,6 +401,140 @@ enum What {
     On(SpawnEntityParticle),
 }
 
+/// Which keyframe of a model's animations: the animation among the model's
+/// (`anim::Emitting::id`), and the keyframe's place in it. Cobblemon knows a keyframe by which object
+/// it is.
+type KeyframeId = (usize, usize, usize);
+
+/// A particle effect an animation of a Pokémon's pose started and that plays still: one of
+/// Cobblemon's `PosableState.poseParticles`.
+#[derive(Clone, Debug, PartialEq)]
+struct Emitted {
+    id: KeyframeId,
+    keyframe: ParticleKeyframe,
+    /// Its emitter's `Storm::source`.
+    source: u64,
+}
+
+/// What the animations of one Pokémon's poses have started: `PosableState`'s part in particle
+/// effects, its `setPose` and its `tickEffects`.
+#[derive(Debug, Default)]
+struct Emitter {
+    /// Whether the Pokémon was seen before: its first tick is its own.
+    seen: bool,
+    /// The pose it was last seen in, by its place in the poser's.
+    pose: Option<usize>,
+    /// Its age, in ticks, when its animations' moments were last looked at.
+    age: u32,
+    emitted: Vec<Emitted>,
+}
+
+impl Emitter {
+    /// The Pokémon is now `age` ticks old, in the pose `variant` tells, as `state` has it: the effects
+    /// to start, each with the number its emitter is to be found by (`sources` counts them).
+    /// `plays` tells whether the emitter of that number is still there.
+    ///
+    /// As Cobblemon does it. An emitter that is gone is forgotten, so that its keyframe may start it
+    /// again. On a change of pose, the effects the new pose's animations do not have end, and those
+    /// it has at their very start begin, unless the same effect plays already (the same by what it
+    /// says, `isSameAs`). Then, for each tick gone by, every keyframe the animations' time came up to
+    /// starts, unless that very keyframe plays already. The two differ: of two keyframes that say the
+    /// same, a change of pose starts one and the Pokémon's first tick the other, which is how Gastly
+    /// has two clouds of gas.
+    fn advance(
+        &mut self,
+        animator: &anim::Animator,
+        variant: u8,
+        state: &State,
+        age: u32,
+        plays: &dyn Fn(u64) -> bool,
+        sources: &mut u64,
+    ) -> Vec<(ParticleKeyframe, u64)> {
+        let mut started = Vec::new();
+        self.emitted.retain(|emitted| plays(emitted.source));
+        let mut run = |emitted: &mut Vec<Emitted>, id: KeyframeId, keyframe: &ParticleKeyframe| {
+            if emitted.iter().any(|playing| playing.id == id) {
+                return;
+            }
+            *sources += 1;
+            emitted.push(Emitted {
+                id,
+                keyframe: keyframe.clone(),
+                source: *sources,
+            });
+            started.push((keyframe.clone(), *sources));
+        };
+        let program = animator.program(variant);
+        let first = !std::mem::replace(&mut self.seen, true);
+        if first || self.pose != program {
+            // `setPose`, whatever the animations' conditions say.
+            let of_pose: Vec<(KeyframeId, &ParticleKeyframe)> = program
+                .into_iter()
+                .flat_map(|program| animator.emitting(program))
+                .flat_map(|emitting| {
+                    let (file, animation) = emitting.id;
+                    let keyframes = emitting.animation.particles.iter().enumerate();
+                    keyframes.map(move |(place, keyframe)| ((file, animation, place), keyframe))
+                })
+                .collect();
+            self.emitted.retain(|emitted| {
+                of_pose
+                    .iter()
+                    .any(|(_, keyframe)| keyframe.is_same_as(&emitted.keyframe))
+            });
+            for (id, keyframe) in of_pose {
+                let playing = |emitted: &Emitted| keyframe.is_same_as(&emitted.keyframe);
+                if keyframe.seconds == 0.0 && !self.emitted.iter().any(playing) {
+                    run(&mut self.emitted, id, keyframe);
+                }
+            }
+            self.pose = program;
+        }
+        // `tickEffects`, a tick at a time: the first of the Pokémon's life, then those gone by since
+        // (no more than a frame may run of the particles' own).
+        let ticks: Vec<u32> = if first {
+            vec![1]
+        } else {
+            let from = (self.age + 1).max(age.saturating_sub(CATCH_UP - 1));
+            (from..=age).collect()
+        };
+        self.age = age;
+        let Some(program) = program else {
+            return started;
+        };
+        let context = anim::context(state);
+        for tick in ticks {
+            let (previous, now) = ((tick - 1) as f32 / 20.0, tick as f32 / 20.0);
+            for emitting in animator
+                .emitting(program)
+                .filter(|emitting| emitting.runs(&context))
+            {
+                let keyframes = &emitting.animation.particles;
+                let moments: Vec<f32> = keyframes.iter().map(|keyframe| keyframe.seconds).collect();
+                let turn = emitting.animation.effects_turn();
+                for place in moments_passed(&moments, turn, previous, now) {
+                    let (file, animation) = emitting.id;
+                    run(
+                        &mut self.emitted,
+                        (file, animation, place),
+                        &keyframes[place],
+                    );
+                }
+            }
+        }
+        started
+    }
+}
+
+/// A Pokémon in the level, as its animations' effects know it.
+struct Wearer {
+    /// The type it had when its animator was looked for: its look is found again when that changes.
+    kind: Arc<MobType>,
+    /// What poses it, when a pose of that starts particle effects.
+    animator: Option<Arc<anim::Animator>>,
+    emitter: Emitter,
+}
+
 /// A particle to draw this frame.
 struct Drawn {
     quad: Quad,
@@ -421,9 +564,18 @@ pub(super) struct Particles {
     drawn: Vec<Drawn>,
     /// The effects whose shortcomings were said.
     said: HashSet<String>,
+    /// The Pokémon in the level, by entity id, and what their animations have started.
+    wearers: HashMap<i32, Wearer>,
+    /// How many effects the animations have started: each one's number (`Storm::source`).
+    sources: u64,
 }
 
 impl Particles {
+    /// Entity `id` is gone: its animations start nothing more, and what they started ends.
+    pub(super) fn forget(&mut self, id: i32) {
+        self.wearers.remove(&id);
+    }
+
     /// The textures of the effects that play, which keep their slots in the atlas.
     pub(super) fn textures(&self) -> impl Iterator<Item = String> + '_ {
         self.worn.iter().cloned()
@@ -478,8 +630,8 @@ impl Particles {
                 "Horizon: particle effect {} starts at {x:.2} {y:.2} {z:.2}{}",
                 effect.id,
                 start.tag.as_ref().map_or(String::new(), |tag| format!(
-                    " on entity {} ({})",
-                    tag.entity, tag.locator
+                    " on entity {} ({}), at a scale of {:.2}",
+                    tag.entity, tag.locator, start.emitter.scale
                 ))
             );
         }
@@ -623,22 +775,45 @@ impl Game<'_> {
         }
     }
 
+    /// Where the model's own locator `locator` is for `mob` as its poser has it now: the part
+    /// Cobblemon makes of a locator, under the poses of the parts it hangs from. `None` for a model
+    /// without that locator.
+    fn pokemon_model_locator(&self, mob: &Mob, locator: &str) -> Option<Frame> {
+        let feet = DVec3::new(mob.position.x, mob.position.y, mob.position.z);
+        let part = format!("{LOCATOR_PREFIX}{locator}");
+        let data = self.res.mob_data();
+        let matrix = horizon_client::mobs::render::part_transform(mob, 1.0, feet, data, &part)?;
+        // `LocatorAccess.update`: the flip every model is drawn under is undone.
+        let matrix = matrix * glam::Mat4::from_rotation_z(std::f32::consts::PI);
+        let (scale, rotation, offset) = matrix.to_scale_rotation_translation();
+        if !offset.is_finite() || !rotation.is_finite() || !scale.is_finite() {
+            return None;
+        }
+        let turn = glam::Mat3::from_quat(rotation);
+        let row = |axis: usize| {
+            [
+                f64::from(turn.x_axis[axis]),
+                f64::from(turn.y_axis[axis]),
+                f64::from(turn.z_axis[axis]),
+            ]
+        };
+        Some(Frame {
+            origin: (feet + offset.as_dvec3()).to_array(),
+            rotation: [row(0), row(1), row(2)],
+            scale: f64::from(scale.x.abs()).max(0.01),
+        })
+    }
+
     /// Where the locator `locator` of entity `id` is, and what an effect on it asks about it: the
     /// locator's frame, the entity's box and its motion in blocks a tick, and whether it is seen.
-    /// `None` for an entity that is not there or a locator that is none of those every model has.
+    /// `None` for an entity that is not there, or a locator that is neither the model's own nor one
+    /// of those every model has.
     fn pokemon_locator(&self, id: i32, locator: &str) -> Option<(Frame, Body, [f64; 3], bool)> {
         let pokemon = &self.remote.as_ref()?.pokemon;
         let seen = pokemon.seen.get(&id)?;
         let mob = self.mobs.iter().find(|m| m.id == id as u32)?;
         let (width, height, _) = mob.dims();
         let feet = [mob.position.x, mob.position.y, mob.position.z];
-        // `LocatorAccess.update`: the approximations Cobblemon gives every model.
-        let up = match locator {
-            "root" => 0.0,
-            "middle" => height / 2.0,
-            "top" => height,
-            _ => return None,
-        };
         // The species' base scale, which the look was drawn at.
         let base = pokemon
             .looks
@@ -647,12 +822,27 @@ impl Game<'_> {
             .find(|look| Arc::ptr_eq(&look.kind, &mob.kind))
             .map_or(1.0, |look| f64::from(look.base_scale));
         let size = base * f64::from(mob.extra.model_scale);
-        // `PosableModel.updateLocators`: half a turn from the way the body faces.
-        let frame = Frame::turned(
-            [feet[0], feet[1] + up, feet[2]],
-            180.0 - f64::from(mob.body_yaw),
-            size.max(0.01),
-        );
+        // `LocatorAccess.update`: the approximations Cobblemon gives every model, which the model's
+        // own locator of the name replaces. The root is every model's.
+        let up = match locator {
+            "root" => Some(0.0),
+            "middle" => Some(height / 2.0),
+            "top" => Some(height),
+            _ => None,
+        };
+        let own = (locator != "root")
+            .then(|| self.pokemon_model_locator(mob, locator))
+            .flatten();
+        let frame = match (own, up) {
+            (Some(own), _) => own,
+            // `PosableModel.updateLocators`: half a turn from the way the body faces.
+            (None, Some(up)) => Frame::turned(
+                [feet[0], feet[1] + up, feet[2]],
+                180.0 - f64::from(mob.body_yaw),
+                size.max(0.01),
+            ),
+            (None, None) => return None,
+        };
         let body = Body {
             width,
             height,
@@ -709,30 +899,149 @@ impl Game<'_> {
                 mob.position.z,
             ])
         });
+        self.pokemon_particle_start(spawn.entity, locator, frame, body, effect, target, 0);
+    }
+
+    /// `effect` starts on entity `entity`, at its locator `locator`, which is at `frame`. `source` is
+    /// the number its emitter is found again by, 0 for none.
+    #[allow(clippy::too_many_arguments)]
+    fn pokemon_particle_start(
+        &mut self,
+        entity: i32,
+        locator: String,
+        frame: Frame,
+        body: Body,
+        effect: Arc<Effect>,
+        target: Option<[f64; 3]>,
+        source: u64,
+    ) {
         // `EmitterSpace.initializeEmitterMatrix`: the root's rotation, the locator's place, and its
         // scale for an effect that scales with its entity.
+        let root = self.pokemon_locator(entity, "root");
         let emitter = Frame {
+            origin: frame.origin,
+            rotation: root.map_or(frame.rotation, |(root, ..)| root.rotation),
             scale: if effect.emitter.entity_scaling {
                 frame.scale
             } else {
                 1.0
             },
-            ..frame
         };
         let start = Start {
             emitter,
             attached: Some(frame),
             tag: Some(Tag {
-                entity: spawn.entity,
+                entity,
                 locator,
                 bound: true,
             }),
             body: Some(body),
             target,
+            source,
         };
         if let Some(r) = self.remote.as_mut() {
             r.pokemon.particles.start(effect, start);
         }
+    }
+
+    /// `PosableState.incrementAge` for particle effects: each Pokémon's pose and age, and the effects
+    /// its pose's animations start by now ([`Emitter::advance`]).
+    fn pokemon_emitters_frame(&mut self) {
+        let Some(r) = self.remote.as_mut() else {
+            return;
+        };
+        let super::Pokemon {
+            particles, looks, ..
+        } = &mut r.pokemon;
+        // Nothing starts before the effects are read: what a pose starts as it is taken would be
+        // missed for good.
+        if particles.effects.is_none() {
+            return;
+        }
+        let Particles {
+            wearers,
+            storms,
+            sources,
+            ..
+        } = particles;
+        let plays = |source: u64| storms.iter().any(|s| s.source == source && !s.despawned());
+        let mut started: Vec<(i32, ParticleKeyframe, u64)> = Vec::new();
+        for mob in self.mobs.iter().filter(|m| m.species() == Species::Pokemon) {
+            let id = mob.id as i32;
+            let known = wearers
+                .get(&id)
+                .is_some_and(|wearer| Arc::ptr_eq(&wearer.kind, &mob.kind));
+            if !known {
+                // Its look, by the type it wears; none while its files are being read.
+                let animator = looks
+                    .values()
+                    .flatten()
+                    .find(|look| Arc::ptr_eq(&look.kind, &mob.kind))
+                    .and_then(|look| look.animator.clone())
+                    .filter(|animator| animator.emits());
+                let wearer = Wearer {
+                    kind: mob.kind.clone(),
+                    animator,
+                    emitter: Emitter::default(),
+                };
+                wearers.insert(id, wearer);
+            }
+            let Some(Wearer {
+                animator: Some(animator),
+                emitter,
+                ..
+            }) = wearers.get_mut(&id)
+            else {
+                continue;
+            };
+            let state = horizon_client::mobs::anim::state(mob, 1.0);
+            let variant = mob.extra.variant;
+            for (keyframe, source) in
+                emitter.advance(animator, variant, &state, mob.age, &plays, sources)
+            {
+                started.push((id, keyframe, source));
+            }
+        }
+        for (id, keyframe, source) in started {
+            self.pokemon_emitted_start(id, &keyframe, source);
+        }
+    }
+
+    /// `BedrockParticleKeyframe.run`: the effect of `keyframe` on Pokémon `id`, at the keyframe's
+    /// locator or, for a model without it, at its root.
+    fn pokemon_emitted_start(&mut self, id: i32, keyframe: &ParticleKeyframe, source: u64) {
+        let Some(particles) = self.remote.as_mut().map(|r| &mut r.pokemon.particles) else {
+            return;
+        };
+        let Some(effect) = particles.effect(&keyframe.effect) else {
+            // Cobblemon drops the whole file of an animation that names an effect it does not know.
+            if particles
+                .said
+                .insert(format!("unknown {}", keyframe.effect))
+            {
+                log::warn!(
+                    "Horizon: an animation starts the particle effect {}, which is not known",
+                    keyframe.effect
+                );
+            }
+            return;
+        };
+        if keyframe.script.is_some() && particles.said.insert(format!("script {}", effect.id)) {
+            log::warn!(
+                "Horizon: an animation's particle effect {} plays without its `pre_effect_script`",
+                effect.id
+            );
+        }
+        let at = self.pokemon_locator(id, &keyframe.locator);
+        let (locator, at) = match at {
+            Some(at) => (keyframe.locator.as_str(), at),
+            None => match self.pokemon_locator(id, "root") {
+                Some(root) => ("root", root),
+                None => return,
+            },
+        };
+        let (frame, body, ..) = at;
+        self.pokemon_particle_start(id, locator.to_owned(), frame, body, effect, None, source);
     }
 
     /// The effects whose time has come start.
@@ -873,6 +1182,7 @@ impl Game<'_> {
                 r.pokemon.particles.sheets.insert(key, placed);
             }
         }
+        self.pokemon_emitters_frame();
         self.pokemon_particles_due(now);
         let Some(particles) = self.remote.as_mut().map(|r| &mut r.pokemon.particles) else {
             return;
@@ -917,6 +1227,14 @@ impl Game<'_> {
             let Some(particles) = self.remote.as_mut().map(|r| &mut r.pokemon.particles) else {
                 return;
             };
+            // `BedrockParticleKeyframe.run`'s `sourceAlive`: an effect an animation started lives
+            // while its Pokémon's pose still has it.
+            let lasting: HashSet<u64> = particles
+                .wearers
+                .values()
+                .flat_map(|wearer| &wearer.emitter.emitted)
+                .map(|emitted| emitted.source)
+                .collect();
             let mut follows = follows.into_iter().peekable();
             for (index, storm) in particles.storms.iter_mut().enumerate() {
                 if follows.peek().is_none_or(|(of, _)| *of != index) {
@@ -926,9 +1244,10 @@ impl Game<'_> {
                     break;
                 };
                 let bound = storm.tag.as_ref().is_some_and(|tag| tag.bound);
+                let lasts = storm.source == 0 || lasting.contains(&storm.source);
                 match at {
                     Some((frame, motion, visible)) => {
-                        storm.follow(bound.then_some(frame), motion, true, visible);
+                        storm.follow(bound.then_some(frame), motion, lasts, visible);
                     }
                     // Its entity is gone.
                     None => storm.follow(None, [0.0; 3], false, true),
@@ -1274,5 +1593,148 @@ mod tests {
                 [64, 0]
             )
         );
+    }
+
+    /// Gastly, as its files have it: two poses, each with its animation; both animations start the
+    /// same gas, twice, at their very start, and have no length. A third pose bubbles every two
+    /// seconds, and a fourth starts nothing.
+    fn gastly() -> anim::Animator {
+        use cobblelegacy_cobblemon::{animation::AnimationFile, poser::Poser};
+        let poser = Poser::parse(
+            r#"{
+                "poses": {
+                    "standing": {
+                        "poseTypes": ["STAND"],
+                        "animations": ["q.bedrock('gastly', 'ground_idle')"]
+                    },
+                    "walking": {
+                        "poseTypes": ["WALK"],
+                        "animations": ["q.bedrock('gastly', 'ground_walk')"]
+                    },
+                    "swimming": {
+                        "poseTypes": ["SWIM"],
+                        "animations": ["q.bedrock('gastly', 'water_swim')"]
+                    },
+                    "sleeping": {
+                        "poseTypes": ["SLEEP"],
+                        "animations": ["q.bedrock('gastly', 'sleep')"]
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+        let gas = r#"{"0.0": [
+            {"effect": "ghostly_smoke", "locator": "gas"},
+            {"effect": "ghostly_smoke", "locator": "gas"}
+        ]}"#;
+        let file = Arc::new(
+            AnimationFile::parse(&format!(
+                r#"{{"animations": {{
+                    "animation.gastly.ground_idle": {{"loop": true, "particle_effects": {gas}}},
+                    "animation.gastly.ground_walk": {{"loop": true, "particle_effects": {gas}}},
+                    "animation.gastly.water_swim": {{
+                        "loop": true,
+                        "animation_length": 2.0,
+                        "particle_effects": {{"0.5": {{"effect": "bubble", "locator": "mouth"}}}}
+                    }},
+                    "animation.gastly.sleep": {{"loop": true}}
+                }}}}"#
+            ))
+            .unwrap(),
+        );
+        let mut load = |group: &str| (group == "gastly").then(|| file.clone());
+        anim::Animator::new(&poser, &mut load)
+    }
+
+    fn still(age: u32) -> State {
+        State {
+            pos: 0.0,
+            speed: 0.0,
+            age: age as f32,
+            y_rot: 0.0,
+            x_rot: 0.0,
+            swing: 0.0,
+            baby: false,
+            partial: 0.0,
+        }
+    }
+
+    #[test]
+    fn the_effects_of_a_pose_start_and_end_as_cobblemon_s_do() {
+        use cobblelegacy_cobblemon::wire::PoseType;
+        let animator = gastly();
+        assert!(animator.emits());
+        let (stand, walk) = (PoseType::Stand as u8, anim::with_pose(0, PoseType::Walk));
+        let (swim, sleep) = (
+            anim::with_pose(0, PoseType::Swim),
+            anim::with_pose(0, PoseType::Sleep),
+        );
+        let mut emitter = Emitter::default();
+        let mut sources = 0;
+        // Every emitter that was started plays on, until told otherwise.
+        let all = |_: u64| true;
+        let mut advance =
+            |emitter: &mut Emitter, variant: u8, age: u32, plays: &dyn Fn(u64) -> bool| {
+                let started =
+                    emitter.advance(&animator, variant, &still(age), age, plays, &mut sources);
+                started
+                    .into_iter()
+                    .map(|(keyframe, source)| (keyframe.effect, keyframe.locator, source))
+                    .collect::<Vec<_>>()
+            };
+        let gas = |source: u64| {
+            (
+                "cobblemon:ghostly_smoke".to_owned(),
+                "gas".to_owned(),
+                source,
+            )
+        };
+
+        // First seen, already 40 ticks old: the pose is taken, which starts one of the two clouds
+        // that say the same, and its first tick starts the other.
+        assert_eq!(advance(&mut emitter, stand, 40, &all), [gas(1), gas(2)]);
+        // Nothing more as time goes: the animation has no length, its start does not come again.
+        assert_eq!(advance(&mut emitter, stand, 41, &all), []);
+        assert_eq!(advance(&mut emitter, stand, 41, &all), []);
+        assert_eq!(advance(&mut emitter, stand, 300, &all), []);
+        // Walking: the same gas, by what it says, so the two clouds stay and none starts.
+        assert_eq!(advance(&mut emitter, walk, 301, &all), []);
+        assert_eq!(emitter.emitted.len(), 2);
+        assert_eq!(advance(&mut emitter, stand, 302, &all), []);
+        // Swimming has no gas: both clouds end. Its bubble comes half a second into each two.
+        assert_eq!(advance(&mut emitter, swim, 303, &all), []);
+        assert!(emitter.emitted.is_empty());
+        assert_eq!(advance(&mut emitter, swim, 309, &all), []);
+        let bubble = |source: u64| ("cobblemon:bubble".to_owned(), "mouth".to_owned(), source);
+        // Tick 330 is half a second into the turn that began at tick 320.
+        assert_eq!(advance(&mut emitter, swim, 330, &all), [bubble(3)]);
+        // While it plays, the same keyframe does not start it again a turn later, on the tick that
+        // comes up to it or on the one that leaves it.
+        assert_eq!(advance(&mut emitter, swim, 370, &all), []);
+        assert_eq!(advance(&mut emitter, swim, 371, &all), []);
+        // Once its emitter is gone it may.
+        let gone = |source: u64| source != 3;
+        assert_eq!(advance(&mut emitter, swim, 372, &gone), []);
+        assert!(emitter.emitted.is_empty());
+        assert_eq!(advance(&mut emitter, swim, 410, &all), [bubble(4)]);
+        // Back on the ground the gas starts again, one cloud: this is no first tick.
+        assert_eq!(advance(&mut emitter, stand, 411, &all), [gas(5)]);
+        assert_eq!(emitter.emitted.len(), 1);
+        // Asleep, nothing: what played ends.
+        assert_eq!(advance(&mut emitter, sleep, 412, &all), []);
+        assert!(emitter.emitted.is_empty());
+
+        // A frame that took long runs the last ticks only, and a clock that went back none.
+        let mut late = Emitter::default();
+        assert_eq!(advance(&mut late, swim, 0, &all), []);
+        assert_eq!(advance(&mut late, swim, 8, &all), []);
+        // Ticks 9 to 12 are skipped, 13 to 16 looked at: the bubble of tick 10 is missed.
+        assert_eq!(advance(&mut late, swim, 16, &all), []);
+        assert_eq!(advance(&mut late, swim, 5, &all), []);
+        assert_eq!(late.age, 5);
+        assert_eq!(advance(&mut late, swim, 10, &all), [bubble(6)]);
+
+        // A model whose poses start nothing.
+        assert!(!anim::Animator::still().emits());
     }
 }

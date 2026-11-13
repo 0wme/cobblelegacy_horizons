@@ -153,6 +153,9 @@ struct Look {
     portrait_translation: [f32; 3],
     /// The sounds of its named animations (a cry).
     voice: Arc<sounds::Voice>,
+    /// What poses the model, for what its poses' animations start as they go (particle effects):
+    /// the same one the type's `anim` names.
+    animator: Option<Arc<anim::Animator>>,
     /// The poser's `profileScale` and `profileTranslation`, which stand the whole model in a slot of
     /// the summary's party, and the summary's own for the model it shows large.
     profile_scale: f32,
@@ -168,6 +171,7 @@ impl Pokemon {
         self.phases.forget(id);
         self.sounds.forget(id);
         self.captures.forget(id);
+        self.particles.forget(id);
     }
 }
 
@@ -581,18 +585,16 @@ impl Game<'_> {
         for key in [own::LAYER, own::TRANSLUCENT_CULL_LAYER] {
             kind.layers.insert(key.to_owned(), model.clone());
         }
-        if read
-            .animator
-            .as_ref()
-            .is_some_and(anim::Animator::two_sided)
-        {
+        let animator = read.animator.map(Arc::new);
+        if animator.as_deref().is_some_and(anim::Animator::two_sided) {
             let both = Arc::new(two_sided(&model));
             kind.layers.insert(own::TRANSLUCENT_LAYER.to_owned(), both);
         }
         kind.model = model;
         kind.anim = Anim::Own(
-            read.animator
-                .map_or(own::NONE, |a| own::register(Arc::new(a))),
+            animator
+                .clone()
+                .map_or(own::NONE, |animator| own::register(animator)),
         );
         kind.texture = sprite;
         // `PokemonEntity.getDimensions`: the hitbox by the base scale.
@@ -608,6 +610,7 @@ impl Game<'_> {
             portrait_scale,
             portrait_translation,
             voice: Arc::new(read.voice),
+            animator,
             profile_scale,
             profile_translation,
             summary_scale,

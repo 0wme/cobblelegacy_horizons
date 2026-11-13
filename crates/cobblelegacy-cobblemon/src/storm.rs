@@ -366,6 +366,9 @@ pub struct Storm {
     attached: Option<Frame>,
     /// What the emitter follows.
     pub tag: Option<Tag>,
+    /// What whoever started the effect gave it to find its emitter again ([`Start::source`]); 0 for
+    /// the emitters an effect's own events start.
+    pub source: u64,
     slots: Vec<f64>,
     random: Cell<u64>,
     age: i32,
@@ -404,6 +407,7 @@ impl Storm {
             emitter,
             attached,
             tag: None,
+            source: 0,
             random: Cell::new(seed),
             age: 0,
             started: false,
@@ -463,6 +467,12 @@ impl Storm {
     /// Where the emitter is.
     pub fn position(&self) -> Vec3 {
         self.position
+    }
+
+    /// The emitter is gone (`ParticleStorm.remove`, which is when Cobblemon tells whoever started it):
+    /// it makes no more particles, though those it made may still be there.
+    pub fn despawned(&self) -> bool {
+        self.despawned
     }
 
     /// Nothing is left of it: it stopped and its particles are gone.
@@ -1184,6 +1194,9 @@ pub struct Start {
     pub tag: Option<Tag>,
     pub body: Option<Body>,
     pub target: Option<Vec3>,
+    /// A number to find the emitter again by ([`Storm::source`]), for whoever needs to know when it is
+    /// gone or to end it; 0 for none.
+    pub source: u64,
 }
 
 impl Start {
@@ -1195,6 +1208,7 @@ impl Start {
             tag: None,
             body: None,
             target: None,
+            source: 0,
         }
     }
 }
@@ -1236,6 +1250,7 @@ impl Storms {
         let mut storm = Storm::create(effect, start.emitter, start.attached, self.seed, &mut out);
         storm.spawn(start.body, start.target);
         storm.tag = start.tag;
+        storm.source = start.source;
         // Its creation events' emitters were born on nothing: they are on what it is on.
         let mut born = out.storms;
         for child in &mut born {
@@ -1611,8 +1626,15 @@ mod tests {
                 }),
                 body: Some(body),
                 target: None,
+                source: 9,
             },
             &none,
+        );
+        // Whoever started it finds its emitter again, which is not gone.
+        assert!(
+            storms
+                .iter()
+                .any(|storm| storm.source == 9 && !storm.despawned())
         );
         storms.tick(&none);
         storms.tick(&none);

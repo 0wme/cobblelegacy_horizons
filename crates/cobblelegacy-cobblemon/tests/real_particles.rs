@@ -270,6 +270,7 @@ fn the_shiny_ring_plays_on_a_pokemon() {
             }),
             body: Some(body),
             target: None,
+            source: 0,
         },
         &find,
     );
@@ -300,6 +301,89 @@ fn the_shiny_ring_plays_on_a_pokemon() {
     assert!(storms.is_empty(), "the ring still plays after 4 seconds");
 }
 
+/// The effects the animations of a pose start (`particle_effects`): each on a locator of a Pokémon
+/// that stands still, as `BedrockParticleKeyframe.run` starts them. They go on for as long as the
+/// pose lasts, and what they draw can be seen: it has a size, is not clear, and stays about the
+/// Pokémon.
+#[test]
+#[ignore = "needs Cobblemon's assets in COBBLEMON_ASSETS"]
+fn the_effects_of_a_pose_s_animations_play_on_a_pokemon() {
+    let (effects, _) = effects();
+    let find = |id: &str| effects.get(id).cloned();
+    let feet = [8.5, 70.0, 3.5];
+    for id in [
+        "cobblemon:ghostly_smoke",
+        "cobblemon:shiny_ghostly_smoke",
+        "cobblemon:shiny_ghostly_smoke_center",
+        "cobblemon:slugma_lava_bubble",
+        "cobblemon:shiny_slugma_lava_bubble",
+        "cobblemon:magcargo_lava_bubble",
+        "cobblemon:hooh_tailtrail",
+    ] {
+        let effect = find(id).unwrap_or_else(|| panic!("no effect {id}"));
+        let body = Body {
+            width: 0.8,
+            height: 0.8,
+            scale: 1.0,
+            center: [feet[0], feet[1] + 0.4, feet[2]],
+        };
+        // A locator a little above the feet, the Pokémon turned a quarter and of its natural size.
+        let locator = Frame::turned([feet[0], feet[1] + 0.3, feet[2]], 90.0, 1.0);
+        let mut storms = Storms::default();
+        storms.start(
+            effect.clone(),
+            Start {
+                emitter: Frame {
+                    scale: if effect.emitter.entity_scaling {
+                        locator.scale
+                    } else {
+                        1.0
+                    },
+                    ..locator
+                },
+                attached: Some(locator),
+                tag: Some(Tag {
+                    entity: 12,
+                    locator: "gas".into(),
+                    bound: true,
+                }),
+                body: Some(body),
+                target: None,
+                source: 1,
+            },
+            &find,
+        );
+        let (drawn, most) = play(&mut storms, &find, 120);
+        let seen = drawn
+            .iter()
+            .filter(|(_, quad)| quad.half[0] > 0.0 && quad.half[1] > 0.0 && quad.colour[3] > 0.0)
+            .count();
+        let widest = drawn.iter().map(|(_, q)| q.half[0]).fold(0.0, f32::max);
+        let farthest = drawn
+            .iter()
+            .map(|(_, quad)| {
+                (0..3)
+                    .map(|axis| (quad.center[axis] - locator.origin[axis]).powi(2))
+                    .sum::<f64>()
+                    .sqrt()
+            })
+            .fold(0.0, f64::max);
+        println!(
+            "{id}: {} quads drawn in six seconds, {seen} of them seen, at most {most} at once, the \
+             widest {widest:.3} across its half, the farthest {farthest:.2} away; lacking: {:?}",
+            drawn.len(),
+            effect.unhandled
+        );
+        assert!(seen > 0, "{id} draws nothing that is seen");
+        assert!(farthest < 8.0, "{id} goes {farthest} away");
+        // It goes on: its emitter is found again by its number, and is not gone.
+        assert!(
+            storms.iter().any(|s| s.source == 1 && !s.despawned()),
+            "{id} ended by itself"
+        );
+    }
+}
+
 #[test]
 #[ignore = "needs Cobblemon's assets in COBBLEMON_ASSETS"]
 fn every_effect_plays_without_a_number_that_is_none() {
@@ -325,6 +409,7 @@ fn every_effect_plays_without_a_number_that_is_none() {
                 tag: None,
                 body: Some(body),
                 target: Some([at[0], at[1], at[2] + 5.0]),
+                source: 0,
             },
             &find,
         );
