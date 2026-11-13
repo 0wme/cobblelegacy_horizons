@@ -805,10 +805,25 @@ struct Stats {
     /// Images whose bytes did not match the host's sum.
     corrupt: u32,
     checked: u32,
+    /// What the host's screens made the game say to the server, the last ones: a message's channel,
+    /// or a command's name after its slash. With how many there were in all.
+    said: VecDeque<String>,
+    said_count: u32,
 }
 
 impl Stats {
     const KEPT: usize = 512;
+    /// How many of the things said to the server are kept by name.
+    const SAID: usize = 16;
+
+    /// A screen made the game say `what` to the server.
+    fn said(&mut self, what: String) {
+        if self.said.len() == Self::SAID {
+            self.said.pop_front();
+        }
+        self.said.push_back(what);
+        self.said_count = self.said_count.wrapping_add(1);
+    }
 
     /// The host has answered the inputs up to `serial`, with an image or without.
     fn answered(&mut self, serial: u32, image: bool) {
@@ -1158,6 +1173,9 @@ impl Game<'_> {
                     "Horizon: the screen host sends the server {channel} ({} bytes)",
                     data.len()
                 );
+                if let Some(host) = self.pokemon_host() {
+                    host.stats.said(channel.clone());
+                }
                 self.pokemon_send(&channel, data);
             }
             FromHost::Command(command) => {
@@ -1166,6 +1184,10 @@ impl Game<'_> {
                 } else {
                     let name = command.split_whitespace().next().unwrap_or_default();
                     log::info!("Horizon: the screen host runs the command /{name}");
+                }
+                let name = command.split_whitespace().next().unwrap_or_default();
+                if let Some(host) = self.pokemon_host() {
+                    host.stats.said(format!("/{name}"));
                 }
                 self.send_command(&command);
             }
@@ -1693,6 +1715,9 @@ impl Game<'_> {
             })),
             "checked": stats.checked,
             "corrupt": stats.corrupt,
+            // The game's log is written late: a test reads here what a click made the screen send.
+            "said": stats.said,
+            "said_count": stats.said_count,
         })
     }
 }
@@ -1952,6 +1977,21 @@ mod tests {
             r#"{"players":[{"name":"Rouge","uuid":"01234567-89ab-cdef-0123-456789abcdef"}]}"#
         );
         assert_eq!(players_json(&[]), r#"{"players":[]}"#);
+    }
+
+    #[test]
+    fn what_a_screen_said_to_the_server_is_kept_by_name_and_counted() {
+        let mut stats = Stats::default();
+        stats.said("mod:open".to_owned());
+        stats.said("/pokematos".to_owned());
+        assert_eq!(stats.said, ["mod:open", "/pokematos"]);
+        for at in 0..Stats::SAID {
+            stats.said(format!("mod:{at}"));
+        }
+        // The oldest give way; the count is of all of them.
+        assert_eq!(stats.said.len(), Stats::SAID);
+        assert_eq!(stats.said.front().map(String::as_str), Some("mod:0"));
+        assert_eq!(stats.said_count as usize, Stats::SAID + 2);
     }
 
     #[test]
