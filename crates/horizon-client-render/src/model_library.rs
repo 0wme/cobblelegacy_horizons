@@ -16,6 +16,22 @@ pub struct ParsedModels {
     models: BTreeMap<String, Arc<CuboidModel>>,
     root: PathBuf,
 }
+/// Block model templates vanilla renamed after the packs for older versions were made, each
+/// as a model whose parent is the template in its place and whose texture slots are the old
+/// ones. A pack's own models still name the old template as their parent, and each of them drew
+/// the missing model's cube: after 1.21.4 `template_farmland` became the wider
+/// `template_cube_bottom_top_indented`.
+const RENAMED_TEMPLATES: [(&str, &str); 1] = [(
+    "minecraft:block/template_farmland",
+    r##"{"parent":"minecraft:block/template_cube_bottom_top_indented","textures":{"bottom":"#dirt","side":"#dirt"}}"##,
+)];
+
+/// The model standing for the renamed template `name` ([`RENAMED_TEMPLATES`]).
+fn renamed_template(name: &str) -> Option<Arc<CuboidModel>> {
+    let (_, json) = RENAMED_TEMPLATES.iter().find(|(old, _)| *old == name)?;
+    CuboidModel::from_json(json).ok().map(Arc::new)
+}
+
 /// Asset files under a content root, for models that name a file (obj).
 struct RootAssets(PathBuf);
 impl AssetReader for RootAssets {
@@ -81,11 +97,19 @@ impl ParsedModels {
             let text = horizon_core::prepared_files::read_to_string(path).ok()?;
             CuboidModel::from_json(&text).ok().map(Arc::new)
         });
-        let models = files
+        let mut models: BTreeMap<String, Arc<CuboidModel>> = files
             .into_iter()
             .zip(parsed)
             .filter_map(|((id, _), model)| Some((id, model?)))
             .collect();
+        // A template the root no longer has, for the packs whose models still name it.
+        for (name, _) in RENAMED_TEMPLATES {
+            if !models.contains_key(name)
+                && let Some(model) = renamed_template(name)
+            {
+                models.insert(name.to_owned(), model);
+            }
+        }
         Self {
             models,
             root: root.to_owned(),
@@ -131,14 +155,15 @@ impl ParsedModels {
                         )?;
                         Ok(CuboidModel::from_json(&text)?)
                     };
-                    match read() {
-                        Ok(model) => Arc::new(model),
-                        Err(e) if or_missing => {
+                    match (read(), renamed_template(&name)) {
+                        (Ok(model), _) => Arc::new(model),
+                        (Err(_), Some(model)) => model,
+                        (Err(e), None) if or_missing => {
                             log::warn!("Horizon: missing block model {name}: {e}");
                             skipped.insert(name);
                             continue;
                         }
-                        Err(e) => return Err(e),
+                        (Err(e), None) => return Err(e),
                     }
                 }
             };
@@ -175,6 +200,50 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
         }
+    }
+
+    /// A model made for 1.21 whose parent is a template vanilla has renamed since draws as it
+    /// did, through the template in its place.
+    #[test]
+    fn a_renamed_template_still_parents_a_packs_models() -> Result<()> {
+        let fixture = Fixture(
+            std::env::temp_dir().join(format!("horizon-renamed-models-{}", std::process::id())),
+        );
+        fixture.write(
+            "minecraft:block/template_cube_bottom_top_indented",
+            r##"{"textures":{"particle":"#side"},"elements":[{"from":[0,0,0],"to":[16,15,16],"faces":{"down":{"texture":"#bottom"},"up":{"texture":"#top"},"north":{"texture":"#side"}}}]}"##,
+        );
+        fixture.write(
+            "minecraft:block/farmland1",
+            r#"{"parent":"minecraft:block/template_farmland","textures":{"dirt":"minecraft:block/dirt2","top":"minecraft:block/farmland"}}"#,
+        );
+        let name = "minecraft:block/farmland1";
+        // Parsed ahead, and read as the models are asked for.
+        for models in [ParsedModels::load(&fixture.0), ParsedModels::default()] {
+            let library = models.block_library(&fixture.0, vec![name.into()])?;
+            let farmland = library.resolve(name)?;
+            assert_eq!(farmland.elements().len(), 1);
+            for (slot, sprite) in [
+                ("side", "minecraft:block/dirt2"),
+                ("bottom", "minecraft:block/dirt2"),
+                ("top", "minecraft:block/farmland"),
+                ("particle", "minecraft:block/dirt2"),
+            ] {
+                assert_eq!(farmland.material(slot)?.unwrap().sprite, sprite, "{slot}");
+            }
+        }
+        // An item model over it resolves too.
+        fixture.write("minecraft:item/farmland", r#"{"parent":"minecraft:block/farmland1"}"#);
+        let items = ParsedModels::load(&fixture.0).into_item_library()?;
+        assert_eq!(items.resolve("minecraft:item/farmland")?.elements().len(), 1);
+        // A root that has the template keeps its own.
+        fixture.write(
+            "minecraft:block/template_farmland",
+            r##"{"elements":[{"from":[0,0,0],"to":[16,16,16],"faces":{"up":{"texture":"#top"}}},{"from":[0,0,0],"to":[1,1,1],"faces":{"up":{"texture":"#dirt"}}}]}"##,
+        );
+        let own = ParsedModels::load(&fixture.0).block_library(&fixture.0, vec![name.into()])?;
+        assert_eq!(own.resolve(name)?.elements().len(), 2);
+        Ok(())
     }
 
     #[test]
