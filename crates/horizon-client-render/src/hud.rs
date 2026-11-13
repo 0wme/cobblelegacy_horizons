@@ -415,12 +415,15 @@ fn animation_of(mcmeta: Option<&str>) -> Option<AnimationMetadata> {
 }
 /// An animated strip's first frame: the region the mcmeta's frame size picks
 /// (`AnimationMetadataSection.frameSize`), which is the top-left square unless
-/// it names other dimensions or the frames run along a row.
+/// it names other dimensions or the frames run along a row. A texture without
+/// an animation is one frame whatever its shape (`SpriteLoader`'s
+/// `FrameSize(width, height)`): the 64 by 32 texture of a mod's item model is
+/// drawn whole, not as the first of two square frames.
 fn first_frame(
     (w, h, pixels): (u32, u32, Vec<u8>),
     animation: Option<&AnimationMetadata>,
 ) -> (u32, u32, Vec<u8>) {
-    let [fw, fh] = animation.map_or([w.min(h) as i32; 2], |meta| {
+    let [fw, fh] = animation.map_or([w as i32, h as i32], |meta| {
         meta.frame_size(w as i32, h as i32)
     });
     match (u32::try_from(fw), u32::try_from(fh)) {
@@ -3163,6 +3166,27 @@ mod tests {
         let (_, height, first) = first_frame((8, 4, pixels), Some(&animation));
         assert_eq!(height, 2);
         assert_eq!(first.len(), 2 * 2 * 4);
+    }
+
+    #[test]
+    fn a_texture_without_an_animation_is_one_frame_whatever_its_shape() {
+        // A mod's item model texture, twice as wide as it is tall (Cobblemon's Poké Ball): its
+        // right half is the model's lower half, not a second frame.
+        let pixels: Vec<u8> = (0..8 * 4).flat_map(|i| [i as u8, 0, 0, 255]).collect();
+        assert_eq!(
+            first_frame((8, 4, pixels.clone()), None),
+            (8, 4, pixels.clone())
+        );
+        // Taller than wide all the same.
+        assert_eq!(
+            first_frame((4, 8, pixels.clone()), None),
+            (4, 8, pixels.clone())
+        );
+        // With an animation that names no size, the frames are squares down the strip.
+        let animation = animation_of(Some(r#"{"animation":{}}"#)).unwrap();
+        let (width, height, first) = first_frame((4, 8, pixels.clone()), Some(&animation));
+        assert_eq!((width, height), (4, 4));
+        assert_eq!(first, pixels[..4 * 4 * 4]);
     }
 
     #[test]
