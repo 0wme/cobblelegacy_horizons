@@ -5432,14 +5432,15 @@ fn old_roots_leave_their_name_at_once_and_go_apart() {
     let more = doomed_roots(&roots, &current, KEEP_ROOTS);
     assert!(!again.exists());
     assert_eq!(more.len(), 3, "{more:?}");
-    remove_doomed(&more);
+    remove_doomed(&more, 0);
     assert!(more.iter().all(|p| !p.exists()));
     assert!(current.join(STAMP).exists() && building.exists());
 
     // A start: no thread with nothing to remove, else the name is free before the thread ends.
-    assert!(prune_roots_apart(&roots, &current, Duration::ZERO).is_none());
+    assert!(prune_roots_apart(&roots, &current, Duration::ZERO, 0).is_none());
     let stale = root("00000000000000cc", 2 * 86400);
-    let thread = prune_roots_apart(&roots, &current, Duration::ZERO).expect("something to remove");
+    let thread =
+        prune_roots_apart(&roots, &current, Duration::ZERO, 0).expect("something to remove");
     assert!(!stale.exists());
     thread.join().unwrap();
     let rest: Vec<PathBuf> = fs::read_dir(&roots)
@@ -5452,9 +5453,70 @@ fn old_roots_leave_their_name_at_once_and_go_apart() {
 
     // A root no game finished building goes once its folder is old: here, with no delay at all.
     std::thread::sleep(Duration::from_millis(50));
-    remove_doomed(&doomed_roots(&roots, &current, Duration::ZERO));
+    remove_doomed(&doomed_roots(&roots, &current, Duration::ZERO), 0);
     assert!(!building.exists() && current.join(STAMP).exists());
     fs::remove_dir_all(&scratch).unwrap();
+}
+
+/// An old root goes entry by entry, and a link in it goes as a link: what a
+/// root shares with its base, a file or a whole folder, stays in the base.
+#[test]
+fn a_removal_entry_by_entry_never_follows_a_link() {
+    let scratch = std::env::temp_dir().join(format!("horizon-mod-gently-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&scratch);
+    let base = scratch.join("base");
+    fs::create_dir_all(base.join("textures")).unwrap();
+    fs::write(base.join("textures/stone.png"), b"stone").unwrap();
+    fs::write(base.join("table.json"), b"{}").unwrap();
+    let root = scratch.join("00000000000000aa.removing");
+    fs::create_dir_all(root.join("assets/minecraft/models")).unwrap();
+    for n in 0..40 {
+        fs::write(root.join(format!("assets/minecraft/models/{n}.json")), b"x").unwrap();
+    }
+    // A file shared with the base, and a folder of the base linked whole.
+    fs::hard_link(base.join("table.json"), root.join("table.json")).unwrap();
+    #[cfg(windows)]
+    horizon_threads::junction(&base.join("textures"), &root.join("assets/textures")).unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(base.join("textures"), root.join("assets/textures")).unwrap();
+    // A file that refuses to go by itself on Windows: its folder goes whole.
+    let locked = root.join("assets/minecraft/locked.json");
+    fs::write(&locked, b"x").unwrap();
+    let mut permissions = fs::metadata(&locked).unwrap().permissions();
+    permissions.set_readonly(true);
+    fs::set_permissions(&locked, permissions).unwrap();
+
+    let mut pace = Pace::new(0);
+    remove_gently(&root, &mut pace).unwrap();
+    assert!(!root.exists());
+    // Every model went by itself.
+    assert!(pace.removed >= 40, "{}", pace.removed);
+    assert_eq!(fs::read(base.join("textures/stone.png")).unwrap(), b"stone");
+    assert_eq!(fs::read(base.join("table.json")).unwrap(), b"{}");
+    fs::remove_dir_all(&scratch).unwrap();
+}
+
+/// The disk rests after a handful by what the handful took: little on a fast
+/// disk, long on a busy one, never more than a minute, and not at all when no
+/// rest is asked.
+#[test]
+fn a_removal_rests_by_what_a_handful_took() {
+    use std::time::Duration;
+    let pace = Pace::new(PRUNE_REST);
+    assert_eq!(
+        pace.rest_after(Duration::from_millis(2)),
+        Duration::from_millis(8)
+    );
+    assert_eq!(
+        pace.rest_after(Duration::from_millis(900)),
+        Duration::from_millis(3600)
+    );
+    assert_eq!(pace.rest_after(Duration::from_secs(40)), Pace::LONGEST);
+    let mut none = Pace::new(0);
+    let started = std::time::Instant::now();
+    (0..10 * Pace::HANDFUL).for_each(|_| none.step());
+    assert_eq!(none.removed, 10 * Pace::HANDFUL);
+    assert!(started.elapsed() < Duration::from_secs(1));
 }
 
 /// A mod's features reach the features bundle from 26.3's `feature/` folder
