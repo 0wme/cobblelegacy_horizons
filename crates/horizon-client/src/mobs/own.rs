@@ -21,15 +21,18 @@ pub trait OwnAnimation: Send + Sync {
     }
 
     /// The model's draws over itself with other textures, `age` ticks into the mob's life (Cobblemon's
-    /// `ModelLayer`: a flame, eyes that glow), each on [`LAYER`] or [`TRANSLUCENT_LAYER`].
+    /// `ModelLayer`: a flame, eyes that glow), each on one of the keys below.
     fn layers(&self, _mob: &Mob, _age: f32, _out: &mut Vec<Layer>) {}
 }
 
 /// The key, in its type's `layers`, of a model that brings its own layers: the type's `model` itself, so
 /// a layer is drawn in the body's poses.
 pub const LAYER: &str = "#own";
-/// The same model for a layer whose texels blend with what is behind them (`RenderType.entityTranslucent`).
+/// The model for a layer whose texels blend with what is behind them, seen from both sides
+/// (`RenderType.entityTranslucent`, which culls nothing).
 pub const TRANSLUCENT_LAYER: &str = "#own/translucent";
+/// The same blending for a layer that keeps the model's own faces (Cobblemon's `translucent_cull`).
+pub const TRANSLUCENT_CULL_LAYER: &str = "#own/translucent/cull";
 
 /// The number of no animation: the model stays at rest.
 pub const NONE: u32 = u32::MAX;

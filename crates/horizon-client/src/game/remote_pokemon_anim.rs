@@ -125,6 +125,9 @@ pub(super) struct Overlay {
     pub(super) emissive: bool,
     /// Its texels blend with what is behind them; else each is there whole or not at all.
     pub(super) translucent: bool,
+    /// `translucent_cull`: a translucent layer that shows the model's own faces only, as every other
+    /// layer does, not the back of each as well.
+    pub(super) cull: bool,
 }
 
 /// `PosableState.animationSeconds` for an age in ticks, which is what a texture's frames go by
@@ -233,6 +236,14 @@ impl Animator {
         self
     }
 
+    /// Whether one of its layers is seen from both sides: it is drawn on `own::TRANSLUCENT_LAYER`,
+    /// which the type then needs a model for.
+    pub(super) fn two_sided(&self) -> bool {
+        self.overlays
+            .iter()
+            .any(|overlay| !overlay.emissive && overlay.translucent && !overlay.cull)
+    }
+
     /// The place in the poser's poses of the pose of each `PoseType`, by ordinal: what else is told
     /// by pose (a cry's sound, `remote_pokemon_sounds.rs`) is told by the pose the model is drawn in.
     pub(super) fn by_pose(&self) -> [Option<usize>; 14] {
@@ -265,11 +276,12 @@ impl Animator {
                 continue;
             };
             // `PosableModel.getLayer`: an emissive layer is drawn by the emissive render type whether
-            // it is translucent or not; of the others, only a translucent one blends.
-            let model = if overlay.translucent && !overlay.emissive {
-                own::TRANSLUCENT_LAYER
-            } else {
-                own::LAYER
+            // it is translucent or not; of the others, only a translucent one blends, and it alone is
+            // seen from both sides unless it says otherwise.
+            let model = match (overlay.emissive, overlay.translucent, overlay.cull) {
+                (false, true, false) => own::TRANSLUCENT_LAYER,
+                (false, true, true) => own::TRANSLUCENT_CULL_LAYER,
+                _ => own::LAYER,
             };
             out.push(Layer {
                 model: model.into(),
@@ -370,7 +382,7 @@ mod tests {
         );
     }
 
-    /// Ponyta's mane: four frames at ten a second, and eyes that glow whatever the hour.
+    /// Ponyta's mane, four frames at ten a second, and a layer of each other kind.
     fn dressed() -> Animator {
         let flame = Texture::Animated {
             frames: (1..=4).map(|i| format!("ponyta|{i}")).collect(),
@@ -386,21 +398,31 @@ mod tests {
                     texture: flame,
                     emissive: true,
                     translucent: false,
+                    cull: false,
                 },
                 Overlay {
                     texture: Texture::Static("ponyta|5".into()),
                     emissive: false,
                     translucent: true,
+                    cull: false,
                 },
                 Overlay {
                     texture: Texture::Static("ponyta|6".into()),
                     emissive: false,
                     translucent: false,
+                    cull: false,
                 },
                 Overlay {
                     texture: Texture::Static("ponyta|7".into()),
                     emissive: true,
                     translucent: true,
+                    cull: true,
+                },
+                Overlay {
+                    texture: Texture::Static("ponyta|8".into()),
+                    emissive: false,
+                    translucent: true,
+                    cull: true,
                 },
             ],
         )
@@ -431,7 +453,7 @@ mod tests {
             .map(|l| (&*l.model, &*l.texture, l.full_bright))
             .collect();
         // An emissive layer glows on the model's own key, translucent or not; of the others the
-        // translucent one alone is on the key that blends.
+        // translucent ones alone are on the keys that blend, two-sided unless they cull.
         assert_eq!(
             drawn,
             [
@@ -439,6 +461,7 @@ mod tests {
                 (own::TRANSLUCENT_LAYER, "ponyta|5", false),
                 (own::LAYER, "ponyta|6", false),
                 (own::LAYER, "ponyta|7", true),
+                (own::TRANSLUCENT_CULL_LAYER, "ponyta|8", false),
             ]
         );
         // Each in the colour it is given (the model's own), none scrolling.
@@ -447,7 +470,9 @@ mod tests {
                 .iter()
                 .all(|l| l.color == 0xFF11_2233 && l.scroll == 0.0)
         );
+        assert!(animator.two_sided());
         // Nothing is drawn over a model without layers.
+        assert!(!Animator::still().two_sided());
         let mut none = Vec::new();
         Animator::still().overlays_at(3.0, 0xFFFF_FFFF, &mut none);
         assert!(none.is_empty());

@@ -80,6 +80,7 @@ fn translucent_layer(m: &Mob, layer: &Layer) -> bool {
         || matches!(m.species(), Species::SulfurCube)
         || layer.texture.starts_with("entity/horse/horse_markings")
         || layer.model == super::own::TRANSLUCENT_LAYER
+        || layer.model == super::own::TRANSLUCENT_CULL_LAYER
 }
 
 /// Whether a layer is the eyes render type's (`RenderTypes.eyes`: full bright, no
@@ -2269,7 +2270,12 @@ fn render_visible(
         // `EYES_TIER` in the overlay's high bits (entity.wgsl fs_hdr_mark).
         if layer.full_bright && m.species() != Species::Warden {
             for vertex in &mut out[start..] {
-                vertex.normal = [0; 4];
+                // Unlit; a model that culls its back faces (a Pokémon's) culls these too.
+                vertex.normal = if vertex.normal[3] == crate::mesher::SHADED_CULL_W {
+                    crate::mesher::CULL_BACK
+                } else {
+                    [0; 4]
+                };
                 vertex.layer |= u32::from(EYES_TIER) << 16;
             }
         }

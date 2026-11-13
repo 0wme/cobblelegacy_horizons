@@ -222,6 +222,7 @@ fn dress(assets: &Assets, look: &str, resolved: &Resolved, species: &str) -> Res
             texture: texture.over(&named(images.len(), frames.len())),
             emissive: layer.emissive,
             translucent: layer.translucent,
+            cull: layer.translucent_cull,
         });
         images.append(&mut frames);
     }

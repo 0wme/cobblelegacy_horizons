@@ -754,7 +754,7 @@ impl Game<'_> {
             let normal = normal.normalize_or_zero();
             // A layer that glows comes without a normal (`mobs::render`): it is not shaded, as in
             // the world.
-            let shade = if quad[0].normal == [0; 4] {
+            let shade = if quad[0].normal[..3] == [0; 3] {
                 1.0
             } else {
                 (0.55 + 0.45 * -normal.z - 0.15 * normal.y).clamp(0.4, 1.0)

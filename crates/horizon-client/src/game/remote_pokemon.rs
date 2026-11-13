@@ -391,7 +391,9 @@ impl Assets {
 }
 
 /// A geometry's part as the mob renderer's: the same pixels, pose and faces (`ModelPart`'s conventions on
-/// both sides).
+/// both sides). Each face is seen from its front only, as Cobblemon draws a model
+/// (`RenderType.entityCutout`): the two sides of a flat box each show their own texels, and a box
+/// turned inside out shows its inner walls.
 fn part(bone: &geo::Bone, texture: [u32; 2]) -> Part {
     let [x, y, z] = bone.offset;
     let [rx, ry, rz] = bone.rotation;
@@ -405,10 +407,28 @@ fn part(bone: &geo::Bone, texture: [u32; 2]) -> Part {
             .map(|quad| Polygon {
                 normal: quad.normal,
                 vertices: quad.vertices,
-                cull_back: false,
+                cull_back: true,
             })
             .collect(),
         children: bone.children.iter().map(|b| part(b, texture)).collect(),
+    }
+}
+
+/// `part` with every face seen from both sides, for the layers Cobblemon draws that way
+/// (`RenderType.entityTranslucent`).
+fn two_sided(part: &Part) -> Part {
+    Part {
+        name: part.name.clone(),
+        pose: part.pose,
+        polygons: part
+            .polygons
+            .iter()
+            .map(|polygon| Polygon {
+                cull_back: false,
+                ..polygon.clone()
+            })
+            .collect(),
+        children: part.children.iter().map(two_sided).collect(),
     }
 }
 
@@ -555,10 +575,19 @@ impl Game<'_> {
             pokemon.sheets.insert(sprite.clone(), more);
         }
         let mut kind = pokemon_type(&template, &wanted.species);
-        // Its layers are the model itself, once more (`mobs::own`).
+        // Its layers are the model itself, once more (`mobs::own`); the few seen from both sides
+        // have a model of their own.
         let model = Arc::new(body);
-        for key in [own::LAYER, own::TRANSLUCENT_LAYER] {
+        for key in [own::LAYER, own::TRANSLUCENT_CULL_LAYER] {
             kind.layers.insert(key.to_owned(), model.clone());
+        }
+        if read
+            .animator
+            .as_ref()
+            .is_some_and(anim::Animator::two_sided)
+        {
+            let both = Arc::new(two_sided(&model));
+            kind.layers.insert(own::TRANSLUCENT_LAYER.to_owned(), both);
         }
         kind.model = model;
         kind.anim = Anim::Own(
