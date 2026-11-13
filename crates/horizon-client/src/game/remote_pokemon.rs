@@ -12,9 +12,10 @@
 //! a texture for the Pokémon's aspects, the geometry becomes a `Part` tree and the texture goes into one of
 //! the atlas's Pokémon slots. Its poser then poses it each draw (`remote_pokemon_anim.rs`): the species'
 //! poser file, or for the third of the species whose poser Cobblemon writes in Kotlin, that class converted
-//! to the same format (`cobblelegacy_cobblemon::coded_posers`). No layer (emissive parts, Charizard's
-//! flame) is drawn yet. Without the resources, or for a species that fails to load, a vanilla
-//! body stands in.
+//! to the same format (`cobblelegacy_cobblemon::coded_posers`). The layers its resolver names are drawn
+//! over it (emissive parts, Charizard's flame), their textures in the same slot as the model's when
+//! they fit (`remote_pokemon_looks.rs`). Without the resources, or for a species that fails to load, a
+//! vanilla body stands in.
 //!
 //! The same looks draw the portraits of the player's own party (`remote_pokemon_party.rs`).
 use super::super::Game;
@@ -103,6 +104,8 @@ pub(super) struct Pokemon {
     stand_ins: HashMap<String, Arc<MobType>>,
     /// Which texture is in which of the atlas's Pokémon slots.
     slots: Option<SkinSlots>,
+    /// The slots a look's textures take beyond its first, by the look's sprite: they are worn with it.
+    sheets: HashMap<String, Vec<String>>,
     /// What the server said of each Pokémon in view when it appeared, by entity id.
     seen: HashMap<i32, SpawnPokemon>,
     /// What their labels read: each one's name and level, the server's switches, the player's Pokédex.
@@ -464,10 +467,10 @@ impl Game<'_> {
         let Some(resolved) = resolved else {
             return Looked::None;
         };
-        let Some(texture_id) = resolved.texture.at(0.0) else {
+        let Some(sprite) = looks::sprite(&resolved) else {
             return Looked::None;
         };
-        let key = (resolved.model.clone(), texture_id.to_owned());
+        let key = (resolved.model.clone(), sprite);
         if let Some(look) = pokemon.looks.get(&key) {
             return look.clone().map_or(Looked::None, Looked::Made);
         }
@@ -484,7 +487,7 @@ impl Game<'_> {
             .ask(looks::Wanted {
                 key,
                 species: species_id.to_owned(),
-                poser: resolved.poser.clone(),
+                resolved,
             });
         Looked::Reading
     }
@@ -544,10 +547,20 @@ impl Game<'_> {
             polygons: Vec::new(),
             children: vec![read.root],
         };
-        let sprite = format!("cobblemon/{}", path_of(&wanted.key.1));
-        self.pokemon_skin(&sprite, read.texture)?;
+        let sprite = wanted.key.1.clone();
+        let more: Vec<String> = read.sheets.iter().skip(1).map(|s| s.name.clone()).collect();
+        self.pokemon_sheets(read.sheets)?;
+        if !more.is_empty() {
+            let pokemon = &mut self.remote.as_mut()?.pokemon;
+            pokemon.sheets.insert(sprite.clone(), more);
+        }
         let mut kind = pokemon_type(&template, &wanted.species);
-        kind.model = Arc::new(body);
+        // Its layers are the model itself, once more (`mobs::own`).
+        let model = Arc::new(body);
+        for key in [own::LAYER, own::TRANSLUCENT_LAYER] {
+            kind.layers.insert(key.to_owned(), model.clone());
+        }
+        kind.model = model;
         kind.anim = Anim::Own(
             read.animator
                 .map_or(own::NONE, |a| own::register(Arc::new(a))),
@@ -601,13 +614,25 @@ impl Game<'_> {
         self.pokemon_host_frame();
     }
 
-    /// An image in one of the atlas's Pokémon slots, as the sprite `sprite`. The slots are shared: only
-    /// the textures the Pokémon in the level, the party's portraits and the Balls in flight wear keep
-    /// theirs, and one nothing wears any more gives its slot to this one. `None` when every slot is worn
-    /// at once.
+    /// An image in one of the atlas's Pokémon slots, as the sprite `sprite` ([`Self::pokemon_sheets`]
+    /// for one image that is one sprite).
     fn pokemon_skin(&mut self, sprite: &str, (w, h, rgba): (u32, u32, Vec<u8>)) -> Option<()> {
+        self.pokemon_sheets(vec![looks::Sheet {
+            name: sprite.to_owned(),
+            width: w,
+            height: h,
+            rgba,
+            sprites: vec![(sprite.to_owned(), [0, 0, w, h])],
+        }])
+    }
+
+    /// Images in the atlas's Pokémon slots, a slot each, with the sprites each holds. The slots are
+    /// shared: only the textures the Pokémon in the level, the party's portraits and the Balls in flight
+    /// wear keep theirs, and one nothing wears any more gives its slot to one of these. `None` when
+    /// every slot is worn at once: the images placed until then keep their slots for the next try.
+    fn pokemon_sheets(&mut self, sheets: Vec<looks::Sheet>) -> Option<()> {
         let pokemon = &mut self.remote.as_mut()?.pokemon;
-        let worn: HashSet<String> = self
+        let mut worn: HashSet<String> = self
             .mobs
             .iter()
             .filter(|m| m.species() == Species::Pokemon)
@@ -618,36 +643,58 @@ impl Game<'_> {
             .chain(pokemon.phases.ball_textures(pokemon.captures.names()))
             .chain(pokemon.particles.textures())
             .collect();
+        // A look's other sheets are worn with its own; and these do not push one another out.
+        let others: Vec<String> = worn
+            .iter()
+            .filter_map(|look| pokemon.sheets.get(look))
+            .flatten()
+            .chain(sheets.iter().map(|sheet| &sheet.name))
+            .cloned()
+            .collect();
+        worn.extend(others);
         let slots = pokemon
             .slots
             .get_or_insert_with(|| SkinSlots::new(POKEMON_SLOTS));
         slots.next_frame(worn);
-        let (slot, evicted) = slots.place(sprite.to_owned())?;
-        let atlas = &mut self.gui.atlas;
-        if let Some(old) = evicted {
-            atlas.sprites.remove(&old);
-            // The looks that wore it are made again the next time they are seen.
-            pokemon
-                .looks
-                .retain(|_, look| look.as_ref().is_none_or(|l| l.kind.texture != old));
-            pokemon.party.forget_texture(&old);
-            pokemon.pcs.forget_texture(&old);
-            pokemon.phases.forget_texture(&old);
-            pokemon.particles.forget_texture(&old);
+        for sheet in sheets {
+            let (slot, evicted) = slots.place(sheet.name.clone())?;
+            let atlas = &mut self.gui.atlas;
+            if let Some(old) = evicted {
+                // Every sprite of the look it was of goes, in this slot or another: the looks that
+                // wore them are made again the next time they are seen.
+                let look = looks::look_of(&old).to_owned();
+                let its = format!("{look}|");
+                atlas
+                    .sprites
+                    .retain(|name, _| *name != look && !name.starts_with(&its));
+                pokemon.sheets.remove(&look);
+                pokemon
+                    .looks
+                    .retain(|_, made| made.as_ref().is_none_or(|l| l.kind.texture != look));
+                pokemon.party.forget_texture(&look);
+                pokemon.pcs.forget_texture(&look);
+                pokemon.phases.forget_texture(&look);
+                pokemon.particles.forget_texture(&look);
+            }
+            let slot = *atlas.sprites.get(&format!("horizon/pokemon{slot}"))?;
+            let (aw, ah) = (atlas.width as f32, atlas.height as f32);
+            // The image is the slot's top left corner, each sprite its own texels of it.
+            for (name, [x, y, width, height]) in sheet.sprites {
+                let mut rect = slot;
+                rect.u0 = slot.u0 + x as f32 / aw;
+                rect.v0 = slot.v0 + y as f32 / ah;
+                rect.u1 = rect.u0 + width as f32 / aw;
+                rect.v1 = rect.v0 + height as f32 / ah;
+                atlas.sprites.insert(name, rect);
+            }
+            self.map_patches.push(horizon_client::font::Patch {
+                x: (slot.u0 * aw).round() as u32,
+                y: (slot.v0 * ah).round() as u32,
+                width: sheet.width,
+                height: sheet.height,
+                rgba: sheet.rgba,
+            });
         }
-        let mut rect = *atlas.sprites.get(&format!("horizon/pokemon{slot}"))?;
-        let (aw, ah) = (atlas.width as f32, atlas.height as f32);
-        self.map_patches.push(horizon_client::font::Patch {
-            x: (rect.u0 * aw).round() as u32,
-            y: (rect.v0 * ah).round() as u32,
-            width: w,
-            height: h,
-            rgba,
-        });
-        // The texture is the slot's top left corner.
-        rect.u1 = rect.u0 + w as f32 / aw;
-        rect.v1 = rect.v0 + h as f32 / ah;
-        atlas.sprites.insert(sprite.to_owned(), rect);
         Some(())
     }
 

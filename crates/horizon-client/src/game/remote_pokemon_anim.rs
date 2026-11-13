@@ -6,19 +6,27 @@
 //! code (`q.look`, `q.quadruped_walk`...). `cobblelegacy_cobblemon` reads the files and does the math;
 //! this binds them to the parts the mob renderer poses.
 //!
+//! The same object says what the model is drawn with as time goes: the frame of a texture that has
+//! several, and the layers Cobblemon draws over the model (`PosableModel.render`: the model once more
+//! for each `ModelLayer` of its look, under that layer's texture).
+//!
 //! Not here yet: quirks (blinks), the blend from one pose into the next, named animations (cries,
-//! attacks), battle poses, and conditions on the world around the Pokémon (dusk, rain).
+//! attacks), battle poses, and conditions on the world around the Pokémon (dusk, rain); a layer's
+//! `tint` and `scrolling`, and frames blended into one another (`interpolation`), which no Pokémon
+//! file of Cobblemon 1.8.1 has.
 use cobblelegacy_cobblemon::{
     animation::AnimationFile,
     molang::{Context, Expression},
     pose::Delta,
     poser::{self, Poser},
+    resolver::Texture,
     wire::PoseType,
 };
 use horizon_client::mobs::{
     Mob,
     anim::{Poses, State, part_key},
-    own::OwnAnimation,
+    own::{self, OwnAnimation},
+    render::{self, Layer},
 };
 use std::sync::Arc;
 
@@ -103,6 +111,26 @@ pub(super) struct Animator {
     programs: Vec<Program>,
     /// The program of each `PoseType` (by ordinal), for a wild Pokémon out of battle.
     by_pose: [Option<usize>; 14],
+    /// The model's own texture when it has several frames, by their sprites in the atlas.
+    skin: Option<Texture>,
+    /// What is drawn over the model, in the look's order.
+    overlays: Vec<Overlay>,
+}
+
+/// One layer of a look (`resolver::Layer`), ready to draw.
+pub(super) struct Overlay {
+    /// The layer's texture, by its frames' sprites in the atlas.
+    pub(super) texture: Texture,
+    /// Drawn at full brightness and without shading, whatever the light on the Pokémon.
+    pub(super) emissive: bool,
+    /// Its texels blend with what is behind them; else each is there whole or not at all.
+    pub(super) translucent: bool,
+}
+
+/// `PosableState.animationSeconds` for an age in ticks, which is what a texture's frames go by
+/// (`AnimatedModelTextureSupplier`).
+fn seconds(age: f32) -> f32 {
+    age / 20.0
 }
 
 /// A MoLang source's value with nothing known of the entity: what a pose's conditions and a part's
@@ -180,7 +208,29 @@ impl Animator {
                 .pose_for(&entity, &mut value)
                 .and_then(|chosen| poser.poses.iter().position(|p| std::ptr::eq(p, chosen)));
         }
-        Self { programs, by_pose }
+        Self {
+            programs,
+            by_pose,
+            skin: None,
+            overlays: Vec::new(),
+        }
+    }
+
+    /// A model no poser poses: it stays at rest.
+    pub(super) fn still() -> Self {
+        Self {
+            programs: Vec::new(),
+            by_pose: [None; 14],
+            skin: None,
+            overlays: Vec::new(),
+        }
+    }
+
+    /// The same, drawn with `skin` when the model's own texture has several frames, and with
+    /// `overlays` over it.
+    pub(super) fn dressed(mut self, skin: Option<Texture>, overlays: Vec<Overlay>) -> Self {
+        (self.skin, self.overlays) = (skin, overlays);
+        self
     }
 
     /// The place in the poser's poses of the pose of each `PoseType`, by ordinal: what else is told
@@ -191,7 +241,48 @@ impl Animator {
 }
 
 impl OwnAnimation for Animator {
+    fn texture(&self, age: f32) -> Option<&str> {
+        self.skin.as_ref()?.at(seconds(age))
+    }
+
+    fn layers(&self, mob: &Mob, age: f32, out: &mut Vec<Layer>) {
+        // `PosableModel.render` gives a layer the model's own colour: the red of a Pokémon called back.
+        self.overlays_at(age, render::body_color(mob, 0.0), out);
+    }
+
     fn setup(&self, mob: &Mob, state: &State, poses: &mut Poses) {
+        self.pose(mob, state, poses);
+    }
+}
+
+impl Animator {
+    /// The layers drawn over the model `age` ticks into its life, in `color`.
+    fn overlays_at(&self, age: f32, color: u32, out: &mut Vec<Layer>) {
+        for overlay in &self.overlays {
+            // Past the last frame of a texture that does not start over, the last one stays; a layer
+            // whose texture has no frame for this moment is not drawn, as in Cobblemon.
+            let Some(sprite) = overlay.texture.at(seconds(age)) else {
+                continue;
+            };
+            // `PosableModel.getLayer`: an emissive layer is drawn by the emissive render type whether
+            // it is translucent or not; of the others, only a translucent one blends.
+            let model = if overlay.translucent && !overlay.emissive {
+                own::TRANSLUCENT_LAYER
+            } else {
+                own::LAYER
+            };
+            out.push(Layer {
+                model: model.into(),
+                texture: sprite.to_owned().into(),
+                color,
+                full_bright: overlay.emissive,
+                scroll: 0.0,
+            });
+        }
+    }
+
+    /// The model's parts in the pose the Pokémon is in, its animations run to the mob's age.
+    fn pose(&self, mob: &Mob, state: &State, poses: &mut Poses) {
         let pose = pose_of(mob.extra.variant);
         let Some(program) = self.by_pose[pose as usize].and_then(|i| self.programs.get(i)) else {
             return;
@@ -276,6 +367,120 @@ mod tests {
         assert_eq!(
             pose_of(with_pose(with_pose(Stand as u8, Sleep), Walk)),
             Walk
+        );
+    }
+
+    /// Ponyta's mane: four frames at ten a second, and eyes that glow whatever the hour.
+    fn dressed() -> Animator {
+        let flame = Texture::Animated {
+            frames: (1..=4).map(|i| format!("ponyta|{i}")).collect(),
+            fps: 10.0,
+            looping: true,
+            interpolation: false,
+        };
+        // `PoseType::None` is in scope here.
+        Animator::still().dressed(
+            Option::None,
+            vec![
+                Overlay {
+                    texture: flame,
+                    emissive: true,
+                    translucent: false,
+                },
+                Overlay {
+                    texture: Texture::Static("ponyta|5".into()),
+                    emissive: false,
+                    translucent: true,
+                },
+                Overlay {
+                    texture: Texture::Static("ponyta|6".into()),
+                    emissive: false,
+                    translucent: false,
+                },
+                Overlay {
+                    texture: Texture::Static("ponyta|7".into()),
+                    emissive: true,
+                    translucent: true,
+                },
+            ],
+        )
+    }
+
+    #[test]
+    fn a_layer_is_drawn_with_the_frame_of_the_moment() {
+        let animator = dressed();
+        let at = |age: f32| {
+            let mut layers = Vec::new();
+            animator.overlays_at(age, 0xFF11_2233, &mut layers);
+            layers
+        };
+        // Two ticks a frame at ten frames a second; the fifth frame is the first again.
+        let flames: Vec<String> = [0.0, 1.9, 2.0, 5.5, 6.0, 8.0, 801.0]
+            .iter()
+            .map(|&age| at(age)[0].texture.to_string())
+            .collect();
+        assert_eq!(
+            flames,
+            [
+                "ponyta|1", "ponyta|1", "ponyta|2", "ponyta|3", "ponyta|4", "ponyta|1", "ponyta|1"
+            ]
+        );
+        let layers = at(3.0);
+        let drawn: Vec<(&str, &str, bool)> = layers
+            .iter()
+            .map(|l| (&*l.model, &*l.texture, l.full_bright))
+            .collect();
+        // An emissive layer glows on the model's own key, translucent or not; of the others the
+        // translucent one alone is on the key that blends.
+        assert_eq!(
+            drawn,
+            [
+                (own::LAYER, "ponyta|2", true),
+                (own::TRANSLUCENT_LAYER, "ponyta|5", false),
+                (own::LAYER, "ponyta|6", false),
+                (own::LAYER, "ponyta|7", true),
+            ]
+        );
+        // Each in the colour it is given (the model's own), none scrolling.
+        assert!(
+            layers
+                .iter()
+                .all(|l| l.color == 0xFF11_2233 && l.scroll == 0.0)
+        );
+        // Nothing is drawn over a model without layers.
+        let mut none = Vec::new();
+        Animator::still().overlays_at(3.0, 0xFFFF_FFFF, &mut none);
+        assert!(none.is_empty());
+    }
+
+    #[test]
+    fn a_texture_of_several_frames_is_the_body_s_by_its_age() {
+        let coat = Texture::Animated {
+            frames: vec!["golurk".into(), "golurk|1".into(), "golurk|2".into()],
+            fps: 5.0,
+            looping: false,
+            interpolation: false,
+        };
+        let animator = Animator::still().dressed(Some(coat), Vec::new());
+        let frames: Vec<_> = [0.0, 3.9, 4.0, 8.0, 400.0]
+            .iter()
+            .map(|&age| OwnAnimation::texture(&animator, age))
+            .collect();
+        // Four ticks a frame, and the last one stays: it does not start over.
+        assert_eq!(
+            frames,
+            [
+                Some("golurk"),
+                Some("golurk"),
+                Some("golurk|1"),
+                Some("golurk|2"),
+                Some("golurk|2")
+            ]
+        );
+        // A still texture is the type's own all along.
+        assert_eq!(
+            OwnAnimation::texture(&Animator::still(), 12.0),
+            Option::None
         );
     }
 }

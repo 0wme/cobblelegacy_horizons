@@ -752,7 +752,13 @@ impl Game<'_> {
                 continue;
             }
             let normal = normal.normalize_or_zero();
-            let shade = (0.55 + 0.45 * -normal.z - 0.15 * normal.y).clamp(0.4, 1.0);
+            // A layer that glows comes without a normal (`mobs::render`): it is not shaded, as in
+            // the world.
+            let shade = if quad[0].normal == [0; 4] {
+                1.0
+            } else {
+                (0.55 + 0.45 * -normal.z - 0.15 * normal.y).clamp(0.4, 1.0)
+            };
             let colour = quad[0].color;
             let channel = |shift: u32| ((((colour >> shift) & 255) as f32 * shade) as u32) << shift;
             quads.push((
