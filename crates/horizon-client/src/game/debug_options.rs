@@ -524,6 +524,7 @@ fn debug_options_interrupts(screen: Screen, playing_overlay: bool) -> bool {
         | Screen::PokemonBattle
         | Screen::PokemonPc
         | Screen::PokemonSummary
+        | Screen::Hosted
         | Screen::Stats
         | Screen::Advancements
         | Screen::Friends

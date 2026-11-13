@@ -471,6 +471,7 @@ impl Game<'_> {
             Screen::PokemonBattle => "pokemon-battle",
             Screen::PokemonPc => "pokemon-pc",
             Screen::PokemonSummary => "pokemon-summary",
+            Screen::Hosted => "hosted",
             Screen::Paused => "paused",
             Screen::Options => "options",
             Screen::Inventory if self.station.is_some() => "station",

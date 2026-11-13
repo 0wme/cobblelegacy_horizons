@@ -69,6 +69,8 @@ impl Screen {
             | Self::PokemonPc
             // And a Pokémon's summary (`Summary.isPauseScreen`).
             | Self::PokemonSummary
+            // And a screen another process draws, over the world as they are.
+            | Self::Hosted
             // WinScreen.isPauseScreen is `!poem`: Game::win_screen_pauses.
             | Self::Win => false,
             // Every other screen, and the game-master block editors
@@ -110,6 +112,7 @@ impl Screen {
             | Self::PokemonBattle
             | Self::PokemonPc
             | Self::PokemonSummary
+            | Self::Hosted
             | Self::Chat
             | Self::Creative
             | Self::Inventory
@@ -993,6 +996,7 @@ mod tests {
             Screen::PokemonBattle,
             Screen::PokemonPc,
             Screen::PokemonSummary,
+            Screen::Hosted,
             Screen::Mod,
             Screen::Studio,
             Screen::Win,
