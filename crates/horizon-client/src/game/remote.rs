@@ -2362,11 +2362,7 @@ impl Game<'_> {
             streaming.remote = true;
             streaming.radius = self.streaming.radius;
             self.streaming = streaming;
-            let (time, day, weather) = (
-                self.world.game_time,
-                self.world.day_time,
-                self.world.weather,
-            );
+            let (time, day) = (self.world.game_time, self.world.day_time);
             let old = std::mem::take(&mut self.world.chunks);
             let count = old.len();
             horizon_client::chunk::free_columns(old, count);
@@ -2374,7 +2370,12 @@ impl Game<'_> {
             self.world.shape = shape;
             self.world.game_time = time;
             self.world.day_time = day;
-            self.world.weather = weather;
+            // The weather is not carried over: a new ClientLevel starts dry
+            // (`Level.prepareWeather` on fresh level data), and the server says
+            // again that it rains when it does (`PlayerList.sendLevelInfo`) and
+            // nothing when it does not. Carried over, the rain of the level left
+            // behind never stopped in a dry one: a proxy's next server, or the
+            // overworld found dry on the way back from the Nether.
             self.mobs.clear();
             self.clear_remote_objects();
             self.clear_remote_projectiles();

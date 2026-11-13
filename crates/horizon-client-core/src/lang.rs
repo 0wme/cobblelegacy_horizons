@@ -441,17 +441,38 @@ impl ResourceSource for std::path::PathBuf {
 /// DeprecatedTranslationsInfo.applyToMap: drop removed keys, then move each
 /// renamed key's text to its new key (a missing old key removes the new one).
 pub fn apply_deprecated(map: &mut HashMap<String, String>, json: &[u8]) {
+    apply_deprecated_keeping(map, json, false);
+}
+
+/// Whether the game may join servers older than its resources: `HORIZON_OLDER_SERVERS=1`, the
+/// switch of the protocol adapter.
+fn joins_older_servers() -> bool {
+    std::env::var_os("HORIZON_OLDER_SERVERS").is_some_and(|v| v == "1")
+}
+
+/// [`apply_deprecated`], or with `keep_old` what a game that also joins older servers reads: such a
+/// server still names the keys this version removed or renamed (a 1.21.1 server answers `/time set`
+/// with `commands.time.set`, which 26.3 lists as removed, and the chat showed the key). A removed
+/// key then keeps its text, and a renamed one is read under its old name too.
+fn apply_deprecated_keeping(map: &mut HashMap<String, String>, json: &[u8], keep_old: bool) {
     let Ok(info) = serde_json::from_slice::<serde_json::Value>(json) else {
         return;
     };
     for key in info["removed"].as_array().into_iter().flatten() {
-        if let Some(k) = key.as_str() {
+        if let Some(k) = key.as_str()
+            && !keep_old
+        {
             map.remove(k);
         }
     }
     for (from, to) in info["renamed"].as_object().into_iter().flatten() {
         let Some(to) = to.as_str() else { continue };
-        match map.remove(from) {
+        let old = if keep_old {
+            map.get(from).cloned()
+        } else {
+            map.remove(from)
+        };
+        match old {
             Some(value) => {
                 map.insert(to.to_owned(), value);
             }
@@ -556,7 +577,7 @@ impl Language {
             .iter()
             .find_map(|s| s.read("assets/minecraft/lang/deprecated.json"))
         {
-            apply_deprecated(&mut map, &bytes);
+            apply_deprecated_keeping(&mut map, &bytes, joins_older_servers());
         }
         let bidirectional = available(sources)
             .iter()
@@ -718,6 +739,41 @@ mod tests {
             self.0.get(path).cloned()
         }
     }
+    /// A game that also joins older servers keeps what they still name: the text of a key this
+    /// version removed, and a renamed key under its old name as well as its new one.
+    #[test]
+    fn deprecated_keys_stay_readable_for_older_servers() {
+        let lang = || {
+            HashMap::from([
+                ("commands.time.set".to_owned(), "Set the time to %s".to_owned()),
+                ("old.name".to_owned(), "Renamed".to_owned()),
+                ("stays".to_owned(), "Stays".to_owned()),
+                ("orphan.new".to_owned(), "Orphan".to_owned()),
+            ])
+        };
+        let info = br#"{"removed": ["commands.time.set"],
+            "renamed": {"old.name": "new.name", "orphan.old": "orphan.new"}}"#;
+        // As vanilla: the removed key is gone, the renamed one has only its new name, and a new
+        // name whose old one is missing goes too.
+        let mut map = lang();
+        apply_deprecated(&mut map, info);
+        assert_eq!(map.get("commands.time.set"), None);
+        assert_eq!(map.get("old.name"), None);
+        assert_eq!(map.get("new.name").map(String::as_str), Some("Renamed"));
+        assert_eq!(map.get("orphan.new"), None);
+        assert_eq!(map.get("stays").map(String::as_str), Some("Stays"));
+        // For older servers: both stay readable.
+        let mut map = lang();
+        apply_deprecated_keeping(&mut map, info, true);
+        assert_eq!(
+            map.get("commands.time.set").map(String::as_str),
+            Some("Set the time to %s")
+        );
+        assert_eq!(map.get("old.name").map(String::as_str), Some("Renamed"));
+        assert_eq!(map.get("new.name").map(String::as_str), Some("Renamed"));
+        assert_eq!(map.get("orphan.new"), None);
+    }
+
     /// CobbleLegacy's fork: a mod's folders (Cobblemon's resources, the server's pack under them) give
     /// their namespaces' text to the language, English under the language chosen, the last folder
     /// over the first, and all of them over the game's own sources.
