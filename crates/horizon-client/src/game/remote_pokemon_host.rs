@@ -48,6 +48,11 @@ const LAUNCH: &str = "HORIZON_SCREEN_HOST";
 /// textures), which a screen names its items and effects from.
 const RESOURCES: &str = "HORIZON_RESOURCES";
 
+/// The variable the host is started with, which says this game lays the host's HUD layer over play
+/// (a mod's `HudRenderCallback`). A game that does not say so would open that layer as a screen: the
+/// host shows none to it.
+const HUD_LAYER: &str = "HORIZON_HOST_HUD";
+
 /// The channels the running host reads, which [`reads`] answers from: `remote.rs` asks before it has
 /// the game at hand. `None` until a host has said which.
 static CHANNELS: RwLock<Option<Vec<String>>> = RwLock::new(None);
@@ -304,6 +309,9 @@ pub(super) mod wire {
             /// `keyPressed` is its own): the key goes to the host as the others do, and the host says
             /// when the screen closes.
             keeps_escape: bool,
+            /// Not a screen but the host's HUD layer (what mods draw during play, a boss's health
+            /// bar): its image lies over play, takes no input and no screen's place.
+            hud: bool,
         },
         /// The screen closes by itself.
         Hide,
@@ -396,6 +404,7 @@ pub(super) mod wire {
                 FromHost::Show {
                     name,
                     keeps_escape: flags & 1 != 0,
+                    hud: flags & 2 != 0,
                 }
             }
             3 => FromHost::Hide,
@@ -531,6 +540,13 @@ fn players_json(players: &[(u128, &str)]) -> String {
 /// is in the main hand (a screen takes « the item in hand » from it), and the stacks.
 fn inventory_json(size: usize, selected: usize, items: Vec<serde_json::Value>) -> String {
     serde_json::json!({ "size": size, "selected": selected, "items": items }).to_string()
+}
+
+/// The size of the image to draw as the host's HUD layer: when what the host shows is that layer
+/// and not a screen, and once the slot holds its image (a layer just shown has sent none yet, and the
+/// slot still holds the screen that was there before).
+fn hud_layer_image(hud: bool, image: Option<[u32; 2]>) -> Option<[u32; 2]> {
+    image.filter(|_| hud)
 }
 
 /// The bytes the shared file holds for the slot's largest image.
@@ -686,6 +702,7 @@ impl Link {
             .arg("--size")
             .arg(file_size().to_string())
             .env(RESOURCES, resources)
+            .env(HUD_LAYER, "1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());
@@ -869,6 +886,8 @@ pub(super) struct Host {
     open: Option<String>,
     /// That screen reads Escape itself.
     keeps_escape: bool,
+    /// What is open is the host's HUD layer, drawn with the game's HUD, and not a screen.
+    hud: bool,
     /// The size of the image the atlas's slot holds.
     image: Option<[u32; 2]>,
     /// The image's size and scale the host was last told, and how many window pixels one of its
@@ -1165,7 +1184,12 @@ impl Game<'_> {
                     *read = Some(channels);
                 }
             }
-            FromHost::Show { name, keeps_escape } => self.pokemon_host_show(name, keeps_escape),
+            FromHost::Show {
+                name, hud: true, ..
+            } => self.pokemon_host_hud(name),
+            FromHost::Show {
+                name, keeps_escape, ..
+            } => self.pokemon_host_show(name, keeps_escape),
             FromHost::Hide => self.pokemon_host_hidden(),
             FromHost::Frame(frame) => self.pokemon_host_image(frame),
             FromHost::Seen(serial) => {
@@ -1229,9 +1253,17 @@ impl Game<'_> {
             self.screen = Screen::Playing;
         }
         if !matches!(self.screen, Screen::Playing | Screen::Hosted) {
-            // Another screen has the window: the host's is turned away.
-            if let Some(link) = self.pokemon_host().and_then(|host| host.link.as_ref()) {
-                link.tell(&ToHost::Closed);
+            // Another screen has the window: the host's is turned away. Its image took the place of
+            // the HUD layer's, if that was shown: the layer is gone until the host shows it again.
+            if let Some(host) = self.pokemon_host() {
+                if host.hud {
+                    host.hud = false;
+                    host.open = None;
+                    host.image = None;
+                }
+                if let Some(link) = &host.link {
+                    link.tell(&ToHost::Closed);
+                }
             }
             return;
         }
@@ -1240,6 +1272,7 @@ impl Game<'_> {
         };
         log::info!("Horizon: the screen host shows {name}");
         host.open = Some(name);
+        host.hud = false;
         host.keeps_escape = keeps_escape;
         host.opened = Some(Instant::now());
         host.overlays.clear();
@@ -1254,6 +1287,48 @@ impl Game<'_> {
             self.mining = None;
             self.capture(false);
         }
+    }
+
+    /// The host shows its HUD layer: an image over play, which takes no input and no screen's place
+    /// (what a mod draws from `HudRenderCallback`). A screen of the host's that was open gives way to
+    /// it, as when the host hides that screen.
+    fn pokemon_host_hud(&mut self, name: String) {
+        if self.screen == Screen::Hosted {
+            self.screen = Screen::Playing;
+            self.capture(true);
+        }
+        let Some(host) = self.pokemon_host() else {
+            return;
+        };
+        if !host.hud {
+            log::info!("Horizon: the screen host lays its HUD layer over play");
+        }
+        host.open = Some(name);
+        host.hud = true;
+        host.keeps_escape = false;
+        host.overlays.clear();
+        host.image = None;
+        host.pointer = None;
+        host.stats.open_ms = None;
+    }
+
+    /// The host's HUD layer, with the game's own HUD: its image over the whole window, once the
+    /// host has sent all of it. F1 hides it with the rest.
+    pub(in super::super::super) fn draw_pokemon_host_hud(&mut self, batch: &mut HudBatch) {
+        let Some(host) = self.remote.as_ref().map(|r| &r.pokemon.host) else {
+            return;
+        };
+        let Some([width, height]) = hud_layer_image(host.hud, host.image) else {
+            return;
+        };
+        let atlas = &self.gui.atlas;
+        let Some(mut rect) = atlas.sprites.get(HOSTED_SCREEN_SPRITE).copied() else {
+            return;
+        };
+        // The image is the slot's top left corner.
+        rect.u1 = rect.u0 + width as f32 / atlas.width as f32;
+        rect.v1 = rect.v0 + height as f32 / atlas.height as f32;
+        batch.rect_uv(0.0, 0.0, batch.width, batch.height, rect, u32::MAX);
     }
 
     /// The host's screen is no more, by its own doing or because the host is gone.
@@ -1281,6 +1356,7 @@ impl Game<'_> {
             host.overlays.clear();
             host.image = None;
             host.keeps_escape = false;
+            host.hud = false;
         }
         if self.screen == Screen::Hosted {
             self.screen = Screen::Playing;
@@ -1705,6 +1781,7 @@ impl Game<'_> {
             "ready_ms": stats.ready_ms,
             "startup_ms": stats.startup_ms,
             "screen": host.open,
+            "hud": host.hud,
             "keeps_escape": host.keeps_escape,
             "image": host.image,
             "divisor": host.divisor,
@@ -1817,6 +1894,7 @@ mod tests {
             Ok(FromHost::Show {
                 name: "s".to_owned(),
                 keeps_escape: false,
+                hud: false,
             })
         );
         assert_eq!(
@@ -1824,6 +1902,16 @@ mod tests {
             Ok(FromHost::Show {
                 name: "s".to_owned(),
                 keeps_escape: true,
+                hud: false,
+            })
+        );
+        // And whether it is its HUD layer and no screen at all.
+        assert_eq!(
+            wire::read(&[2, 0, 0, 0, 1, b'h', 2]),
+            Ok(FromHost::Show {
+                name: "h".to_owned(),
+                keeps_escape: false,
+                hud: true,
             })
         );
         assert_eq!(
@@ -1984,6 +2072,15 @@ mod tests {
         assert!(escape_is_the_host_s(true, Some(Duration::from_millis(200))));
         // A host that has not answered for that long is taken for hung: Escape closes its screen.
         assert!(!escape_is_the_host_s(true, Some(HUNG)));
+    }
+
+    #[test]
+    fn the_hud_layer_is_drawn_once_its_own_image_is_there() {
+        // A screen's image is never the HUD layer's, and a layer just shown has no image yet: the
+        // slot still holds what was drawn before.
+        assert_eq!(hud_layer_image(false, Some([1280, 720])), None);
+        assert_eq!(hud_layer_image(true, None), None);
+        assert_eq!(hud_layer_image(true, Some([1280, 720])), Some([1280, 720]));
     }
 
     #[test]
