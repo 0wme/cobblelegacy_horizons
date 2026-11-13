@@ -22,8 +22,8 @@
 //! Not here yet: Cobblemon's own font (the game's stands in, narrowed where it is wider); the Stats
 //! tab's Ride view and the species' own bars under Other (steps...); the marks themselves (the server's
 //! mark registry is not read: the Marks tab shows its empty slots); the evolve button and its list; the
-//! cosmetic item's slot beyond its label; the model's cry on a click, its head following the pointer,
-//! its held item and its layers; tooltips (the item's, the size's, a mint's); the type a move takes
+//! cosmetic item's slot beyond its label; the model's cry on a click, its head following the pointer
+//! and its held item; tooltips (the item's, the size's, a mint's); the type a move takes
 //! from the Pokémon that knows it (Hidden Power, Tera Blast: the move's own type is shown); moving the
 //! cursor inside the name box (it types and erases at its end); the screen's sounds beyond the click;
 //! and a party of someone else's (the screen always shows the player's own, editable).

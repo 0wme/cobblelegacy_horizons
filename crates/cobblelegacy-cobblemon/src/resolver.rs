@@ -86,6 +86,35 @@ impl Texture {
             Self::Variable => None,
         }
     }
+
+    /// Every texture id this may show, in the frames' order; none for [`Texture::Variable`].
+    pub fn frames(&self) -> &[String] {
+        match self {
+            Self::Static(id) => std::slice::from_ref(id),
+            Self::Animated { frames, .. } => frames,
+            Self::Variable => &[],
+        }
+    }
+
+    /// The same texture over other names for its frames, as many as [`Self::frames`] gives and in their
+    /// order: an atlas's sprites in place of texture ids, shown at the same moments.
+    pub fn over(&self, names: &[String]) -> Self {
+        match self {
+            Self::Static(id) => Self::Static(names.first().unwrap_or(id).clone()),
+            Self::Animated {
+                fps,
+                looping,
+                interpolation,
+                ..
+            } => Self::Animated {
+                frames: names.to_vec(),
+                fps: *fps,
+                looping: *looping,
+                interpolation: *interpolation,
+            },
+            Self::Variable => Self::Variable,
+        }
+    }
 }
 
 /// `ModelLayer`: the model drawn once more over itself, with another texture. Its `tint` and `scrolling`
@@ -112,6 +141,61 @@ pub struct Resolved {
     pub texture: Texture,
     /// In the order their names first came up.
     pub layers: Vec<Layer>,
+}
+
+impl Resolved {
+    /// The layers that draw something, in their order: Cobblemon skips one without a texture.
+    pub fn drawn_layers(&self) -> impl Iterator<Item = &Layer> {
+        self.layers.iter().filter(|layer| layer.texture.is_some())
+    }
+
+    /// What tells this look's textures from another's that starts with the same one: empty when that
+    /// first texture is all it is drawn with, else `#` and sixteen hexadecimal digits that change with
+    /// any texture, its timing, or how a layer is drawn. Two looks of one name can share what an atlas
+    /// holds for them.
+    pub fn dress(&self) -> String {
+        if self.texture.frames().len() <= 1 && self.drawn_layers().next().is_none() {
+            return String::new();
+        }
+        // FNV-1a, 64 bits: the same from one run to the next. Each piece ends with a byte no id has.
+        fn feed(hash: &mut u64, bytes: &[u8]) {
+            for byte in bytes.iter().chain(&[0xff]) {
+                *hash = (*hash ^ u64::from(*byte)).wrapping_mul(0x0000_0100_0000_01b3);
+            }
+        }
+        fn feed_texture(hash: &mut u64, texture: &Texture) {
+            for frame in texture.frames() {
+                feed(hash, frame.as_bytes());
+            }
+            if let Texture::Animated {
+                fps,
+                looping,
+                interpolation,
+                ..
+            } = texture
+            {
+                feed(hash, &fps.to_bits().to_le_bytes());
+                feed(hash, &[u8::from(*looping), u8::from(*interpolation)]);
+            }
+            feed(hash, &[]);
+        }
+        let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+        feed_texture(&mut hash, &self.texture);
+        for layer in self.drawn_layers() {
+            if let Some(texture) = &layer.texture {
+                feed_texture(&mut hash, texture);
+            }
+            feed(
+                &mut hash,
+                &[
+                    u8::from(layer.emissive),
+                    u8::from(layer.translucent),
+                    u8::from(layer.translucent_cull),
+                ],
+            );
+        }
+        format!("#{hash:016x}")
+    }
 }
 
 /// A boolean as Gson reads one: `true`, `false`, or a string, true when it says `true` in any case
@@ -727,5 +811,79 @@ mod tests {
             let error = poser_root_bone(bad).unwrap_err();
             assert!(error.0.starts_with("poser: "), "{bad}: {}", error.0);
         }
+    }
+
+    #[test]
+    fn a_texture_keeps_its_timing_over_other_names() {
+        let flame = Texture::Animated {
+            frames: vec!["cobblemon:a.png".into(), "cobblemon:b.png".into()],
+            fps: 10.0,
+            looping: false,
+            interpolation: false,
+        };
+        assert_eq!(flame.frames(), ["cobblemon:a.png", "cobblemon:b.png"]);
+        let sprites = flame.over(&["slot|1".to_owned(), "slot|2".to_owned()]);
+        assert_eq!(sprites.frames(), ["slot|1", "slot|2"]);
+        // The second frame from a tenth of a second on, and it stays: the file's own timing.
+        assert_eq!(sprites.at(0.05), Some("slot|1"));
+        assert_eq!(sprites.at(0.1), Some("slot|2"));
+        assert_eq!(sprites.at(9.0), Some("slot|2"));
+        let coat = still("testmon");
+        assert_eq!(coat.frames().len(), 1);
+        assert_eq!(
+            coat.over(&["slot".to_owned()]),
+            Texture::Static("slot".into())
+        );
+        assert!(Texture::Variable.frames().is_empty());
+        assert_eq!(Texture::Variable.over(&[]), Texture::Variable);
+    }
+
+    #[test]
+    fn a_look_s_dress_tells_what_it_is_drawn_with() {
+        let plain = pick(&[ResolverFile::parse(FEMALE).unwrap(), ResolverFile::parse(
+            r#"{"species": "cobblemon:testmon", "variations": [{"poser": "cobblemon:testmon",
+                "model": "cobblemon:testmon.geo", "texture": "cobblemon:textures/pokemon/testmon.png"}]}"#,
+        )
+        .unwrap()], &[])
+        .unwrap();
+        // One texture and nothing over it: no need to tell it from itself.
+        assert_eq!(plain.dress(), "");
+        let glowing = pick(&files(), &[]).unwrap();
+        let dress = glowing.dress();
+        assert_eq!(dress.len(), 17);
+        assert!(dress.starts_with('#'));
+        assert!(dress[1..].bytes().all(|b| b.is_ascii_hexdigit()));
+        // The same look says the same, a different layer says otherwise.
+        assert_eq!(pick(&files(), &["male"]).unwrap().dress(), dress);
+        let shiny = pick(&files(), &["shiny"]).unwrap();
+        assert_ne!(shiny.dress(), dress);
+        let mut dimmed = glowing.clone();
+        dimmed.layers[0].emissive = false;
+        assert_ne!(dimmed.dress(), dress);
+        let mut faster = shiny.clone();
+        if let Some(Texture::Animated { fps, .. }) = &mut faster.layers[1].texture {
+            *fps = 20.0;
+        }
+        assert_ne!(faster.dress(), shiny.dress());
+        // A layer without a texture draws nothing: it is no part of the dress.
+        let mut bare = plain.clone();
+        bare.layers.push(Layer {
+            texture: None,
+            ..layer("empty", still("unused"))
+        });
+        assert_eq!(bare.dress(), "");
+        assert_eq!(bare.drawn_layers().count(), 0);
+        // A texture of several frames alone is told from its first frame alone.
+        let mut flickering = plain.clone();
+        flickering.texture = Texture::Animated {
+            frames: vec![
+                "cobblemon:textures/pokemon/testmon.png".into(),
+                "cobblemon:textures/pokemon/testmon_2.png".into(),
+            ],
+            fps: 1.0,
+            looping: true,
+            interpolation: false,
+        };
+        assert_ne!(flickering.dress(), "");
     }
 }

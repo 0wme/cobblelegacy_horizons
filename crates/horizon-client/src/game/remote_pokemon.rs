@@ -12,9 +12,13 @@
 //! a texture for the Pokémon's aspects, the geometry becomes a `Part` tree and the texture goes into one of
 //! the atlas's Pokémon slots. Its poser then poses it each draw (`remote_pokemon_anim.rs`): the species'
 //! poser file, or for the third of the species whose poser Cobblemon writes in Kotlin, that class converted
-//! to the same format (`cobblelegacy_cobblemon::coded_posers`). No layer (emissive parts, Charizard's
-//! flame) is drawn yet. Without the resources, or for a species that fails to load, a vanilla
-//! body stands in.
+//! to the same format (`cobblelegacy_cobblemon::coded_posers`). The layers its resolver names are drawn
+//! over it (emissive parts, Charizard's flame), their textures in the same slot as the model's when
+//! they fit (`remote_pokemon_looks.rs`). Without the resources, or for a species that fails to load, a
+//! vanilla body stands in.
+//!
+//! A Pokémon whose species or aspects change where it stands (it evolves, it is sheared) gets the
+//! look they now pick ([`Game::pokemon_relook`]).
 //!
 //! The same looks draw the portraits of the player's own party (`remote_pokemon_party.rs`).
 use super::super::Game;
@@ -86,6 +90,9 @@ const STAND_IN: &str = "minecraft:parrot";
 /// Cobblemon's models stand on y = 0, and `PosableEntityModel` moves them 1.5 blocks back.
 const GROUND: f32 = 24.0;
 
+/// The part a look's model hangs from: what stands it on the ground at its species' size.
+const STAND: &str = "#stand";
+
 /// What the window knows of the server's Pokémon.
 #[derive(Default)]
 pub(super) struct Pokemon {
@@ -103,6 +110,8 @@ pub(super) struct Pokemon {
     stand_ins: HashMap<String, Arc<MobType>>,
     /// Which texture is in which of the atlas's Pokémon slots.
     slots: Option<SkinSlots>,
+    /// The slots a look's textures take beyond its first, by the look's sprite: they are worn with it.
+    sheets: HashMap<String, Vec<String>>,
     /// What the server said of each Pokémon in view when it appeared, by entity id.
     seen: HashMap<i32, SpawnPokemon>,
     /// What their labels read: each one's name and level, the server's switches, the player's Pokédex.
@@ -123,6 +132,8 @@ pub(super) struct Pokemon {
     captures: capture::Captures,
     /// The particle effects that play.
     particles: particles::Particles,
+    /// What poses each Pokémon of the level, and so what it plays.
+    players: anim::Players,
     /// The summary screen of one of the player's Pokémon.
     summary: summary::Summary,
     /// The process that draws the screens of the server's mods, and the one it shows.
@@ -150,6 +161,9 @@ struct Look {
     portrait_translation: [f32; 3],
     /// The sounds of its named animations (a cry).
     voice: Arc<sounds::Voice>,
+    /// What poses the model, for what its poses' animations start as they go (particle effects):
+    /// the same one the type's `anim` names.
+    animator: Option<Arc<anim::Animator>>,
     /// The poser's `profileScale` and `profileTranslation`, which stand the whole model in a slot of
     /// the summary's party, and the summary's own for the model it shows large.
     profile_scale: f32,
@@ -165,6 +179,8 @@ impl Pokemon {
         self.phases.forget(id);
         self.sounds.forget(id);
         self.captures.forget(id);
+        self.particles.forget(id);
+        self.players.forget(id);
     }
 }
 
@@ -388,7 +404,9 @@ impl Assets {
 }
 
 /// A geometry's part as the mob renderer's: the same pixels, pose and faces (`ModelPart`'s conventions on
-/// both sides).
+/// both sides). Each face is seen from its front only, as Cobblemon draws a model
+/// (`RenderType.entityCutout`): the two sides of a flat box each show their own texels, and a box
+/// turned inside out shows its inner walls.
 fn part(bone: &geo::Bone, texture: [u32; 2]) -> Part {
     let [x, y, z] = bone.offset;
     let [rx, ry, rz] = bone.rotation;
@@ -402,10 +420,28 @@ fn part(bone: &geo::Bone, texture: [u32; 2]) -> Part {
             .map(|quad| Polygon {
                 normal: quad.normal,
                 vertices: quad.vertices,
-                cull_back: false,
+                cull_back: true,
             })
             .collect(),
         children: bone.children.iter().map(|b| part(b, texture)).collect(),
+    }
+}
+
+/// `part` with every face seen from both sides, for the layers Cobblemon draws that way
+/// (`RenderType.entityTranslucent`).
+fn two_sided(part: &Part) -> Part {
+    Part {
+        name: part.name.clone(),
+        pose: part.pose,
+        polygons: part
+            .polygons
+            .iter()
+            .map(|polygon| Polygon {
+                cull_back: false,
+                ..polygon.clone()
+            })
+            .collect(),
+        children: part.children.iter().map(two_sided).collect(),
     }
 }
 
@@ -464,10 +500,10 @@ impl Game<'_> {
         let Some(resolved) = resolved else {
             return Looked::None;
         };
-        let Some(texture_id) = resolved.texture.at(0.0) else {
+        let Some(sprite) = looks::sprite(&resolved) else {
             return Looked::None;
         };
-        let key = (resolved.model.clone(), texture_id.to_owned());
+        let key = (resolved.model.clone(), sprite);
         if let Some(look) = pokemon.looks.get(&key) {
             return look.clone().map_or(Looked::None, Looked::Made);
         }
@@ -484,7 +520,7 @@ impl Game<'_> {
             .ask(looks::Wanted {
                 key,
                 species: species_id.to_owned(),
-                poser: resolved.poser.clone(),
+                resolved,
             });
         Looked::Reading
     }
@@ -537,20 +573,37 @@ impl Game<'_> {
         // Stood on the ground and sized, around its feet: a part of its own above the model's
         // root, whose pose animations change (`PokemonRenderer` scales outside the model too).
         let body = Part {
-            name: "#stand".into(),
+            name: STAND.into(),
             pose: [
                 0.0, GROUND, 0.0, 0.0, 0.0, 0.0, base_scale, base_scale, base_scale,
             ],
             polygons: Vec::new(),
             children: vec![read.root],
         };
-        let sprite = format!("cobblemon/{}", path_of(&wanted.key.1));
-        self.pokemon_skin(&sprite, read.texture)?;
+        let sprite = wanted.key.1.clone();
+        let more: Vec<String> = read.sheets.iter().skip(1).map(|s| s.name.clone()).collect();
+        self.pokemon_sheets(read.sheets)?;
+        if !more.is_empty() {
+            let pokemon = &mut self.remote.as_mut()?.pokemon;
+            pokemon.sheets.insert(sprite.clone(), more);
+        }
         let mut kind = pokemon_type(&template, &wanted.species);
-        kind.model = Arc::new(body);
+        // Its layers are the model itself, once more (`mobs::own`); the few seen from both sides
+        // have a model of their own.
+        let model = Arc::new(body);
+        for key in [own::LAYER, own::TRANSLUCENT_CULL_LAYER] {
+            kind.layers.insert(key.to_owned(), model.clone());
+        }
+        let animator = read.animator.map(Arc::new);
+        if animator.as_deref().is_some_and(anim::Animator::two_sided) {
+            let both = Arc::new(two_sided(&model));
+            kind.layers.insert(own::TRANSLUCENT_LAYER.to_owned(), both);
+        }
+        kind.model = model;
         kind.anim = Anim::Own(
-            read.animator
-                .map_or(own::NONE, |a| own::register(Arc::new(a))),
+            animator
+                .clone()
+                .map_or(own::NONE, |animator| own::register(animator)),
         );
         kind.texture = sprite;
         // `PokemonEntity.getDimensions`: the hitbox by the base scale.
@@ -566,6 +619,7 @@ impl Game<'_> {
             portrait_scale,
             portrait_translation,
             voice: Arc::new(read.voice),
+            animator,
             profile_scale,
             profile_translation,
             summary_scale,
@@ -594,6 +648,7 @@ impl Game<'_> {
     /// Once a frame, before it is drawn: what of the Pokémon moves on by itself.
     pub(in super::super) fn pokemon_frame(&mut self) {
         self.pokemon_looks_frame();
+        self.pokemon_animation_frame();
         self.pokemon_phase_frame();
         self.pokemon_sounds_frame();
         self.pokemon_capture_frame();
@@ -601,13 +656,25 @@ impl Game<'_> {
         self.pokemon_host_frame();
     }
 
-    /// An image in one of the atlas's Pokémon slots, as the sprite `sprite`. The slots are shared: only
-    /// the textures the Pokémon in the level, the party's portraits and the Balls in flight wear keep
-    /// theirs, and one nothing wears any more gives its slot to this one. `None` when every slot is worn
-    /// at once.
+    /// An image in one of the atlas's Pokémon slots, as the sprite `sprite` ([`Self::pokemon_sheets`]
+    /// for one image that is one sprite).
     fn pokemon_skin(&mut self, sprite: &str, (w, h, rgba): (u32, u32, Vec<u8>)) -> Option<()> {
+        self.pokemon_sheets(vec![looks::Sheet {
+            name: sprite.to_owned(),
+            width: w,
+            height: h,
+            rgba,
+            sprites: vec![(sprite.to_owned(), [0, 0, w, h])],
+        }])
+    }
+
+    /// Images in the atlas's Pokémon slots, a slot each, with the sprites each holds. The slots are
+    /// shared: only the textures the Pokémon in the level, the party's portraits and the Balls in flight
+    /// wear keep theirs, and one nothing wears any more gives its slot to one of these. `None` when
+    /// every slot is worn at once: the images placed until then keep their slots for the next try.
+    fn pokemon_sheets(&mut self, sheets: Vec<looks::Sheet>) -> Option<()> {
         let pokemon = &mut self.remote.as_mut()?.pokemon;
-        let worn: HashSet<String> = self
+        let mut worn: HashSet<String> = self
             .mobs
             .iter()
             .filter(|m| m.species() == Species::Pokemon)
@@ -618,36 +685,58 @@ impl Game<'_> {
             .chain(pokemon.phases.ball_textures(pokemon.captures.names()))
             .chain(pokemon.particles.textures())
             .collect();
+        // A look's other sheets are worn with its own; and these do not push one another out.
+        let others: Vec<String> = worn
+            .iter()
+            .filter_map(|look| pokemon.sheets.get(look))
+            .flatten()
+            .chain(sheets.iter().map(|sheet| &sheet.name))
+            .cloned()
+            .collect();
+        worn.extend(others);
         let slots = pokemon
             .slots
             .get_or_insert_with(|| SkinSlots::new(POKEMON_SLOTS));
         slots.next_frame(worn);
-        let (slot, evicted) = slots.place(sprite.to_owned())?;
-        let atlas = &mut self.gui.atlas;
-        if let Some(old) = evicted {
-            atlas.sprites.remove(&old);
-            // The looks that wore it are made again the next time they are seen.
-            pokemon
-                .looks
-                .retain(|_, look| look.as_ref().is_none_or(|l| l.kind.texture != old));
-            pokemon.party.forget_texture(&old);
-            pokemon.pcs.forget_texture(&old);
-            pokemon.phases.forget_texture(&old);
-            pokemon.particles.forget_texture(&old);
+        for sheet in sheets {
+            let (slot, evicted) = slots.place(sheet.name.clone())?;
+            let atlas = &mut self.gui.atlas;
+            if let Some(old) = evicted {
+                // Every sprite of the look it was of goes, in this slot or another: the looks that
+                // wore them are made again the next time they are seen.
+                let look = looks::look_of(&old).to_owned();
+                let its = format!("{look}|");
+                atlas
+                    .sprites
+                    .retain(|name, _| *name != look && !name.starts_with(&its));
+                pokemon.sheets.remove(&look);
+                pokemon
+                    .looks
+                    .retain(|_, made| made.as_ref().is_none_or(|l| l.kind.texture != look));
+                pokemon.party.forget_texture(&look);
+                pokemon.pcs.forget_texture(&look);
+                pokemon.phases.forget_texture(&look);
+                pokemon.particles.forget_texture(&look);
+            }
+            let slot = *atlas.sprites.get(&format!("horizon/pokemon{slot}"))?;
+            let (aw, ah) = (atlas.width as f32, atlas.height as f32);
+            // The image is the slot's top left corner, each sprite its own texels of it.
+            for (name, [x, y, width, height]) in sheet.sprites {
+                let mut rect = slot;
+                rect.u0 = slot.u0 + x as f32 / aw;
+                rect.v0 = slot.v0 + y as f32 / ah;
+                rect.u1 = rect.u0 + width as f32 / aw;
+                rect.v1 = rect.v0 + height as f32 / ah;
+                atlas.sprites.insert(name, rect);
+            }
+            self.map_patches.push(horizon_client::font::Patch {
+                x: (slot.u0 * aw).round() as u32,
+                y: (slot.v0 * ah).round() as u32,
+                width: sheet.width,
+                height: sheet.height,
+                rgba: sheet.rgba,
+            });
         }
-        let mut rect = *atlas.sprites.get(&format!("horizon/pokemon{slot}"))?;
-        let (aw, ah) = (atlas.width as f32, atlas.height as f32);
-        self.map_patches.push(horizon_client::font::Patch {
-            x: (rect.u0 * aw).round() as u32,
-            y: (rect.v0 * ah).round() as u32,
-            width: w,
-            height: h,
-            rgba,
-        });
-        // The texture is the slot's top left corner.
-        rect.u1 = rect.u0 + w as f32 / aw;
-        rect.v1 = rect.v0 + h as f32 / ah;
-        atlas.sprites.insert(sprite.to_owned(), rect);
         Some(())
     }
 
@@ -664,7 +753,10 @@ impl Game<'_> {
         match channel {
             SPAWN_POKEMON => self.remote_pokemon_spawn(data),
             UNREAD_ENTITY_DATA => self.remote_pokemon_data(data),
-            cobblelegacy_cobblemon::sound::PLAY_ANIMATION => self.pokemon_animation_sounds(data),
+            cobblelegacy_cobblemon::sound::PLAY_ANIMATION => {
+                self.pokemon_animation_sounds(data);
+                self.pokemon_animation_play(data);
+            }
             cobblelegacy_cobblemon::capture::SPAWN_POKEBALL => self.remote_pokemon_ball_spawn(data),
             battle if cobblelegacy_cobblemon::battle::reads(battle) => {
                 self.pokemon_battle_sounds(battle, data);
@@ -704,8 +796,8 @@ impl Game<'_> {
     /// A Pokémon's data from Cobblemon's own types on, which the protocol adapter sends after the data
     /// vanilla reads (`horizon_protocol::adapter::UNREAD_ENTITY_DATA`: the entity's id, then the
     /// server's bytes). The pose the server puts the Pokémon in is there (asleep, in flight, swimming),
-    /// and what its label says of its level. Its other fields (aspects, raft) are read and not used
-    /// yet.
+    /// whether it is in a battle, its aspects, and what its label says of its level. Its raft is
+    /// read and not used yet.
     fn remote_pokemon_data(&mut self, data: &[u8]) {
         let mut r = horizon_protocol::buf::Reader::new(data);
         let Ok(id) = r.varint() else {
@@ -737,6 +829,15 @@ impl Game<'_> {
         if let Some(mode) = data.beam_mode {
             self.pokemon_phase(id, mode);
         }
+        if let Some(battle) = data.battle {
+            self.pokemon_battling(id, battle.is_some());
+        }
+        if let Some(dying) = data.dying {
+            self.pokemon_faint(id, dying);
+        }
+        if let Some(aspects) = data.aspects {
+            self.pokemon_relook(id, None, Some(aspects));
+        }
         if let Some(pose) = data.pose
             && let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32)
         {
@@ -746,6 +847,59 @@ impl Game<'_> {
             if *TRACE.get_or_init(|| std::env::var_os("HORIZON_COBBLEMON_TRACE").is_some()) {
                 log::info!("Horizon: Pokémon {id} is now in pose {pose:?}");
             }
+        }
+    }
+
+    /// `PokemonEntity.isBattling` (`BATTLE_ID`): Pokémon `id` is in a battle or out of one. Its poser
+    /// may have poses for a battle alone.
+    pub(super) fn pokemon_battling(&mut self, id: i32, battling: bool) {
+        if let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32)
+            && mob.species() == Species::Pokemon
+        {
+            mob.extra.variant = anim::with_battle(mob.extra.variant, battling);
+        }
+    }
+
+    /// Pokémon `id` is now of `species`, or has `aspects`, where the server says so after it
+    /// appeared (`PokemonEntity.SPECIES`, `ASPECTS`: an evolution, a form taken, wool shorn): it gets
+    /// the body they pick, at once when that look is made, else as soon as its files are read. One
+    /// whose new look cannot be made keeps the body it has.
+    pub(super) fn pokemon_relook(
+        &mut self,
+        id: i32,
+        species: Option<&str>,
+        aspects: Option<Vec<String>>,
+    ) {
+        let Some(seen) = self
+            .remote
+            .as_mut()
+            .and_then(|r| r.pokemon.seen.get_mut(&id))
+        else {
+            return;
+        };
+        // The aspects are a set: the server sends them in no order of its own.
+        let same_aspects = aspects.as_ref().is_none_or(|aspects| {
+            aspects.len() == seen.aspects.len() && aspects.iter().all(|a| seen.aspects.contains(a))
+        });
+        let same_species = species.is_none_or(|species| path_of(species) == path_of(&seen.species));
+        if same_aspects && same_species {
+            return;
+        }
+        if let Some(species) = species {
+            species.clone_into(&mut seen.species);
+        }
+        if let Some(aspects) = aspects {
+            seen.aspects = aspects;
+        }
+        let (species, aspects) = (seen.species.clone(), seen.aspects.clone());
+        if anim::trace() {
+            log::info!("Horizon: Pokémon {id} is now {species} {aspects:?}");
+        }
+        if let Looked::Made(look) = self.pokemon_look_for(&species, &aspects, Some(id))
+            && let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32)
+            && mob.species() == Species::Pokemon
+        {
+            mob.kind = look.kind;
         }
     }
 
@@ -807,9 +961,9 @@ impl Game<'_> {
         mob.persistent = true;
         // `PokemonRenderer`: the Pokémon's own size on top of its species'.
         mob.extra.model_scale = spawn.scale_modifier;
-        // The pose it appears in, which its animation starts from; the top bit is `MOVING`, which
-        // metadata sets afterwards (`remote_mob_data`).
-        mob.extra.variant = spawn.pose as u8;
+        // The pose it appears in, which its animation starts from, and whether it appears in a
+        // battle; the top bit is `MOVING`, which metadata sets afterwards (`remote_mob_data`).
+        mob.extra.variant = anim::with_battle(spawn.pose as u8, spawn.battle.is_some());
         self.mobs.retain(|m| m.id != id as u32);
         self.mobs.push(mob);
         let velocity = entity.velocity;
@@ -829,6 +983,7 @@ impl Game<'_> {
             );
             r.pokemon.labels.appeared(id, &spawn);
             r.pokemon.phases.forget(id);
+            r.pokemon.players.forget(id);
             r.pokemon.phases.target(id, spawn.phasing_target);
             r.pokemon.seen.insert(id, spawn);
         }

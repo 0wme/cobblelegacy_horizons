@@ -79,6 +79,8 @@ fn translucent_layer(m: &Mob, layer: &Layer) -> bool {
         || layer.model == "slime#outer"
         || matches!(m.species(), Species::SulfurCube)
         || layer.texture.starts_with("entity/horse/horse_markings")
+        || layer.model == super::own::TRANSLUCENT_LAYER
+        || layer.model == super::own::TRANSLUCENT_CULL_LAYER
 }
 
 /// Whether a layer is the eyes render type's (`RenderTypes.eyes`: full bright, no
@@ -585,6 +587,18 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
             m.kind.model_name().into(),
             super::copper_golem::texture(m).into(),
         ),
+        // A model with its own animation may show its texture's frames in turn (CobbleLegacy's
+        // fork: a Pokémon's), by whole ticks: the partial tick is not known here.
+        S::Pokemon => {
+            let frame = match m.kind.anim {
+                super::Anim::Own(own) => super::own::texture(own, m.age as f32),
+                _ => None,
+            };
+            (
+                m.kind.model_name().into(),
+                frame.map_or_else(|| m.kind.texture.as_str().into(), Cow::Owned),
+            )
+        }
         _ => (m.kind.model_name().into(), m.kind.texture.as_str().into()),
     }
 }
@@ -611,7 +625,14 @@ pub fn body_color(m: &Mob, alpha: f32) -> u32 {
 pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
     use Species as S;
     let mut v = Vec::new();
-    if avatar(m) || m.species() == S::Pokemon {
+    if avatar(m) {
+        return v;
+    }
+    // A model with its own animation names its own layers (CobbleLegacy's fork: a Pokémon's).
+    if m.species() == S::Pokemon {
+        if let super::Anim::Own(own) = m.kind.anim {
+            super::own::layers(own, m, age, &mut v);
+        }
         return v;
     }
     let white = 0xFFFF_FFFF;
@@ -1280,6 +1301,9 @@ fn shaking(m: &Mob) -> bool {
 fn flip_degrees(m: &Mob) -> f32 {
     match m.species() {
         Species::Spider | Species::CaveSpider | Species::Silverfish | Species::Endermite => 180.0,
+        // Cobblemon's `PokemonRenderer.getFlipDegrees`: a Pokémon that faints is not tipped over,
+        // its model plays its own faint.
+        Species::Pokemon => 0.0,
         _ => 90.0,
     }
 }
@@ -2249,7 +2273,12 @@ fn render_visible(
         // `EYES_TIER` in the overlay's high bits (entity.wgsl fs_hdr_mark).
         if layer.full_bright && m.species() != Species::Warden {
             for vertex in &mut out[start..] {
-                vertex.normal = [0; 4];
+                // Unlit; a model that culls its back faces (a Pokémon's) culls these too.
+                vertex.normal = if vertex.normal[3] == crate::mesher::SHADED_CULL_W {
+                    crate::mesher::CULL_BACK
+                } else {
+                    [0; 4]
+                };
                 vertex.layer |= u32::from(EYES_TIER) << 16;
             }
         }

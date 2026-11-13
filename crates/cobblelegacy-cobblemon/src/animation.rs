@@ -5,10 +5,11 @@
 //! and plays it (`BedrockAnimation.run`, `BedrockKeyFrameBoneValue.resolve`, `catmullromLerp`): for each
 //! bone its `position`, `rotation` and `scale`, each three MoLang expressions or keyframes of them.
 //!
-//! The bones are read, and the sounds an animation plays as it goes (`sound_effects`: a cry is one of
-//! those). An animation's `particle_effects` and `timeline`, which Cobblemon also reads (and a file
-//! whose particle effect it does not know is a file it drops), and whatever else is in it are skipped
-//! unread.
+//! The bones are read, and what an animation starts as it goes: its sounds (`sound_effects`: a cry is
+//! one of those) and its particle effects (`particle_effects`: Gastly's gas), each by name. Cobblemon
+//! drops a file whose particle effect it does not know; which effects there are is not known here, so
+//! whoever plays one finds that out. An animation's `timeline`, which Cobblemon also reads, and
+//! whatever else is in it are skipped unread.
 //!
 //! A file Cobblemon would fail to load is an error here, with one exception: a component whose MoLang
 //! does not compile (see [`crate::molang`] for what that is) is counted in [`Census::unparsed`] and stands
@@ -43,7 +44,7 @@ pub struct AnimationFile {
     pub animations: Vec<Animation>,
 }
 
-/// One animation: Cobblemon's `BedrockAnimation`, without its particles and instructions.
+/// One animation: Cobblemon's `BedrockAnimation`, without its instructions.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Animation {
     /// Its key in the file, such as `animation.pikachu.ground_idle`.
@@ -57,6 +58,86 @@ pub struct Animation {
     pub bones: Vec<BoneChannels>,
     /// `sound_effects`, by the moment they play at: Cobblemon's `BedrockSoundKeyframe`s.
     pub sounds: Vec<SoundKeyframe>,
+    /// `particle_effects`, by the moment they start at: Cobblemon's `BedrockParticleKeyframe`s.
+    pub particles: Vec<ParticleKeyframe>,
+    /// The last moment of the `timeline`, whose instructions are not read.
+    timeline_last: Option<f32>,
+}
+
+impl Animation {
+    /// What the animation's time turns round on for what it starts as it goes
+    /// (`BedrockPoseAnimation.applyEffects`): its length when it has one, else the moment of the last
+    /// thing it starts (a sound, a particle effect, an instruction of its `timeline`) when that is
+    /// past its start. None: its time does not turn round, and what it starts at its start comes up
+    /// once.
+    pub fn effects_turn(&self) -> Option<f32> {
+        self.length.filter(|length| *length > 0.0).or_else(|| {
+            let sounds = self.sounds.iter().map(|sound| sound.seconds);
+            let particles = self.particles.iter().map(|particle| particle.seconds);
+            sounds
+                .chain(particles)
+                .chain(self.timeline_last)
+                .reduce(f32::max)
+                .filter(|last| *last != 0.0)
+        })
+    }
+}
+
+/// A particle effect an animation starts `seconds` after it starts (`BedrockParticleKeyframe`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParticleKeyframe {
+    pub seconds: f32,
+    /// The effect, with its namespace (`cobblemon:ghostly_smoke`): the file's `effect` in lower case,
+    /// in Cobblemon's namespace when it names none (`asIdentifierDefaultingNamespace`).
+    pub effect: String,
+    /// The locator of the model the effect plays at: `root` when the file names none.
+    pub locator: String,
+    /// `pre_effect_script`: MoLang Cobblemon runs on the effect before it starts, a line an
+    /// expression. Kept as the file has it.
+    pub script: Option<String>,
+}
+
+impl ParticleKeyframe {
+    /// `BedrockParticleKeyframe.isSameAs`: the same effect at the same moment and locator, with the
+    /// same lines of script in whatever order. Two animations of a model that both have it share the
+    /// particles it started.
+    pub fn is_same_as(&self, other: &Self) -> bool {
+        let lines = |keyframe: &Self| -> std::collections::BTreeSet<String> {
+            keyframe
+                .script
+                .iter()
+                .flat_map(|script| script.split('\n'))
+                .map(str::to_owned)
+                .collect()
+        };
+        self.seconds == other.seconds
+            && self.effect == other.effect
+            && self.locator == other.locator
+            && lines(self) == lines(other)
+    }
+}
+
+/// `BedrockAnimation.applyEffects` as `BedrockPoseAnimation` calls it: which of an animation's moments
+/// (`moments`, in seconds) come up as the entity's time goes from `previous` to `now`, by their places
+/// in `moments`. `turn` is what the animation's time turns round on ([`Animation::effects_turn`]).
+///
+/// Both ends count, and a turn of time back to the start counts what is after `previous` and what is
+/// before `now`: a moment the time lands on comes up twice, once as each end.
+pub fn moments_passed(moments: &[f32], turn: Option<f32>, previous: f32, now: f32) -> Vec<usize> {
+    let (previous, now) = match turn {
+        Some(turn) => (previous % turn, now % turn),
+        None => (previous, now),
+    };
+    let passed = |moment: f32| {
+        if previous > now {
+            moment >= previous || moment <= now
+        } else {
+            (previous..=now).contains(&moment)
+        }
+    };
+    (0..moments.len())
+        .filter(|&place| passed(moments[place]))
+        .collect()
 }
 
 /// A sound an animation plays `seconds` after it starts (`BedrockSoundKeyframe`).
@@ -110,6 +191,8 @@ pub struct Census {
     pub names: BTreeMap<String, usize>,
     /// The sounds of every animation's `sound_effects`.
     pub sounds: usize,
+    /// The effects of every animation's `particle_effects`.
+    pub particles: usize,
     /// How often an animation has each of the keys that are skipped.
     pub ignored_animation_keys: BTreeMap<String, usize>,
     /// Likewise for a bone's keys.
@@ -749,14 +832,28 @@ impl<'de> Visitor<'de> for AnimationSeed<'_, '_> {
     ) -> std::result::Result<Self::Value, A::Error> {
         let AnimationSeed(reader, name) = self;
         let (mut looping, mut length, mut bones) = (false, None, Vec::new());
-        let mut sounds = Vec::new();
-        const KEYS: &[&str] = &["loop", "animation_length", "bones", "sound_effects"];
+        let (mut sounds, mut particles) = (Vec::new(), Vec::new());
+        let mut timeline_last = None;
+        const KEYS: &[&str] = &[
+            "loop",
+            "animation_length",
+            "bones",
+            "sound_effects",
+            "particle_effects",
+            "timeline",
+        ];
         while let Some(key) = map.next_key_seed(KeyAmong(KEYS))? {
             match key {
                 Key::Known(0) => looping = map.next_value::<Loop>()?.0,
                 Key::Known(1) => length = Some(map.next_value::<f64>()? as f32),
                 Key::Known(2) => bones = map.next_value_seed(BonesSeed(&mut *reader))?,
-                Key::Known(_) => sounds = map.next_value::<SoundEffects>()?.0,
+                Key::Known(3) => sounds = map.next_value::<SoundEffects>()?.0,
+                Key::Known(4) => particles = map.next_value::<ParticleEffects>()?.0,
+                Key::Known(_) => {
+                    // Its instructions are not read: only when the last of them is.
+                    timeline_last = last_moment(&map.next_value::<serde_json::Value>()?);
+                    count(&mut reader.census.ignored_animation_keys, "timeline");
+                }
                 Key::Other(key) => {
                     map.next_value::<IgnoredAny>()?;
                     count(&mut reader.census.ignored_animation_keys, &key);
@@ -764,13 +861,135 @@ impl<'de> Visitor<'de> for AnimationSeed<'_, '_> {
             }
         }
         reader.census.sounds += sounds.len();
+        reader.census.particles += particles.len();
         Ok(Animation {
             name,
             looping,
             length,
             bones,
             sounds,
+            particles,
+            timeline_last,
         })
+    }
+}
+
+/// The last of the moments an object of moments is keyed by; none for what is no such object.
+fn last_moment(moments: &serde_json::Value) -> Option<f32> {
+    moments
+        .as_object()?
+        .keys()
+        .filter_map(|moment| moment.parse::<f64>().ok())
+        .filter(|moment| moment.is_finite())
+        .map(|moment| moment as f32)
+        .reduce(f32::max)
+}
+
+/// The next moment of an object of moments (`sound_effects`, `particle_effects`) and what it holds:
+/// one effect or an array of them, each an object. What is in an array and is no object fails the
+/// file, as in `BedrockAnimationAdapter`.
+///
+/// What is at a key and is neither is passed over there before the key is read as a moment, so such a
+/// key may be anything: three files of Cobblemon 1.8.1 have an `animation_length` among their sounds'
+/// moments. It comes out here as a moment that holds nothing.
+fn effects_at<'de, A: MapAccess<'de>>(
+    map: &mut A,
+) -> std::result::Result<Option<(f32, Vec<serde_json::Map<String, serde_json::Value>>)>, A::Error> {
+    let Some(key) = map.next_key::<String>()? else {
+        return Ok(None);
+    };
+    let effects = match map.next_value::<serde_json::Value>()? {
+        serde_json::Value::Array(effects) => effects,
+        effect @ serde_json::Value::Object(_) => vec![effect],
+        _ => return Ok(Some((0.0, Vec::new()))),
+    };
+    let effects: Vec<_> = effects
+        .into_iter()
+        .map(|effect| match effect {
+            serde_json::Value::Object(effect) => Ok(effect),
+            _ => Err(de::Error::custom("an effect that is no object")),
+        })
+        .collect::<std::result::Result<_, A::Error>>()?;
+    // The key is only read for an effect: an empty array has none.
+    let seconds = if effects.is_empty() {
+        0.0
+    } else {
+        Time.visit_str::<A::Error>(&key)? as f32
+    };
+    Ok(Some((seconds, effects)))
+}
+
+/// Gson's `getAsString` of an effect's `key`: text, or a number's or a boolean's own text. `None` for
+/// what has no text (null, an array, an object), on which Cobblemon fails.
+fn text_of(effect: &serde_json::Map<String, serde_json::Value>, key: &str) -> Option<String> {
+    match effect.get(key)? {
+        serde_json::Value::String(text) => Some(text.clone()),
+        text @ (serde_json::Value::Number(_) | serde_json::Value::Bool(_)) => {
+            Some(text.to_string())
+        }
+        _ => None,
+    }
+}
+
+/// `asIdentifierDefaultingNamespace`: in lower case, in Cobblemon's namespace when it names none.
+fn identifier(name: &str) -> String {
+    let name = name.to_lowercase();
+    if name.contains(':') {
+        name
+    } else {
+        format!("cobblemon:{name}")
+    }
+}
+
+/// An animation's `particle_effects` as `BedrockAnimationAdapter` reads them: an object of moments,
+/// each with one effect or an array of them, an effect being an object whose `effect` names the
+/// particle effect, with the `locator` it plays at (`root` without one) and maybe a
+/// `pre_effect_script`. An effect without a name, or whose locator or script is there and is no text,
+/// fails the file, as there.
+struct ParticleEffects(Vec<ParticleKeyframe>);
+
+impl<'de> Deserialize<'de> for ParticleEffects {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
+        struct Moments;
+        impl<'de> Visitor<'de> for Moments {
+            type Value = ParticleEffects;
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("an animation's `particle_effects`, an object")
+            }
+            fn visit_map<A: MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> std::result::Result<ParticleEffects, A::Error> {
+                let mut particles = Vec::new();
+                while let Some((seconds, effects)) = effects_at(&mut map)? {
+                    for effect in effects {
+                        // A key that is there has text; one that is not has none to give.
+                        let given =
+                            |key: &str| match (effect.contains_key(key), text_of(&effect, key)) {
+                                (true, None) => Err(de::Error::custom(format_args!(
+                                    "a particle effect's `{key}` that is no text"
+                                ))),
+                                (_, text) => Ok(text),
+                            };
+                        let name = given("effect")?.ok_or_else(|| {
+                            de::Error::custom(
+                                "a particle effect that is no object with an `effect`",
+                            )
+                        })?;
+                        particles.push(ParticleKeyframe {
+                            seconds,
+                            effect: identifier(&name),
+                            locator: given("locator")?.unwrap_or_else(|| "root".to_owned()),
+                            script: given("pre_effect_script")?,
+                        });
+                    }
+                }
+                // In the order they start; those of one moment in the order they were read.
+                particles.sort_by(|a, b| a.seconds.total_cmp(&b.seconds));
+                Ok(ParticleEffects(particles))
+            }
+        }
+        deserializer.deserialize_map(Moments)
     }
 }
 
@@ -793,33 +1012,14 @@ impl<'de> Deserialize<'de> for SoundEffects {
                 mut map: A,
             ) -> std::result::Result<SoundEffects, A::Error> {
                 let mut sounds = Vec::new();
-                while let Some(seconds) = map.next_key_seed(Time)? {
-                    let effects = match map.next_value::<serde_json::Value>()? {
-                        serde_json::Value::Array(effects) => effects,
-                        effect @ serde_json::Value::Object(_) => vec![effect],
-                        _ => continue,
-                    };
+                while let Some((seconds, effects)) = effects_at(&mut map)? {
                     for effect in effects {
-                        let name = match effect.as_object().map(|effect| effect.get("effect")) {
-                            Some(Some(serde_json::Value::String(name))) => name.clone(),
-                            // Gson's `getAsString` of a number or a boolean is its text.
-                            Some(Some(
-                                name @ (serde_json::Value::Number(_) | serde_json::Value::Bool(_)),
-                            )) => name.to_string(),
-                            _ => {
-                                return Err(de::Error::custom(
-                                    "a sound effect that is no object with an `effect`",
-                                ));
-                            }
-                        };
-                        let name = name.to_lowercase();
+                        let name = text_of(&effect, "effect").ok_or_else(|| {
+                            de::Error::custom("a sound effect that is no object with an `effect`")
+                        })?;
                         sounds.push(SoundKeyframe {
-                            seconds: seconds as f32,
-                            sound: if name.contains(':') {
-                                name
-                            } else {
-                                format!("cobblemon:{name}")
-                            },
+                            seconds,
+                            sound: identifier(&name),
                         });
                     }
                 }
@@ -1601,7 +1801,10 @@ mod tests {
                     }
                 }
             },
-            "animation.b": { "particle_effects": {}, "sound_effects": {} }"#,
+            "animation.b": {
+                "particle_effects": { "0.0": [{ "effect": "smoke" }, { "effect": "smoke" }] },
+                "sound_effects": {}
+            }"#,
         );
         assert_eq!(census.number_channels, 2);
         assert_eq!(census.molang_channels, 2);
@@ -1634,11 +1837,9 @@ mod tests {
                 .collect::<Vec<_>>()
                 .join(", ")
         };
-        assert_eq!(
-            keys(&census.ignored_animation_keys),
-            "particle_effects 1, timeline 1"
-        );
+        assert_eq!(keys(&census.ignored_animation_keys), "timeline 1");
         assert_eq!(census.sounds, 1);
+        assert_eq!(census.particles, 2);
         assert_eq!(keys(&census.ignored_bone_keys), "relative_to 1");
         assert!(census.unparsed.is_empty());
     }
@@ -1651,7 +1852,9 @@ mod tests {
                 "sound_effects": {
                     "1.25": [{ "effect": "Cobblemon:Pokemon.Pikachu.Extra" }, { "effect": "mod:beep" }],
                     "0.5": { "effect": "pokemon.pikachu.cry" },
-                    "2.0": "nothing Cobblemon reads"
+                    "2.0": "nothing Cobblemon reads",
+                    "animation_length": 1.25,
+                    "later": []
                 }
             },
             "animation.pikachu.idle": { "sound_effects": {} }"#,
@@ -1681,6 +1884,134 @@ mod tests {
             let json = format!(r#"{{ "animations": {{ "a": {{ {bad} }} }} }}"#);
             assert!(AnimationFile::parse(&json).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn an_animation_s_particle_effects_are_read_with_their_moments_and_locators() {
+        // Gastly's idle starts its gas twice at once; another effect comes later, with a script.
+        let idle = file(
+            r#""animation.gastly.ground_idle": {
+                "loop": true,
+                "particle_effects": {
+                    "1.5": { "effect": "Mod:Puff", "locator": "tail", "pre_effect_script": "v.a = 1;\nv.b = 2;" },
+                    "0.0": [
+                        { "effect": "ghostly_smoke", "locator": "gas" },
+                        { "effect": "ghostly_smoke", "locator": "gas" }
+                    ],
+                    "0.5": { "effect": "dust" },
+                    "2.0": "nothing Cobblemon reads"
+                }
+            },
+            "animation.gastly.sleep": { "particle_effects": {} }"#,
+        );
+        let particles = &idle.animations[0].particles;
+        let read: Vec<_> = particles
+            .iter()
+            .map(|p| (p.seconds, p.effect.as_str(), p.locator.as_str()))
+            .collect();
+        // By moment; a name without a namespace is Cobblemon's, any is in lower case, and an effect
+        // without a locator is at the model's root.
+        assert_eq!(
+            read,
+            [
+                (0.0, "cobblemon:ghostly_smoke", "gas"),
+                (0.0, "cobblemon:ghostly_smoke", "gas"),
+                (0.5, "cobblemon:dust", "root"),
+                (1.5, "mod:puff", "tail"),
+            ]
+        );
+        assert_eq!(particles[3].script.as_deref(), Some("v.a = 1;\nv.b = 2;"));
+        assert_eq!(particles[0].script, None);
+        assert!(idle.animations[1].particles.is_empty());
+        // The two at the start are the same effect to Cobblemon, though it starts both.
+        assert!(particles[0].is_same_as(&particles[1]));
+        assert!(!particles[0].is_same_as(&particles[2]));
+        // The lines of a script count, not their order.
+        let mut turned = particles[3].clone();
+        turned.script = Some("v.b = 2;\nv.a = 1;".into());
+        assert!(turned.is_same_as(&particles[3]));
+        turned.script = Some("v.b = 2;".into());
+        assert!(!turned.is_same_as(&particles[3]));
+        let mut later = particles[0].clone();
+        later.seconds = 0.05;
+        assert!(!later.is_same_as(&particles[0]));
+        // What Cobblemon fails on fails here.
+        for bad in [
+            r#""particle_effects": []"#,
+            r#""particle_effects": { "0.0": {} }"#,
+            r#""particle_effects": { "0.0": ["smoke"] }"#,
+            r#""particle_effects": { "soon": { "effect": "smoke" } }"#,
+            r#""particle_effects": { "0.0": { "effect": "smoke", "locator": null } }"#,
+            r#""particle_effects": { "0.0": { "effect": "smoke", "locator": ["tail"] } }"#,
+            r#""particle_effects": { "0.0": { "effect": "smoke", "pre_effect_script": {} } }"#,
+            r#""particle_effects": { "0.0": { "effect": null } }"#,
+        ] {
+            let json = format!(r#"{{ "animations": {{ "a": {{ {bad} }} }} }}"#);
+            assert!(AnimationFile::parse(&json).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn an_animation_s_moments_come_up_as_its_time_goes() {
+        const NONE: [usize; 0] = [];
+        // Gastly's idle: no length, its gas at the start alone. It comes up as time leaves zero, once.
+        let start = [0.0, 0.0];
+        assert_eq!(moments_passed(&start, None, 0.0, 0.05), [0, 1]);
+        assert_eq!(moments_passed(&start, None, 0.05, 0.1), NONE);
+        assert_eq!(moments_passed(&start, None, 60.0, 60.05), NONE);
+        // With a turn the start comes up once a turn: as time wraps onto it, and as it leaves it.
+        assert_eq!(moments_passed(&start, Some(2.0), 1.9, 1.95), NONE);
+        assert_eq!(moments_passed(&start, Some(2.0), 1.95, 2.0), [0, 1]);
+        assert_eq!(moments_passed(&start, Some(2.0), 2.0, 2.05), [0, 1]);
+        assert_eq!(moments_passed(&start, Some(2.0), 2.05, 2.1), NONE);
+        assert_eq!(moments_passed(&start, Some(2.0), 3.95, 4.0), [0, 1]);
+        // Moments along the way, both ends counted.
+        let steps = [0.5, 1.0, 1.65];
+        assert_eq!(moments_passed(&steps, Some(2.0), 0.45, 0.5), [0]);
+        assert_eq!(moments_passed(&steps, Some(2.0), 0.5, 0.55), [0]);
+        assert_eq!(moments_passed(&steps, Some(2.0), 0.55, 0.6), NONE);
+        assert_eq!(moments_passed(&steps, Some(2.0), 2.95, 3.0), [1]);
+        // Time that wrapped: what is after the one end and before the other.
+        assert_eq!(moments_passed(&steps, Some(2.0), 1.6, 2.55), [0, 2]);
+        // Turning on its last moment, that one comes up every turn.
+        assert_eq!(moments_passed(&steps, Some(1.65), 1.6, 1.7), [2]);
+        assert_eq!(moments_passed(&steps, Some(1.65), 3.25, 3.35), [2]);
+        assert_eq!(moments_passed(&[], Some(2.0), 0.0, 5.0), NONE);
+    }
+
+    #[test]
+    fn an_animation_turns_on_its_length_or_on_the_last_thing_it_starts() {
+        let turn = |keys: &str| file(&format!(r#""a": {{ {keys} }}"#)).animations[0].effects_turn();
+        let gas = r#""particle_effects": { "0.0": { "effect": "smoke" } }"#;
+        // Its length, when it has one that is more than nothing.
+        assert_eq!(
+            turn(&format!(r#""animation_length": 2.5, {gas}"#)),
+            Some(2.5)
+        );
+        // Else the last moment of its sounds, particles and timeline, unless that is its start.
+        assert_eq!(turn(gas), None);
+        assert_eq!(turn(&format!(r#""animation_length": 0, {gas}"#)), None);
+        assert_eq!(turn(r#""bones": {}"#), None);
+        assert_eq!(
+            turn(
+                r#""particle_effects": { "0.0": { "effect": "smoke" }, "1.5": { "effect": "dust" } }"#
+            ),
+            Some(1.5)
+        );
+        assert_eq!(
+            turn(&format!(
+                r#""sound_effects": {{ "0.75": {{ "effect": "cry" }} }}, {gas}"#
+            )),
+            Some(0.75)
+        );
+        assert_eq!(
+            turn(&format!(
+                r#""timeline": {{ "3.0": "v.x = 1;", "1.0": ["v.y = 2;"] }}, {gas}"#
+            )),
+            Some(3.0)
+        );
+        // A timeline that is no object of moments has none to give.
+        assert_eq!(turn(&format!(r#""timeline": "v.x = 1;", {gas}"#)), None);
     }
 
     #[test]

@@ -176,6 +176,11 @@ fn every_pokemon_animation_of_cobblemon_reads_and_samples() {
         "skipped keys of a bone: {}",
         listed(&census.ignored_bone_keys, "")
     );
+    let with_particles = animations().filter(|a| !a.particles.is_empty()).count();
+    println!(
+        "started as an animation goes: {} sounds, {} particle effects in {with_particles} animations",
+        census.sounds, census.particles
+    );
 
     let mut sources: BTreeMap<&str, (usize, &str)> = BTreeMap::new();
     for unparsed in &census.unparsed {

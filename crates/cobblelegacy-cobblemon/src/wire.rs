@@ -389,6 +389,8 @@ pub struct PokemonData {
     pub battle: Option<Option<u128>>,
     /// `ASPECTS`: what picks its model and texture (`shiny`, `sheared`...).
     pub aspects: Option<Vec<String>>,
+    /// `DYING_EFFECTS_STARTED`: it has fainted, and plays its faint before it goes.
+    pub dying: Option<bool>,
     /// `POSE_TYPE`: what it is doing, as `PokemonServerDelegate.updatePoseType` decides it each tick.
     pub pose: Option<PoseType>,
     /// `LABEL_LEVEL`.
@@ -473,8 +475,9 @@ impl PokemonData {
                 32 => data.pose = Some(ordinal(r, &PoseType::ALL, "pose")?),
                 33 => data.label_level = Some(r.varint()?),
                 34 => data.hide_label = Some(r.bool()?),
-                // DYING_EFFECTS_STARTED, UNBATTLEABLE, COUNTS_TOWARDS_SPAWN_CAP, EVOLUTION_STARTED.
-                31 | 35 | 36 | 41 => {
+                31 => data.dying = Some(r.bool()?),
+                // UNBATTLEABLE, COUNTS_TOWARDS_SPAWN_CAP, EVOLUTION_STARTED.
+                35 | 36 | 41 => {
                     r.bool()?;
                 }
                 // FRIENDSHIP.
