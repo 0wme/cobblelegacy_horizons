@@ -17,6 +17,9 @@
 //! they fit (`remote_pokemon_looks.rs`). Without the resources, or for a species that fails to load, a
 //! vanilla body stands in.
 //!
+//! A Pokémon whose species or aspects change where it stands (it evolves, it is sheared) gets the
+//! look they now pick ([`Game::pokemon_relook`]).
+//!
 //! The same looks draw the portraits of the player's own party (`remote_pokemon_party.rs`).
 use super::super::Game;
 use super::Tracked;
@@ -793,8 +796,8 @@ impl Game<'_> {
     /// A Pokémon's data from Cobblemon's own types on, which the protocol adapter sends after the data
     /// vanilla reads (`horizon_protocol::adapter::UNREAD_ENTITY_DATA`: the entity's id, then the
     /// server's bytes). The pose the server puts the Pokémon in is there (asleep, in flight, swimming),
-    /// whether it is in a battle or has fainted, and what its label says of its level. Its other
-    /// fields (aspects, raft) are read and not used yet.
+    /// whether it is in a battle, its aspects, and what its label says of its level. Its raft is
+    /// read and not used yet.
     fn remote_pokemon_data(&mut self, data: &[u8]) {
         let mut r = horizon_protocol::buf::Reader::new(data);
         let Ok(id) = r.varint() else {
@@ -832,6 +835,9 @@ impl Game<'_> {
         if let Some(dying) = data.dying {
             self.pokemon_faint(id, dying);
         }
+        if let Some(aspects) = data.aspects {
+            self.pokemon_relook(id, None, Some(aspects));
+        }
         if let Some(pose) = data.pose
             && let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32)
         {
@@ -851,6 +857,49 @@ impl Game<'_> {
             && mob.species() == Species::Pokemon
         {
             mob.extra.variant = anim::with_battle(mob.extra.variant, battling);
+        }
+    }
+
+    /// Pokémon `id` is now of `species`, or has `aspects`, where the server says so after it
+    /// appeared (`PokemonEntity.SPECIES`, `ASPECTS`: an evolution, a form taken, wool shorn): it gets
+    /// the body they pick, at once when that look is made, else as soon as its files are read. One
+    /// whose new look cannot be made keeps the body it has.
+    pub(super) fn pokemon_relook(
+        &mut self,
+        id: i32,
+        species: Option<&str>,
+        aspects: Option<Vec<String>>,
+    ) {
+        let Some(seen) = self
+            .remote
+            .as_mut()
+            .and_then(|r| r.pokemon.seen.get_mut(&id))
+        else {
+            return;
+        };
+        // The aspects are a set: the server sends them in no order of its own.
+        let same_aspects = aspects.as_ref().is_none_or(|aspects| {
+            aspects.len() == seen.aspects.len() && aspects.iter().all(|a| seen.aspects.contains(a))
+        });
+        let same_species = species.is_none_or(|species| path_of(species) == path_of(&seen.species));
+        if same_aspects && same_species {
+            return;
+        }
+        if let Some(species) = species {
+            species.clone_into(&mut seen.species);
+        }
+        if let Some(aspects) = aspects {
+            seen.aspects = aspects;
+        }
+        let (species, aspects) = (seen.species.clone(), seen.aspects.clone());
+        if anim::trace() {
+            log::info!("Horizon: Pokémon {id} is now {species} {aspects:?}");
+        }
+        if let Looked::Made(look) = self.pokemon_look_for(&species, &aspects, Some(id))
+            && let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32)
+            && mob.species() == Species::Pokemon
+        {
+            mob.kind = look.kind;
         }
     }
 

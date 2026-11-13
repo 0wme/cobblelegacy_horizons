@@ -304,6 +304,14 @@ impl Game<'_> {
         r.pokemon.labels.vanilla_data(id, values);
         r.pokemon.phases.vanilla_data(id, values);
         r.pokemon.captures.vanilla_data(id, values);
+        // `PokemonEntity.SPECIES`: one that evolves where it stands becomes another species.
+        let species = values.iter().find_map(|(index, _, value)| match value {
+            Value::String(species) if *index == 19 => Some(species.clone()),
+            _ => None,
+        });
+        if let Some(species) = species {
+            self.pokemon_relook(id, Some(&species), None);
+        }
         // The battle it is in and whether it has fainted are of vanilla's types too: like the
         // mode above, they come here when nothing of Cobblemon's own types is before them.
         for (index, _, value) in values {
