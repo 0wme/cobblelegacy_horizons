@@ -304,6 +304,18 @@ impl Game<'_> {
         r.pokemon.labels.vanilla_data(id, values);
         r.pokemon.phases.vanilla_data(id, values);
         r.pokemon.captures.vanilla_data(id, values);
+        // The battle it is in and whether it has fainted are of vanilla's types too: like the
+        // mode above, they come here when nothing of Cobblemon's own types is before them.
+        for (index, _, value) in values {
+            match (*index, value) {
+                (29, Value::OptUuid(battle)) => self.pokemon_battling(id, battle.is_some()),
+                (31, Value::Bool(dying)) => self.pokemon_faint(id, *dying),
+                _ => {}
+            }
+        }
+        let Some(r) = self.remote.as_mut() else {
+            return;
+        };
         // `BEAM_MODE` is a byte, which vanilla's readers know: it comes here when nothing of a type
         // of Cobblemon's own is before it in the packet (a recall sets the target and the mode, no
         // more), and with the rest of a Pokémon's data otherwise (`remote_pokemon_data`).

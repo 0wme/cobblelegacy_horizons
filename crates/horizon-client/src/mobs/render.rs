@@ -1301,6 +1301,9 @@ fn shaking(m: &Mob) -> bool {
 fn flip_degrees(m: &Mob) -> f32 {
     match m.species() {
         Species::Spider | Species::CaveSpider | Species::Silverfish | Species::Endermite => 180.0,
+        // Cobblemon's `PokemonRenderer.getFlipDegrees`: a Pokémon that faints is not tipped over,
+        // its model plays its own faint.
+        Species::Pokemon => 0.0,
         _ => 90.0,
     }
 }

@@ -153,11 +153,12 @@ impl Voice {
         }
     }
 
-    /// The sounds of the first of `names` the model has an animation for, a Pokémon whose
-    /// `Mob::extra.variant` is `variant` being in the pose it is.
-    fn sounds(&self, variant: u8, names: &[String]) -> &[SoundKeyframe] {
-        self.named
-            .sounds(self.by_pose[anim::pose_of(variant) as usize], names)
+    /// The sounds of the first of `names` the model has an animation for, in the pose at `pose`
+    /// of its poser's, or, when that is not known yet, in the one a Pokémon whose
+    /// `Mob::extra.variant` is `variant` takes out of battle.
+    fn sounds(&self, pose: Option<usize>, variant: u8, names: &[String]) -> &[SoundKeyframe] {
+        let pose = pose.or(self.by_pose[anim::pose_of(variant) as usize]);
+        self.named.sounds(pose, names)
     }
 }
 
@@ -507,7 +508,11 @@ impl Game<'_> {
         let Some(r) = self.remote.as_mut() else {
             return;
         };
-        for keyframe in look.voice.sounds(variant, &packet.animations) {
+        // The pose it is drawn in, which in a battle may have a cry of its own.
+        let entity = packet.entity;
+        let pose = r.pokemon.players.animator(entity);
+        let pose = pose.and_then(|animator| animator.current(entity as u32));
+        for keyframe in look.voice.sounds(pose, variant, &packet.animations) {
             r.pokemon.sounds.later.push(Later {
                 due: now + Duration::from_secs_f32(keyframe.seconds.max(0.0)),
                 entity: packet.entity,
@@ -778,7 +783,7 @@ mod tests {
         let cry = ["cry".to_owned()];
         let heard = |variant: u8| -> Vec<(f32, &str)> {
             voice
-                .sounds(variant, &cry)
+                .sounds(None, variant, &cry)
                 .iter()
                 .map(|s| (s.seconds, s.sound.as_str()))
                 .collect()
@@ -793,13 +798,13 @@ mod tests {
         );
         assert!(
             voice
-                .sounds(PoseType::Stand as u8, &["faint".to_owned()])
+                .sounds(None, PoseType::Stand as u8, &["faint".to_owned()])
                 .is_empty()
         );
         // A look without a poser has no voice.
         assert!(
             Voice::default()
-                .sounds(PoseType::Stand as u8, &cry)
+                .sounds(None, PoseType::Stand as u8, &cry)
                 .is_empty()
         );
     }

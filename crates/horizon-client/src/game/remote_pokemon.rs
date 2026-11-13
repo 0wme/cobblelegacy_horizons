@@ -87,6 +87,9 @@ const STAND_IN: &str = "minecraft:parrot";
 /// Cobblemon's models stand on y = 0, and `PosableEntityModel` moves them 1.5 blocks back.
 const GROUND: f32 = 24.0;
 
+/// The part a look's model hangs from: what stands it on the ground at its species' size.
+const STAND: &str = "#stand";
+
 /// What the window knows of the server's Pokémon.
 #[derive(Default)]
 pub(super) struct Pokemon {
@@ -126,6 +129,8 @@ pub(super) struct Pokemon {
     captures: capture::Captures,
     /// The particle effects that play.
     particles: particles::Particles,
+    /// What poses each Pokémon of the level, and so what it plays.
+    players: anim::Players,
     /// The summary screen of one of the player's Pokémon.
     summary: summary::Summary,
     /// The process that draws the screens of the server's mods, and the one it shows.
@@ -172,6 +177,7 @@ impl Pokemon {
         self.sounds.forget(id);
         self.captures.forget(id);
         self.particles.forget(id);
+        self.players.forget(id);
     }
 }
 
@@ -564,7 +570,7 @@ impl Game<'_> {
         // Stood on the ground and sized, around its feet: a part of its own above the model's
         // root, whose pose animations change (`PokemonRenderer` scales outside the model too).
         let body = Part {
-            name: "#stand".into(),
+            name: STAND.into(),
             pose: [
                 0.0, GROUND, 0.0, 0.0, 0.0, 0.0, base_scale, base_scale, base_scale,
             ],
@@ -639,6 +645,7 @@ impl Game<'_> {
     /// Once a frame, before it is drawn: what of the Pokémon moves on by itself.
     pub(in super::super) fn pokemon_frame(&mut self) {
         self.pokemon_looks_frame();
+        self.pokemon_animation_frame();
         self.pokemon_phase_frame();
         self.pokemon_sounds_frame();
         self.pokemon_capture_frame();
@@ -743,7 +750,10 @@ impl Game<'_> {
         match channel {
             SPAWN_POKEMON => self.remote_pokemon_spawn(data),
             UNREAD_ENTITY_DATA => self.remote_pokemon_data(data),
-            cobblelegacy_cobblemon::sound::PLAY_ANIMATION => self.pokemon_animation_sounds(data),
+            cobblelegacy_cobblemon::sound::PLAY_ANIMATION => {
+                self.pokemon_animation_sounds(data);
+                self.pokemon_animation_play(data);
+            }
             cobblelegacy_cobblemon::capture::SPAWN_POKEBALL => self.remote_pokemon_ball_spawn(data),
             battle if cobblelegacy_cobblemon::battle::reads(battle) => {
                 self.pokemon_battle_sounds(battle, data);
@@ -783,8 +793,8 @@ impl Game<'_> {
     /// A Pokémon's data from Cobblemon's own types on, which the protocol adapter sends after the data
     /// vanilla reads (`horizon_protocol::adapter::UNREAD_ENTITY_DATA`: the entity's id, then the
     /// server's bytes). The pose the server puts the Pokémon in is there (asleep, in flight, swimming),
-    /// and what its label says of its level. Its other fields (aspects, raft) are read and not used
-    /// yet.
+    /// whether it is in a battle or has fainted, and what its label says of its level. Its other
+    /// fields (aspects, raft) are read and not used yet.
     fn remote_pokemon_data(&mut self, data: &[u8]) {
         let mut r = horizon_protocol::buf::Reader::new(data);
         let Ok(id) = r.varint() else {
@@ -816,6 +826,12 @@ impl Game<'_> {
         if let Some(mode) = data.beam_mode {
             self.pokemon_phase(id, mode);
         }
+        if let Some(battle) = data.battle {
+            self.pokemon_battling(id, battle.is_some());
+        }
+        if let Some(dying) = data.dying {
+            self.pokemon_faint(id, dying);
+        }
         if let Some(pose) = data.pose
             && let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32)
         {
@@ -825,6 +841,16 @@ impl Game<'_> {
             if *TRACE.get_or_init(|| std::env::var_os("HORIZON_COBBLEMON_TRACE").is_some()) {
                 log::info!("Horizon: Pokémon {id} is now in pose {pose:?}");
             }
+        }
+    }
+
+    /// `PokemonEntity.isBattling` (`BATTLE_ID`): Pokémon `id` is in a battle or out of one. Its poser
+    /// may have poses for a battle alone.
+    pub(super) fn pokemon_battling(&mut self, id: i32, battling: bool) {
+        if let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32)
+            && mob.species() == Species::Pokemon
+        {
+            mob.extra.variant = anim::with_battle(mob.extra.variant, battling);
         }
     }
 
@@ -886,9 +912,9 @@ impl Game<'_> {
         mob.persistent = true;
         // `PokemonRenderer`: the Pokémon's own size on top of its species'.
         mob.extra.model_scale = spawn.scale_modifier;
-        // The pose it appears in, which its animation starts from; the top bit is `MOVING`, which
-        // metadata sets afterwards (`remote_mob_data`).
-        mob.extra.variant = spawn.pose as u8;
+        // The pose it appears in, which its animation starts from, and whether it appears in a
+        // battle; the top bit is `MOVING`, which metadata sets afterwards (`remote_mob_data`).
+        mob.extra.variant = anim::with_battle(spawn.pose as u8, spawn.battle.is_some());
         self.mobs.retain(|m| m.id != id as u32);
         self.mobs.push(mob);
         let velocity = entity.velocity;
@@ -908,6 +934,7 @@ impl Game<'_> {
             );
             r.pokemon.labels.appeared(id, &spawn);
             r.pokemon.phases.forget(id);
+            r.pokemon.players.forget(id);
             r.pokemon.phases.target(id, spawn.phasing_target);
             r.pokemon.seen.insert(id, spawn);
         }

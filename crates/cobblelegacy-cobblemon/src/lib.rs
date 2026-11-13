@@ -14,6 +14,7 @@ pub mod molang;
 pub mod moves;
 pub mod party;
 pub mod pc;
+pub mod playing;
 pub mod pose;
 pub mod poser;
 pub mod resolver;

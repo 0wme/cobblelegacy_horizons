@@ -76,6 +76,8 @@ pub struct Pose {
     /// `quirks`: what the model does now and then on its own (a blink), each a call that gives Cobblemon a
     /// `SimpleQuirk`, such as `q.bedrock_quirk('pikachu', 'blink')`.
     pub quirks: Vec<Expression>,
+    /// The quirks written as objects, the form that came before MoLang, after those of `quirks`.
+    pub legacy_quirks: Vec<LegacyQuirk>,
     /// `namedAnimations`: what a named animation plays in this pose, ahead of the poser's own of that name.
     pub named_animations: Vec<(String, Expression)>,
     /// `transitions`: the name of another pose, and what Cobblemon plays to move from this one to it
@@ -89,6 +91,22 @@ pub struct Pose {
     pub transform_ticks: u32,
     /// `transformToTicks`: how many ticks Cobblemon blends for when it enters this pose.
     pub transform_to_ticks: Option<u32>,
+}
+
+/// A quirk written as an object (`{"name": "blink", "animations": ["bedrock(marill, blink)"]}`), which
+/// `JsonPose` still reads and resource packs still carry: every one of its animations plays together,
+/// now and then.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LegacyQuirk {
+    /// `animations`, and `animation` after them: each MoLang that gives an active animation
+    /// (`q.bedrock_stateful('marill', 'blink')`), or the older `bedrock(marill, blink)`, as written.
+    pub animations: Vec<String>,
+    /// `loopTimes`, 1 without one: it plays from once to that many times in a row.
+    pub loop_times: i32,
+    /// `minSecondsBetweenOccurrences` and `maxSecondsBetweenOccurrences`, 8 and 30 without them.
+    pub seconds: (f32, f32),
+    /// `condition`: MoLang, asked in every frame; the quirk only starts while it is not 0.
+    pub condition: Option<String>,
 }
 
 /// What a pose asks of the entity, each None when the file does not ask (`PoseAdapter`).
@@ -1533,6 +1551,41 @@ fn animation(
     })
 }
 
+/// A quirk written as an object, as `JsonPose` reads it: `animation` joins `animations`, either one
+/// string or a list of them, and what is not there has its default. Read leniently, as Gson does: a
+/// value of the wrong kind is as good as absent.
+fn legacy_quirk(object: &serde_json::Map<String, serde_json::Value>) -> LegacyQuirk {
+    let mut animations = Vec::new();
+    for key in ["animations", "animation"] {
+        match object.get(key) {
+            Some(serde_json::Value::String(source)) => animations.push(source.clone()),
+            Some(serde_json::Value::Array(sources)) => animations.extend(
+                sources
+                    .iter()
+                    .filter_map(|source| source.as_str().map(str::to_owned)),
+            ),
+            _ => {}
+        }
+    }
+    let number = |key: &str, default: f32| {
+        object
+            .get(key)
+            .and_then(serde_json::Value::as_f64)
+            .map_or(default, |number| number as f32)
+    };
+    LegacyQuirk {
+        animations,
+        loop_times: number("loopTimes", 1.0) as i32,
+        seconds: (
+            number("minSecondsBetweenOccurrences", 8.0),
+            number("maxSecondsBetweenOccurrences", 30.0),
+        ),
+        condition: object
+            .get("condition")
+            .and_then(|condition| condition.as_str().map(str::to_owned)),
+    }
+}
+
 fn read_pose(name: String, raw: RawPose, oddities: &mut Vec<Oddity>) -> Result<Pose> {
     if raw.is_standing_on_red_sand.is_some()
         || raw.is_standing_on_sand.is_some()
@@ -1588,17 +1641,21 @@ fn read_pose(name: String, raw: RawPose, oddities: &mut Vec<Oddity>) -> Result<P
         });
     }
     let mut quirks = Vec::new();
+    let mut legacy_quirks = Vec::new();
     for quirk in raw.quirks.into_iter().flatten() {
         match quirk {
             serde_json::Value::String(source) => {
                 quirks.push(expression(Some(&name), &source, oddities));
             }
-            // The older form: nothing here plays quirks yet, so it is noted and read past.
-            serde_json::Value::Object(_) => oddities.push(Oddity {
-                pose: Some(name.clone()),
-                source: String::new(),
-                kind: OddityKind::LegacyQuirk,
-            }),
+            // The older form: noted, and kept apart from the calls.
+            serde_json::Value::Object(object) => {
+                oddities.push(Oddity {
+                    pose: Some(name.clone()),
+                    source: String::new(),
+                    kind: OddityKind::LegacyQuirk,
+                });
+                legacy_quirks.push(legacy_quirk(&object));
+            }
             other => {
                 return Err(Error::new(format!(
                     "poser: a quirk of `{name}` is neither a string nor an object: {other}"
@@ -1621,6 +1678,7 @@ fn read_pose(name: String, raw: RawPose, oddities: &mut Vec<Oddity>) -> Result<P
         },
         animations,
         quirks,
+        legacy_quirks,
         named_animations: named(Some(&name), raw.named_animations, oddities),
         transitions: named(Some(&name), raw.transitions, oddities),
         transformed_parts: raw

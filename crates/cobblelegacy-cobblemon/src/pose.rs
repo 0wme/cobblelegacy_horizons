@@ -36,6 +36,26 @@ impl Delta {
             pose[6 + i] *= self.scale[i];
         }
     }
+
+    /// The change at an `intensity` from 0 (none of it) to 1 (all of it), as Cobblemon weakens what
+    /// fades in or out (`BedrockAnimation.run`, `ModelPartTransformation.apply`): the move and the
+    /// turn by that much, the scale by that much of what it is away from 1. A scale of nothing on
+    /// every axis, which hides a part, is whole from half the intensity on.
+    pub fn at(self, intensity: f32) -> Self {
+        if intensity == 1.0 {
+            return self;
+        }
+        let hides = self.scale == [0.0; 3] && intensity >= 0.5;
+        Self {
+            position: self.position.map(|moved| moved * intensity),
+            rotation: self.rotation.map(|turned| turned * intensity),
+            scale: if hides {
+                self.scale
+            } else {
+                self.scale.map(|factor| 1.0 + (factor - 1.0) * intensity)
+            },
+        }
+    }
 }
 
 #[cfg(test)]
@@ -55,5 +75,31 @@ mod tests {
         let before = pose;
         Delta::NONE.apply(&mut pose);
         assert_eq!(pose, before);
+    }
+
+    #[test]
+    fn a_delta_weakens_with_the_intensity() {
+        let delta = Delta {
+            position: [2.0, -4.0, 0.0],
+            rotation: [1.0, 0.0, -0.5],
+            scale: [2.0, 0.5, 1.0],
+        };
+        assert_eq!(delta.at(1.0), delta);
+        assert_eq!(delta.at(0.0), Delta::NONE);
+        assert_eq!(
+            delta.at(0.5),
+            Delta {
+                position: [1.0, -2.0, 0.0],
+                rotation: [0.5, 0.0, -0.25],
+                scale: [1.5, 0.75, 1.0],
+            }
+        );
+        // A part scaled to nothing is hidden from half the way in, and shrinks before that.
+        let hidden = Delta {
+            scale: [0.0; 3],
+            ..Delta::NONE
+        };
+        assert_eq!(hidden.at(0.5).scale, [0.0; 3]);
+        assert_eq!(hidden.at(0.25).scale, [0.75; 3]);
     }
 }
