@@ -6189,6 +6189,13 @@ impl Game<'_> {
         self.gui_layer("minecraft:sleep_overlay", &mut batch, |g, batch| {
             hud_layout::paint(batch, &g.gui.atlas, &draws);
         });
+        // CobbleLegacy: what a mod draws on the HUD by itself (`HudRenderCallback`, a boss's health
+        // bar), which the screen host paints: over the game's bars, under titles, chat and tab list.
+        if show_hud {
+            self.gui_layer("horizon:hosted_hud", &mut batch, |g, batch| {
+                g.draw_pokemon_host_hud(batch);
+            });
+        }
         if show_hud {
             self.gui_layer("minecraft:overlay_message", &mut batch, |g, batch| {
                 g.draw_overlay_message(batch);

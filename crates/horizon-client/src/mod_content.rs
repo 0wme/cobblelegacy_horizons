@@ -3181,14 +3181,14 @@ pub fn resource_root(base: &Path, mods: &[ContentMod], cache: &Path) -> Result<P
         // Every start looks, not only one that built: a root goes a day after its last use
         // whether or not the mods change again, and a removal a game quit in the middle of
         // is taken up.
-        prune_roots_apart(&roots, &out, PRUNE_AFTER);
+        prune_roots_apart(&roots, &out, PRUNE_AFTER, PRUNE_REST);
         return Ok(out);
     }
     for warning in build(base, mods, &out)? {
         log::warn!("Horizon: {warning}");
     }
     fs::write(out.join(STAMP), stamp)?;
-    prune_roots_apart(&roots, &out, PRUNE_AFTER);
+    prune_roots_apart(&roots, &out, PRUNE_AFTER, PRUNE_REST);
     Ok(out)
 }
 
@@ -3196,9 +3196,12 @@ pub fn resource_root(base: &Path, mods: &[ContentMod], cache: &Path) -> Result<P
 const ROOT_NAME: usize = 16;
 /// How long a root no start or switch used is kept.
 const KEEP_ROOTS: std::time::Duration = std::time::Duration::from_secs(24 * 3600);
-/// How long after a start the old roots' files begin to go: the start reads
-/// the disk first.
-const PRUNE_AFTER: std::time::Duration = std::time::Duration::from_secs(60);
+/// How long after a start the old roots' files begin to go: the start, the
+/// join and what the first minutes of play read have the disk first.
+const PRUNE_AFTER: std::time::Duration = std::time::Duration::from_secs(300);
+/// How long the disk rests between two handfuls of removals, in times what
+/// the handful took (see [`Pace`]).
+const PRUNE_REST: u32 = 4;
 /// The ending of what is being removed from the roots' folder
 /// (`<name>.removing`, see [`doomed_roots`]).
 const REMOVING: &str = "removing";
@@ -3228,14 +3231,18 @@ fn mark_used(root: &Path) {
 
 /// Removes from `roots` what [`doomed_roots`] finds there, without the caller
 /// waiting for it: the old roots leave their names at once, and their files go
-/// on a thread of its own, `after` later. Removing a root is tens of thousands
-/// of files and links: on a hard disk behind USB a start that had just built a
-/// root sat ten minutes in the first of six old ones, nothing on screen and
-/// nothing in its log. The thread, when there was something to remove.
+/// on a thread of its own, `after` later and a handful at a time (`rest`, see
+/// [`Pace`]). Removing a root is tens of thousands of files and links: on a
+/// hard disk behind USB a start that had just built a root sat ten minutes in
+/// the first of six old ones, nothing on screen and nothing in its log; and
+/// removed all at once on a thread, a minute after the start, they kept that
+/// disk from the game, which loaded its items in six minutes for thirty
+/// seconds. The thread, when there was something to remove.
 fn prune_roots_apart(
     roots: &Path,
     current: &Path,
     after: std::time::Duration,
+    rest: u32,
 ) -> Option<std::thread::JoinHandle<()>> {
     let doomed = doomed_roots(roots, current, KEEP_ROOTS);
     if doomed.is_empty() {
@@ -3249,7 +3256,7 @@ fn prune_roots_apart(
             std::thread::sleep(after);
             let started = std::time::Instant::now();
             log::info!("Horizon: removing {} old mod content root(s)", doomed.len());
-            remove_doomed(&doomed);
+            remove_doomed(&doomed, rest);
             log::info!(
                 "Horizon: old mod content roots removed in {} s",
                 started.elapsed().as_secs()
@@ -3362,12 +3369,13 @@ fn set_aside(path: &Path) -> std::io::Result<PathBuf> {
     Ok(aside)
 }
 
-/// Removes what [`doomed_roots`] set aside. What does not go keeps its name
-/// and is tried again by the next start.
-fn remove_doomed(doomed: &[PathBuf]) {
+/// Removes what [`doomed_roots`] set aside, at the pace `rest` gives ([`Pace`]).
+/// What does not go keeps its name and is tried again by the next start.
+fn remove_doomed(doomed: &[PathBuf], rest: u32) {
+    let mut pace = Pace::new(rest);
     for path in doomed {
         let removed = match fs::symlink_metadata(path) {
-            Ok(meta) if meta.is_dir() => fs::remove_dir_all(path),
+            Ok(meta) if meta.is_dir() => remove_gently(path, &mut pace),
             Ok(_) => fs::remove_file(path),
             // Another game's removal got there first.
             Err(_) => continue,
@@ -3383,10 +3391,75 @@ fn remove_doomed(doomed: &[PathBuf]) {
     }
 }
 
+/// Removes the folder `dir` and all in it, entry by entry at `pace`. A link is
+/// removed and never followed: a root mirrors its base through links, and only
+/// a folder that is really one is gone into. What will not go this way (a
+/// read-only file, on Windows) goes with its folder by `fs::remove_dir_all`,
+/// which knows every case and takes the folder in one go.
+fn remove_gently(dir: &Path, pace: &mut Pace) -> std::io::Result<()> {
+    fn one_by_one(dir: &Path, pace: &mut Pace) -> std::io::Result<()> {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            // The entry's own kind: a link to a folder is a link here, not a folder.
+            if entry.file_type()?.is_dir() {
+                remove_gently(&path, pace)?;
+            } else {
+                // A file or a link to one; else a link to a folder, which goes as a folder
+                // does on Windows. Neither call reaches what a link names.
+                fs::remove_file(&path).or_else(|_| fs::remove_dir(&path))?;
+            }
+            pace.step();
+        }
+        fs::remove_dir(dir)
+    }
+    one_by_one(dir, pace).or_else(|_| fs::remove_dir_all(dir))
+}
+
+/// The pace of a removal nothing waits for: after each handful of entries the
+/// disk rests `rest` times what the handful took, a minute at most. A game
+/// reading the same disk has the rest of it, and a busy disk, where each
+/// removal is slow, is left alone the longer. No rest at all with `rest` 0.
+struct Pace {
+    rest: u32,
+    removed: u32,
+    since: std::time::Instant,
+}
+
+impl Pace {
+    /// Entries removed between two rests.
+    const HANDFUL: u32 = 16;
+    /// The longest rest.
+    const LONGEST: std::time::Duration = std::time::Duration::from_secs(60);
+
+    fn new(rest: u32) -> Self {
+        Pace {
+            rest,
+            removed: 0,
+            since: std::time::Instant::now(),
+        }
+    }
+
+    /// How long the disk rests after a handful that took `took`.
+    fn rest_after(&self, took: std::time::Duration) -> std::time::Duration {
+        (took * self.rest).min(Self::LONGEST)
+    }
+
+    /// One entry is gone.
+    fn step(&mut self) {
+        self.removed += 1;
+        if self.rest == 0 || !self.removed.is_multiple_of(Self::HANDFUL) {
+            return;
+        }
+        std::thread::sleep(self.rest_after(self.since.elapsed()));
+        self.since = std::time::Instant::now();
+    }
+}
+
 /// What a start used to do in line: [`doomed_roots`] removed on the spot.
 #[cfg(test)]
 fn prune_roots(roots: &Path, current: &Path, keep: std::time::Duration) {
-    remove_doomed(&doomed_roots(roots, current, keep));
+    remove_doomed(&doomed_roots(roots, current, keep), 0);
 }
 
 /// Whether turning a content mod on or off can apply in a running game
