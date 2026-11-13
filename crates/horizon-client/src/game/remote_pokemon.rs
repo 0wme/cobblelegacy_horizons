@@ -492,6 +492,7 @@ impl Game<'_> {
     /// Once a frame: the looks whose files have been read since the last get their place in the atlas,
     /// and the Pokémon that waited for them their body.
     fn pokemon_looks_frame(&mut self) {
+        let _span = horizon_client::spans::guard("pokemon_looks");
         loop {
             let Some(r) = self.remote.as_mut() else {
                 return;
