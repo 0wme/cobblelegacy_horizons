@@ -1555,4 +1555,74 @@ mod tests {
         expected.extend_from_slice(&[0, 1, 0, 5]);
         assert_eq!(move_party_pokemon(pokemon, 1, 5), expected);
     }
+
+    #[test]
+    fn what_the_server_edits_of_a_pokemon_reaches_it() {
+        // Captured as the server's console edited a Charmeleon one property at a time
+        // (`pokeeditother`): each message's value, behind the ids of the logged-in party's own
+        // Charizard in place of that Charmeleon's.
+        let mut storage = logged_in();
+        let mut update = |channel, captured: &[u8]| {
+            assert!(
+                storage
+                    .read(channel, &about_charizard(&captured[32..]))
+                    .unwrap(),
+                "{channel}"
+            );
+        };
+        update(
+            NATURE_UPDATE,
+            include_bytes!("../tests/fixtures/summary1/nature_update-1.bin"),
+        );
+        update(
+            IV_UPDATE,
+            include_bytes!("../tests/fixtures/summary1/iv_update.bin"),
+        );
+        update(
+            EV_UPDATE,
+            include_bytes!("../tests/fixtures/summary1/ev_update.bin"),
+        );
+        update(
+            FRIENDSHIP_UPDATE,
+            include_bytes!("../tests/fixtures/summary1/friendship_update.bin"),
+        );
+        update(
+            FULLNESS_UPDATE,
+            include_bytes!("../tests/fixtures/summary1/fullness_update.bin"),
+        );
+        update(
+            ABILITY_UPDATE,
+            include_bytes!("../tests/fixtures/summary1/ability_update.bin"),
+        );
+        update(
+            TERA_TYPE_UPDATE,
+            include_bytes!("../tests/fixtures/summary1/tera_type_update.bin"),
+        );
+        let charizard = storage.party()[1].as_ref().unwrap();
+        // `nature=timid`, `hp_iv=31 speed_iv=0`, `attack_ev=100 speed_ev=252`, `friendship=200`,
+        // `fullness=3`, `ability=solarpower`, `tera_type=water`.
+        assert_eq!(charizard.nature, "cobblemon:timid");
+        assert_eq!(charizard.minted_nature, None);
+        assert_eq!(charizard.ivs.base, [31, 28, 31, 13, 21, 0]);
+        assert_eq!(charizard.ivs.hyper_trained, [None; 6]);
+        assert_eq!(charizard.evs, [0, 100, 0, 0, 0, 252]);
+        assert_eq!((charizard.health_iv, charizard.health_ev), (31, 0));
+        assert_eq!((charizard.friendship, charizard.fullness), (200, 3));
+        assert_eq!(charizard.ability, "solarpower");
+        assert_eq!(charizard.tera_type, "cobblemon:water");
+        // Its stats with them: timid raises speed and lowers attack.
+        let stats = Stat::ALL.map(|stat| charizard.stat(stat, &[78, 84, 78, 109, 85, 100]));
+        assert_eq!(stats, [153, 103, 98, 120, 100, 149]);
+        // `nature=modest`, the last edit.
+        let modest = include_bytes!("../tests/fixtures/summary1/nature_update-2.bin");
+        assert!(
+            storage
+                .read(NATURE_UPDATE, &about_charizard(&modest[32..]))
+                .unwrap()
+        );
+        let charizard = storage.party()[1].as_ref().unwrap();
+        assert_eq!(charizard.effective_nature().unwrap().name, "modest");
+        // As captured, they are about a Pokémon this party does not hold: nothing changes.
+        assert!(!storage.read(NATURE_UPDATE, modest).unwrap());
+    }
 }
