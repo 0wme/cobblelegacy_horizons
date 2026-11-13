@@ -777,8 +777,7 @@ impl BuildProgress {
             .fetch_add(steps as u64, std::sync::atomic::Ordering::Relaxed);
     }
     fn step(&self) {
-        self.done
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.done.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
     /// The steps done so far.
     fn steps(&self) -> u64 {

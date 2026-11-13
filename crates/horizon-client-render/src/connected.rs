@@ -695,8 +695,7 @@ mod tests {
     /// A pack's overlay rule that writes `skip` for the tiles it leaves out keeps the others.
     #[test]
     fn a_tile_without_a_file_is_skipped_and_its_rule_kept() {
-        let root =
-            std::env::temp_dir().join(format!("horizon-ctm-absent-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("horizon-ctm-absent-{}", std::process::id()));
         let dir = root.join("assets/minecraft/optifine/ctm/overlays/slab");
         std::fs::create_dir_all(&dir).unwrap();
         for name in ["1.png", "3.png"] {

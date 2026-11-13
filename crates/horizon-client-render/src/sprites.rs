@@ -1136,7 +1136,11 @@ mod tests {
         let animation: serde_json::Value =
             serde_json::from_str(sections["animation"].get()).unwrap();
         assert_eq!(animation["frametime"], 2);
-        assert!(metadata_sections("\u{feff}{} signed, the author").unwrap().is_empty());
+        assert!(
+            metadata_sections("\u{feff}{} signed, the author")
+                .unwrap()
+                .is_empty()
+        );
         assert!(metadata_sections("").is_err());
         assert!(metadata_sections("[1]").is_err());
     }

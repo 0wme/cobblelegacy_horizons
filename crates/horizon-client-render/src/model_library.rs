@@ -233,9 +233,15 @@ mod tests {
             }
         }
         // An item model over it resolves too.
-        fixture.write("minecraft:item/farmland", r#"{"parent":"minecraft:block/farmland1"}"#);
+        fixture.write(
+            "minecraft:item/farmland",
+            r#"{"parent":"minecraft:block/farmland1"}"#,
+        );
         let items = ParsedModels::load(&fixture.0).into_item_library()?;
-        assert_eq!(items.resolve("minecraft:item/farmland")?.elements().len(), 1);
+        assert_eq!(
+            items.resolve("minecraft:item/farmland")?.elements().len(),
+            1
+        );
         // A root that has the template keeps its own.
         fixture.write(
             "minecraft:block/template_farmland",

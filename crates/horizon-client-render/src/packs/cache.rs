@@ -64,7 +64,10 @@ impl Dependencies {
 #[derive(Default)]
 struct Listings(
     #[cfg_attr(not(windows), allow(dead_code))]
-    std::collections::HashMap<PathBuf, Option<std::collections::HashMap<std::ffi::OsString, fs::Metadata>>>,
+    std::collections::HashMap<
+        PathBuf,
+        Option<std::collections::HashMap<std::ffi::OsString, fs::Metadata>>,
+    >,
 );
 impl Listings {
     /// `path`'s metadata, as `fs::metadata` gives it; `directory` says a folder is expected
@@ -1262,8 +1265,14 @@ mod tests {
     fn a_build_counts_its_steps_and_a_built_overlay_has_none() {
         let f = Fixture::new();
         f.write("vanilla/facts.json", b"[]");
-        f.write("vanilla/assets/minecraft/textures/block/stone.png", b"vanilla");
-        f.write("vanilla/assets/minecraft/lang/en_us.json", br#"{"a":"vanilla"}"#);
+        f.write(
+            "vanilla/assets/minecraft/textures/block/stone.png",
+            b"vanilla",
+        );
+        f.write(
+            "vanilla/assets/minecraft/lang/en_us.json",
+            br#"{"a":"vanilla"}"#,
+        );
         let texture = "assets/minecraft/textures/block/dirt.png";
         let own = "assets/own/textures/a/b.png";
         f.write(
@@ -1276,7 +1285,10 @@ mod tests {
                     ),
                     (texture, b"pack".to_vec()),
                     (own, b"own".to_vec()),
-                    ("assets/minecraft/lang/en_us.json", br#"{"b":"pack"}"#.to_vec()),
+                    (
+                        "assets/minecraft/lang/en_us.json",
+                        br#"{"b":"pack"}"#.to_vec(),
+                    ),
                 ],
                 true,
             ),
@@ -1322,7 +1334,8 @@ mod tests {
         f.rebuild_matches(selected);
         assert_eq!(fs::metadata(&marker).unwrap().modified().unwrap(), built);
         // A new file under the old name, as a launcher writes its update.
-        let vanilla = f.0.join("vanilla/assets/minecraft/textures/block/stone.png");
+        let vanilla =
+            f.0.join("vanilla/assets/minecraft/textures/block/stone.png");
         fs::remove_file(&vanilla).unwrap();
         fs::write(&vanilla, b"new").unwrap();
         f.rebuild_matches(selected);
