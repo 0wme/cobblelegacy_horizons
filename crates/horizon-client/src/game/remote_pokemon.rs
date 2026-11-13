@@ -37,6 +37,8 @@ use std::{
 
 #[path = "remote_pokemon_anim.rs"]
 mod anim;
+#[path = "remote_pokemon_capture.rs"]
+mod capture;
 #[path = "remote_pokemon_battle.rs"]
 mod fight;
 #[path = "remote_pokemon_label.rs"]
@@ -64,6 +66,7 @@ pub(super) fn reads(channel: &str) -> bool {
         || cobblelegacy_cobblemon::battle::reads(channel)
         || channel == cobblelegacy_cobblemon::moves::MOVES_SYNC
         || channel == cobblelegacy_cobblemon::sound::PLAY_ANIMATION
+        || channel == cobblelegacy_cobblemon::capture::SPAWN_POKEBALL
 }
 
 /// The vanilla type that lends a Pokémon its attributes, and its body when Cobblemon's own cannot be
@@ -108,6 +111,8 @@ pub(super) struct Pokemon {
     phases: phase::Phases,
     /// What is heard of them: a Ball's trail, the cries to come, a battle's music.
     sounds: sounds::Sounds,
+    /// The Balls thrown at Pokémon to catch them.
+    captures: capture::Captures,
 }
 
 /// What there is of a look when it is asked for.
@@ -142,6 +147,7 @@ impl Pokemon {
         self.labels.forget(id);
         self.phases.forget(id);
         self.sounds.forget(id);
+        self.captures.forget(id);
     }
 }
 
@@ -570,6 +576,7 @@ impl Game<'_> {
         self.pokemon_looks_frame();
         self.pokemon_phase_frame();
         self.pokemon_sounds_frame();
+        self.pokemon_capture_frame();
     }
 
     /// An image in one of the atlas's Pokémon slots, as the sprite `sprite`. The slots are shared: only
@@ -586,6 +593,7 @@ impl Game<'_> {
             .chain(pokemon.party.textures())
             .chain(pokemon.pcs.textures())
             .chain(pokemon.phases.textures())
+            .chain(pokemon.phases.ball_textures(pokemon.captures.names()))
             .collect();
         let slots = pokemon
             .slots
@@ -629,6 +637,7 @@ impl Game<'_> {
             SPAWN_POKEMON => self.remote_pokemon_spawn(data),
             UNREAD_ENTITY_DATA => self.remote_pokemon_data(data),
             cobblelegacy_cobblemon::sound::PLAY_ANIMATION => self.pokemon_animation_sounds(data),
+            cobblelegacy_cobblemon::capture::SPAWN_POKEBALL => self.remote_pokemon_ball_spawn(data),
             battle if cobblelegacy_cobblemon::battle::reads(battle) => {
                 self.pokemon_battle_sounds(battle, data);
                 self.remote_pokemon_battle(battle, data);
@@ -671,6 +680,11 @@ impl Game<'_> {
         let Ok(id) = r.varint() else {
             return;
         };
+        let rest = r.rest();
+        // A thrown Ball's, which has its own layout.
+        if self.remote_pokemon_ball_data(id, rest) {
+            return;
+        }
         // Another mod's entity, whose layout nothing here knows.
         if !self
             .remote
@@ -679,7 +693,7 @@ impl Game<'_> {
         {
             return;
         }
-        let data = match PokemonData::read_rest(r.rest()) {
+        let data = match PokemonData::read_rest(rest) {
             Ok(data) => data,
             Err(e) => {
                 log::debug!("Horizon: the data of Pokémon {id} does not decode: {e}");

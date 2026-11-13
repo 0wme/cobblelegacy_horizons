@@ -19,12 +19,18 @@
 //! give it in this Pokémon's hands, which Cobblemon works out.
 //!
 //! Not here yet: battles of more than one Pokémon a side (their tiles and target choice), the gimmicks
-//! (mega evolution, Z-moves, dynamax, terastallization), challenges between players, the capture's ball
-//! on the tile, the tiles sliding in and out, scrolling the log, and Cobblemon's own font for names.
+//! (mega evolution, Z-moves, dynamax, terastallization), challenges between players, the tiles sliding
+//! in and out (but for a caught Pokémon's, which slides away), scrolling the log, and Cobblemon's own
+//! font for names.
+//!
+//! A capture in battle is thrown in the world like any other (`remote_pokemon_capture.rs`); the tile of
+//! the Pokémon it hit shows it too, its portrait shrinking away and the Ball growing in its place.
 use super::super::super::{Game, Screen};
+use super::capture::{TILE_LEAVES, TileBall};
 use super::party::{Framing, health_colour, small_text};
 use cobblelegacy_cobblemon::{
     battle::{self, ActorType, Battle, BattlePokemon, Battles, Change, Response},
+    capture::TileShows,
     moves, party,
 };
 use horizon_client::{
@@ -141,6 +147,11 @@ pub(super) struct Fight {
     /// The log's lines, wrapped to its width, and how many of the battle's messages are in them.
     lines: Vec<Text>,
     wrapped: usize,
+    /// The Ball thrown at one of the battle's Pokémon, which its tile shows.
+    ball: Option<TileBall>,
+    /// The Pokémon that was caught, and when: its tile slides off the screen
+    /// (`MoveTileOffscreenAnimation`).
+    caught: Option<(u128, Instant)>,
 }
 
 impl Fight {
@@ -155,6 +166,8 @@ impl Fight {
         self.shown.clear();
         self.lines.clear();
         self.wrapped = 0;
+        self.ball = None;
+        self.caught = None;
     }
 
     /// The share of its health a Pokémon's bar shows now, moving to its real one.
@@ -424,6 +437,7 @@ impl Game<'_> {
 
     /// A message of the server on one of the battle's channels.
     pub(super) fn remote_pokemon_battle(&mut self, channel: &str, data: &[u8]) {
+        super::capture::record(channel, data);
         let me = self.own_uuid();
         let Some(fight) = self.pokemon_fight() else {
             return;
@@ -450,6 +464,32 @@ impl Game<'_> {
                 let pass = fight.battles.current().is_some_and(|b| b.pass_expected);
                 if pass {
                     self.pokemon_battle_answer(Response::ForcePass);
+                }
+            }
+            // `BattleCaptureStartHandler`: the tile of the Pokémon the Ball hit shows it.
+            Ok(Change::CaptureStarted) => {
+                let thrown = fight.battles.current().and_then(|battle| {
+                    let capture = battle.capture.as_ref()?;
+                    Some((battle.at(&capture.target)?.uuid, capture.ball.clone()))
+                });
+                fight.ball =
+                    thrown.map(|(pokemon, ball)| TileBall::new(pokemon, &ball, Instant::now()));
+                if let Some(name) = fight.ball.as_ref().map(|ball| ball.name().to_owned()) {
+                    self.pokemon_ball(&name);
+                }
+            }
+            Ok(Change::CaptureShook) => {
+                if let Some(ball) = &mut fight.ball {
+                    ball.shake(Instant::now());
+                }
+            }
+            // `BattleCaptureEndHandler`: the Ball leaves the tile, and the tile the screen if the
+            // Pokémon stayed in.
+            Ok(Change::CaptureEnded(succeeded)) => {
+                if let Some(ball) = fight.ball.take()
+                    && succeeded
+                {
+                    fight.caught = Some((ball.pokemon(), Instant::now()));
                 }
             }
             Ok(_) => {}
@@ -618,6 +658,8 @@ impl Game<'_> {
             }
         }
         let alpha = if fight.minimised { 0.5 } else { 1.0 };
+        let ball = fight.ball.as_mut().map(|ball| ball.frame(now));
+        let caught = fight.caught;
         let Some(template) = self.res.mob_types().get(super::STAND_IN).cloned() else {
             return;
         };
@@ -629,7 +671,19 @@ impl Game<'_> {
         let atlas = &self.gui.atlas;
         for ((left, rank, pokemon, health), look) in tiles.iter().zip(&looks) {
             let (left, health) = (*left, *health);
-            let x = if left { 12.0 } else { width - 152.0 };
+            // A caught Pokémon's tile slides off its side of the screen, then is gone.
+            let leaving = caught
+                .filter(|(caught, _)| *caught == pokemon.uuid)
+                .map(|(_, since)| now.saturating_duration_since(since).as_secs_f32() / TILE_LEAVES);
+            if leaving.is_some_and(|done| done >= 1.0) {
+                continue;
+            }
+            let slide = leaving.unwrap_or(0.0) * 160.0;
+            let x = if left {
+                12.0 - slide
+            } else {
+                width - 152.0 + slide
+            };
             let y = 10.0 + *rank as f32 * 40.0;
             let portrait = if left { x + 5.0 } else { x + 107.0 };
             let info = if left { x + 40.0 } else { x + 7.0 };
@@ -656,14 +710,25 @@ impl Game<'_> {
                 let at = if left { x + 56.5 } else { x + 83.5 };
                 small_text(batch, atlas, &label, at, y + 29.5, true, false);
             }
-            if let Some(look) = look {
-                let framing = Framing {
-                    origin: (portrait + 14.0, y + 3.0),
-                    scale: 18.0,
-                    reversed: !left,
-                    clip: [portrait, y + 8.0, portrait + 28.0, y + 36.0],
-                };
-                self.draw_pokemon_portrait(batch, look, framing);
+            // A Ball thrown at this Pokémon: its portrait shrinks away, then the Ball is there.
+            let thrown = ball.as_ref().filter(|ball| ball.pokemon == pokemon.uuid);
+            let clip = [portrait, y + 8.0, portrait + 28.0, y + 36.0];
+            let origin = (portrait + 14.0, y + 3.0);
+            match thrown {
+                Some(thrown) if thrown.shows == TileShows::Ball => {
+                    self.draw_pokemon_tile_ball(batch, thrown, origin, !left, clip);
+                }
+                _ => {
+                    if let Some(look) = look {
+                        let framing = Framing {
+                            origin,
+                            scale: 18.0 * thrown.map_or(1.0, |thrown| thrown.size),
+                            reversed: !left,
+                            clip,
+                        };
+                        self.draw_pokemon_portrait(batch, look, framing);
+                    }
+                }
             }
             let frame = if left {
                 "battle_info_base"
@@ -1089,6 +1154,11 @@ impl Game<'_> {
             "own": active(battle.own().map_or(&[][..], std::slice::from_ref)),
             "foe": active(battle.opponents()),
             "team": battle.team.iter().map(|p| p.species.as_str()).collect::<Vec<_>>(),
+            "capture": battle.capture.as_ref().map(|c| serde_json::json!({
+                "ball": c.ball,
+                "target": c.target,
+                "shakes": c.shakes,
+            })),
             "moves": moves,
             "buttons": buttons,
             "messages": battle.messages.len(),

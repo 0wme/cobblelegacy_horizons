@@ -6008,7 +6008,7 @@ impl Game<'_> {
             }
         } else if let Some(r) = self.rockets.iter_mut().find(|r| r.id == id as u32) {
             r.velocity = v;
-        } else if self.remote_hook_motion(id as u32, v) {
+        } else if self.remote_hook_motion(id as u32, v) || self.pokemon_ball_motion(id, velocity) {
         } else if let Some(p) = self
             .remote
             .as_mut()

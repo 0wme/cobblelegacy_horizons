@@ -665,21 +665,6 @@ impl Game<'_> {
         (mob.head_pitch, mob.previous_head_pitch) = (0.0, 0.0);
         mob.extra.model_scale = 1.0;
         mob.extra.variant = anim::with_pose(0, PoseType::Portrait);
-        let atlas = &self.gui.atlas;
-        let lookup = |name: &str| atlas.sprites.get(name).map(|r| [r.u0, r.v0, r.u1, r.v1]);
-        let mut vertices = Vec::new();
-        horizon_client::mobs::cem_anim::in_gui(|| {
-            horizon_client::mobs::render::render_with(
-                &mob,
-                0.0,
-                glam::DVec3::ZERO,
-                &lookup,
-                240 | 240 << 8,
-                self.res.mob_data(),
-                &[],
-                &mut vertices,
-            );
-        });
         let (scale, [x, y, z]) = (look.portrait_scale, look.portrait_translation);
         // The mob renderer stood the model in the world, y up and sized by its species; the frame
         // is laid out around the model itself, y down and unsized.
@@ -696,6 +681,36 @@ impl Game<'_> {
             * Mat4::from_rotation_y((-32.0 * side).to_radians())
             * Mat4::from_rotation_x(5f32.to_radians())
             * Mat4::from_scale(V::new(-unsized_model, -unsized_model, unsized_model));
+        self.draw_pokemon_model(batch, &mob, 0.0, gui, framing.clip);
+    }
+
+    /// A model in the GUI: `mob`, stood at the origin and facing the viewer (a yaw of 180), drawn
+    /// `partial` of a tick into its age, laid out by `gui` (from the world's blocks to GUI pixels) and
+    /// cut to `clip` (left, top, right, bottom).
+    pub(super) fn draw_pokemon_model(
+        &self,
+        batch: &mut HudBatch,
+        mob: &Mob,
+        partial: f32,
+        gui: glam::Mat4,
+        clip: [f32; 4],
+    ) {
+        use glam::Vec3 as V;
+        let atlas = &self.gui.atlas;
+        let lookup = |name: &str| atlas.sprites.get(name).map(|r| [r.u0, r.v0, r.u1, r.v1]);
+        let mut vertices = Vec::new();
+        horizon_client::mobs::cem_anim::in_gui(|| {
+            horizon_client::mobs::render::render_with(
+                mob,
+                partial,
+                glam::DVec3::ZERO,
+                &lookup,
+                240 | 240 << 8,
+                self.res.mob_data(),
+                &[],
+                &mut vertices,
+            );
+        });
         // The faces turned to the viewer, each at its own depth: a model's small parts (an eye on a
         // cheek) sit a hair in front of the face they are on, and on the cheek turned away their
         // middle is farther than the face's, so ordering whole faces by distance hid them.
@@ -725,7 +740,7 @@ impl Game<'_> {
             batch.quad_3d(corners, uv, colour);
         }
         // Tested for depth and cut to the frame, as an item's model in a slot.
-        batch.depth_since(start, framing.clip);
+        batch.depth_since(start, clip);
     }
 
     /// A key pressed in play on a server: whether the party took it ([`Party::key`]).

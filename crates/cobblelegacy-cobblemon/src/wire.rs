@@ -81,7 +81,7 @@ pub struct AddEntity {
 }
 
 impl AddEntity {
-    fn read(r: &mut Reader) -> Result<Self> {
+    pub(crate) fn read(r: &mut Reader) -> Result<Self> {
         let id = r.varint()?;
         let uuid = r.uuid()?;
         let kind = r.varint()?;
