@@ -44,6 +44,10 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The variable that names the host's launch file.
 const LAUNCH: &str = "HORIZON_SCREEN_HOST";
 
+/// The variable the host is started with: the game's own resources (the vanilla language files and
+/// textures), which a screen names its items and effects from.
+const RESOURCES: &str = "HORIZON_RESOURCES";
+
 /// The channels the running host reads, which [`reads`] answers from: `remote.rs` asks before it has
 /// the game at hand. `None` until a host has said which.
 static CHANNELS: RwLock<Option<Vec<String>>> = RwLock::new(None);
@@ -647,8 +651,8 @@ struct Link {
 
 impl Link {
     /// Starts the host the launch file names: its program, then its arguments, a line each. The host
-    /// is told the shared file and its size after them.
-    fn start(launch: &Path) -> Result<Self, String> {
+    /// is told the shared file and its size after them, and where the game's `resources` are.
+    fn start(launch: &Path, resources: &Path) -> Result<Self, String> {
         let text = std::fs::read_to_string(launch).map_err(|e| e.to_string())?;
         let mut words = text
             .lines()
@@ -672,6 +676,7 @@ impl Link {
             .arg(&path)
             .arg("--size")
             .arg(file_size().to_string())
+            .env(RESOURCES, resources)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());
@@ -956,14 +961,14 @@ impl Game<'_> {
     /// Once a frame: the host is started when a launch file names one, what it said since the last
     /// frame is taken, and it is told where the pointer is and how large the window is.
     pub(super) fn pokemon_host_frame(&mut self) {
-        let Some(host) = self.pokemon_host() else {
+        let Some(host) = self.remote.as_mut().map(|remote| &mut remote.pokemon.host) else {
             return;
         };
         if host.link.is_none() && !host.failed {
             let Some(launch) = std::env::var_os(LAUNCH) else {
                 return;
             };
-            match Link::start(Path::new(&launch)) {
+            match Link::start(Path::new(&launch), &self.options.resources) {
                 Ok(link) => {
                     log::info!(
                         "Horizon: the screen host is started (process {})",
