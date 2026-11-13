@@ -115,6 +115,12 @@ pub(super) mod wire {
         },
         /// The whole image again: what the game held of it is gone.
         Redraw,
+        /// Something the game knows and a screen may ask for (the player's party, where the player
+        /// stands), as JSON, each time it changes.
+        State {
+            key: &'a str,
+            json: &'a str,
+        },
     }
 
     impl ToHost<'_> {
@@ -200,6 +206,11 @@ pub(super) mod wire {
                     out.extend_from_slice(&frame.to_be_bytes());
                 }
                 Self::Redraw => out.push(9),
+                Self::State { key, json } => {
+                    out.push(10);
+                    text(&mut out, key.as_bytes());
+                    text(&mut out, json.as_bytes());
+                }
             }
             let length = (out.len() - 4) as u32;
             out[..4].copy_from_slice(&length.to_be_bytes());
@@ -396,6 +407,21 @@ fn frame_fits(frame: &Frame) -> bool {
             .y
             .checked_add(frame.h)
             .is_some_and(|b| b <= frame.height)
+}
+
+/// What an overlay of a Pokémon's model names: `species;aspect,aspect;silhouette`, the last part empty
+/// when the model shows as it is.
+fn model_of(what: &str) -> (&str, Vec<String>, bool) {
+    let mut parts = what.split(';');
+    let species = parts.next().unwrap_or_default();
+    let aspects = parts
+        .next()
+        .unwrap_or_default()
+        .split(',')
+        .filter(|aspect| !aspect.is_empty())
+        .map(str::to_owned)
+        .collect();
+    (species, aspects, parts.next() == Some("silhouette"))
 }
 
 /// The bytes the shared file holds for the slot's largest image.
@@ -727,6 +753,11 @@ pub(super) struct Host {
     pointer: Option<(f32, f32)>,
     /// What the game draws itself over the image.
     overlays: Vec<wire::Overlay>,
+    /// What the host was last told of the game, by key, and the frames since it was looked at.
+    told: Vec<(&'static str, String)>,
+    frames: u32,
+    /// When the screen opened: its models' animations start then.
+    opened: Option<Instant>,
     serial: u32,
     stats: Stats,
 }
@@ -743,6 +774,19 @@ impl Host {
             self.stats.waiting.pop_front();
         }
         let _ = link.to_host.send(message(self.serial));
+    }
+
+    /// The game's `json` under `key`, told to the host when it is not what it was last told.
+    fn state(&mut self, key: &'static str, json: String) {
+        let Some(link) = &self.link else {
+            return;
+        };
+        match self.told.iter_mut().find(|(k, _)| *k == key) {
+            Some((_, last)) if *last == json => return,
+            Some((_, last)) => last.clone_from(&json),
+            None => self.told.push((key, json.clone())),
+        }
+        link.tell(&ToHost::State { key, json: &json });
     }
 
     /// The pointer at `at` (in the image's pixels), told to the host when it moved.
@@ -869,6 +913,27 @@ impl Game<'_> {
         if hosted && let Some(cursor) = cursor {
             host.pointer_at(cursor, modifiers);
         }
+        host.frames = host.frames.wrapping_add(1);
+        let (party, player) = (host.frames % 32 == 0, hosted && host.frames % 4 == 0);
+        if party {
+            let json = self.pokemon_party_status().to_string();
+            if let Some(host) = self.pokemon_host() {
+                host.state("party", json);
+            }
+        }
+        if player && let Some(p) = &self.player {
+            let json = serde_json::json!({
+                "x": p.position.x,
+                "y": p.position.y,
+                "z": p.position.z,
+                "yaw": self.yaw,
+                "pitch": self.pitch,
+            })
+            .to_string();
+            if let Some(host) = self.pokemon_host() {
+                host.state("player", json);
+            }
+        }
     }
 
     /// Where the atlas's slot is, in its texels.
@@ -942,6 +1007,16 @@ impl Game<'_> {
 
     /// The host opens a screen: it takes the place of play, or of the screen it drew before.
     fn pokemon_host_show(&mut self, name: String) {
+        // `Minecraft.setScreen` takes the place of whatever is open. Here the pause menu (which the
+        // window opens by itself when it loses the focus) and the chat give way; a container, whose
+        // closing the server must hear of, does not.
+        if self.screen == Screen::Chat {
+            self.close_chat(super::super::super::chat::ChatExit::Interrupted);
+        }
+        if self.screen == Screen::Paused {
+            self.pause_focus = None;
+            self.screen = Screen::Playing;
+        }
         if !matches!(self.screen, Screen::Playing | Screen::Hosted) {
             // Another screen has the window: the host's is turned away.
             if let Some(link) = self.pokemon_host().and_then(|host| host.link.as_ref()) {
@@ -954,6 +1029,7 @@ impl Game<'_> {
         };
         log::info!("Horizon: the screen host shows {name}");
         host.open = Some(name);
+        host.opened = Some(Instant::now());
         host.overlays.clear();
         host.image = None;
         host.pointer = None;
@@ -1055,6 +1131,23 @@ impl Game<'_> {
 
     /// The host's screen: its image over the whole window.
     pub(in super::super::super) fn draw_pokemon_host_screen(&mut self, batch: &mut HudBatch) {
+        // The models its screen shows, asked for before anything is drawn: each is there once its
+        // files are read.
+        let models: Vec<(usize, Option<super::Look>)> = self
+            .remote
+            .as_ref()
+            .map(|r| r.pokemon.host.overlays.clone())
+            .unwrap_or_default()
+            .iter()
+            .enumerate()
+            .filter(|(_, overlay)| overlay.kind == 2)
+            .map(|(at, overlay)| {
+                let (species, aspects, _) = model_of(&overlay.what);
+                let template = self.res.mob_types().get(super::STAND_IN).cloned();
+                let look = template.and_then(|t| self.pokemon_look(species, &aspects, &t));
+                (at, look)
+            })
+            .collect();
         let Some(host) = self.remote.as_ref().map(|r| &r.pokemon.host) else {
             return;
         };
@@ -1073,10 +1166,43 @@ impl Game<'_> {
         batch.rect_uv(0.0, 0.0, batch.width, batch.height, rect, u32::MAX);
         // What the host leaves to the game, over its image: from the image's pixels to GUI pixels.
         let to_gui = batch.width / width as f32;
-        for overlay in host.overlays.clone() {
+        let age = host
+            .opened
+            .map_or(0.0, |at| at.elapsed().as_secs_f32() * 20.0);
+        for (at, overlay) in host.overlays.clone().into_iter().enumerate() {
             let [x, y, w, h] = overlay.rect.map(|v| v * to_gui);
             let [clip_x, clip_y, clip_w, clip_h] = overlay.clip.map(|v| v * to_gui);
-            if overlay.kind != 1 || clip_w <= 0.0 || clip_h <= 0.0 {
+            if clip_w <= 0.0 || clip_h <= 0.0 {
+                continue;
+            }
+            let clip = [clip_x, clip_y, clip_x + clip_w, clip_y + clip_h];
+            if overlay.kind == 2 {
+                // A Pokémon's model as `drawProfilePokemon` stands it: `x`, `y` is where the mod's
+                // pose stack put its origin and `w` how many GUI pixels a block is there.
+                let look = models.iter().find(|(model, _)| *model == at);
+                let Some(look) = look.and_then(|(_, look)| look.as_ref()) else {
+                    continue;
+                };
+                use glam::{Mat4, Vec3 as V};
+                let (scale, [tx, ty, tz]) = (look.profile_scale, look.profile_translation);
+                let gui = Mat4::from_translation(V::new(x, y, 0.0))
+                    * Mat4::from_scale(V::new(w, w, -w))
+                    * Mat4::from_translation(V::new(tx, ty + 1.5 * scale, tz - 4.0))
+                    * Mat4::from_scale(V::new(scale, scale, 1.0 / scale))
+                    * Mat4::from_rotation_x(13f32.to_radians())
+                    * Mat4::from_rotation_y(325f32.to_radians());
+                let start = batch.vertices.len();
+                let pose = cobblelegacy_cobblemon::wire::PoseType::Profile;
+                self.draw_pokemon_model(batch, look, pose, age, gui, clip);
+                if model_of(&overlay.what).2 {
+                    // A species the player has not seen: its shape, in black.
+                    for vertex in &mut batch.vertices[start..] {
+                        vertex.color = 0xFF00_0000;
+                    }
+                }
+                continue;
+            }
+            if overlay.kind != 1 {
                 continue;
             }
             // An item is 16 GUI pixels wide: sized to the rectangle and centred in it.
@@ -1085,7 +1211,7 @@ impl Game<'_> {
             let start = batch.vertices.len();
             self.draw_item(batch, &ItemStack::new(&overlay.what, 1), left, top);
             batch.scale_since(start, left, top, side / 16.0, side / 16.0);
-            batch.clip_since(start, clip_x, clip_y, clip_x + clip_w, clip_y + clip_h);
+            batch.clip_since(start, clip[0], clip[1], clip[2], clip[3]);
         }
     }
 
@@ -1324,6 +1450,15 @@ mod tests {
         .bytes();
         assert_eq!(text, [0, 0, 0, 11, 6, 0, 0, 0, 1, 0, 0, 0, 2, 0xC3, 0xA9]);
         assert_eq!(ToHost::Closed.bytes(), [0, 0, 0, 1, 2]);
+        let state = ToHost::State {
+            key: "k",
+            json: "{}",
+        }
+        .bytes();
+        assert_eq!(
+            state,
+            [0, 0, 0, 12, 10, 0, 0, 0, 1, b'k', 0, 0, 0, 2, b'{', b'}']
+        );
     }
 
     #[test]
@@ -1429,6 +1564,23 @@ mod tests {
             y: u32::MAX,
             ..frame
         }));
+    }
+
+    #[test]
+    fn a_model_s_overlay_names_its_species_its_aspects_and_whether_it_is_a_shape() {
+        assert_eq!(
+            model_of("cobblemon:pikachu;male,shiny;silhouette"),
+            (
+                "cobblemon:pikachu",
+                vec!["male".to_owned(), "shiny".to_owned()],
+                true
+            )
+        );
+        assert_eq!(
+            model_of("cobblemon:eevee;;"),
+            ("cobblemon:eevee", Vec::new(), false)
+        );
+        assert_eq!(model_of(""), ("", Vec::new(), false));
     }
 
     #[test]
