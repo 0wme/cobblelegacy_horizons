@@ -18,7 +18,7 @@ use crate::{Result, blocks::MAP_COLORS};
 use horizon_core::geometry::{Aabb, Axis, ShapeOp, Vec3, VoxelShape};
 use horizon_mods::content::{
     Block, BlockShapes, Content, CreativeTab, EntityType, Fluid, MenuType, MobEffect, Rarity,
-    StateProperty, StateValues,
+    StateProperty, StateValues, TabStack,
 };
 use horizon_world::nbt::{self, Compound, JavaString, Tag};
 use serde::{Deserialize, Serialize, de};
@@ -672,13 +672,27 @@ struct Plan<'a> {
     names: BTreeMap<String, String>,
 }
 
-/// Component types present in the vanilla item table.
+/// Component types the game has: those of the vanilla item table, and the
+/// entries of the `minecraft:data_component_type` registry (`registries.json`),
+/// which names the ones no item has of its own and a stack is given
+/// (`minecraft:block_state`, `minecraft:custom_model_data`).
 pub fn known_components(base: &Path) -> Result<BTreeSet<String>> {
     let path = base.join("items.json");
     if !path.exists() {
         return Ok(BTreeSet::new());
     }
-    Ok(component_types(&read_json(&path)?))
+    let mut known = component_types(&read_json(&path)?);
+    let registries = base.join("registries.json");
+    if registries.exists() {
+        let registries = read_json(&registries)?;
+        if let Some(J::Obj(entries)) = registries
+            .get("minecraft:data_component_type")
+            .and_then(|registry| registry.get("entries"))
+        {
+            known.extend(entries.iter().map(|(name, _)| name.clone()));
+        }
+    }
+    Ok(known)
 }
 
 fn component_types(map: &J) -> BTreeSet<String> {
@@ -794,6 +808,15 @@ fn validate_components(content: &horizon_mods::Content, known: &BTreeSet<String>
         let patch = component_patch(id, components)?;
         patch_components(&mut J::Obj(Vec::new()), &patch, known)
             .map_err(|e| format!("{id}: {e}"))?;
+    }
+    // A creative tab's stacks carry components of the same types.
+    for tab in &content.creative_tabs {
+        for stack in tab.items.iter().filter(|s| !s.components.is_empty()) {
+            let id = format!("creative tab {}: {}", tab.id, stack.id);
+            let patch = component_patch(&id, &stack.components)?;
+            patch_components(&mut J::Obj(Vec::new()), &patch, known)
+                .map_err(|e| format!("{id}: {e}"))?;
+        }
     }
     Ok(())
 }
@@ -1802,6 +1825,26 @@ impl<'a> Plan<'a> {
             return Err("no tabs".into());
         };
         let stack = |id: &str| J::Str(format!("{{count:1,id:\"{id}\"}}"));
+        // A tab's stack as the export writes one: its components first, as SNBT.
+        let tab_stack = |s: &TabStack| {
+            if s.components.is_empty() {
+                return stack(&s.id);
+            }
+            let components = Tag::Compound(
+                s.components
+                    .iter()
+                    .map(|(kind, value)| {
+                        let value = horizon_client_core::scoreboard::json_to_tag(value);
+                        (kind.as_str().into(), value)
+                    })
+                    .collect(),
+            );
+            J::Str(format!(
+                "{{components:{},count:1,id:\"{}\"}}",
+                horizon_world::snbt_text::to_snbt(&components),
+                s.id
+            ))
+        };
         // Blocks' items are among `items` already.
         let new: Vec<&str> = self.items.iter().map(|i| i.rename.to.as_str()).collect();
         let search = tabs
@@ -1825,8 +1868,8 @@ impl<'a> Plan<'a> {
             let items = tab
                 .items
                 .iter()
-                .filter(|id| known(id))
-                .map(|id| stack(id))
+                .filter(|s| known(&s.id))
+                .map(tab_stack)
                 .collect();
             row.set("items", J::Arr(items));
             tabs.push(row);

@@ -323,6 +323,20 @@ doesn't have are left out):
 { "title": "Ruby", "icon": "ruby:ruby", "items": ["ruby:ruby", "ruby:ruby_block"] }
 ```
 
+An entry of `items` is an item id, or a stack with the data components it has
+over its item's own, written as an item's `components` are. The same item may
+then come several times, as vanilla lists a potion once per effect, or a mod a
+plant once per growth stage:
+
+```json
+{ "title": "Ruby", "icon": "ruby:bud", "items": ["ruby:ruby",
+  { "id": "ruby:bud", "components": { "minecraft:block_state": { "stage": "2" },
+                                       "minecraft:custom_model_data": { "floats": [2.0] } } }] }
+```
+
+A stack taken from the tab keeps its components, and a server is told them. A
+component type the game doesn't have refuses the mod, as in an item's file.
+
 They come after vanilla's tabs, ten to a page as NeoForge pages them; the
 buttons above the inventory turn the pages. The title is a lang key or English
 text: `"title": "itemGroup.ruby"` uses that key from the mod's lang files, and a
@@ -330,7 +344,7 @@ lang file's `itemGroup.<mod id>.<file name>` (`creative_tab/gems.json` →
 `itemGroup.ruby.gems`) translates any title. A mod's items join the search tab
 under their names.
 
-A component type no vanilla item has is refused, so a misspelt one fails
+A component type the game doesn't have is refused, so a misspelt one fails
 the load instead of doing nothing. Behaviour the game ties to a vanilla
 item's id doesn't come along yet: a copy of the trident doesn't throw
 ([#3305](https://github.com/horizon-rust/horizon/issues/3305)).

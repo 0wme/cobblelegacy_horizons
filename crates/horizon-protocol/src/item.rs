@@ -119,6 +119,8 @@ pub mod component {
     pub const JUKEBOX_PLAYABLE: i32 = 66;
     pub const DAMAGE_RESISTANT: i32 = 27;
     pub const CONTAINER: i32 = 77;
+    /// `BlockItemStateProperties`: the state properties a block item places its block with.
+    pub const BLOCK_STATE: i32 = 78;
     pub const SULFUR_CUBE_CONTENT: i32 = 80;
     pub const PAINTING_VARIANT: i32 = 109;
     /// `SignText.STREAM_CODEC`: a sign item's text, front and back.

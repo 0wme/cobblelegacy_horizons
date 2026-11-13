@@ -249,21 +249,6 @@ impl Game<'_> {
         }
         let effect_tip = self.draw_inventory_effects(batch, (ox, oy), Creative::WIDTH as i32);
         self.draw_creative_pages(batch, ox, oy);
-        for t in tabs.iter().filter(|t| self.creative_screen.on_page(t)) {
-            let (tx, ty) = Creative::tab_position(t);
-            if self.cursor.0 >= ox + tx
-                && self.cursor.0 < ox + tx + 26.0
-                && self.cursor.1 >= oy + ty
-                && self.cursor.1 < oy + ty + 32.0
-            {
-                self.tooltip(
-                    batch,
-                    &self.creative_tab_title(t),
-                    self.cursor.0,
-                    self.cursor.1,
-                );
-            }
-        }
         self.draw_carried(batch);
         if tab.inventory {
             if Self::creative_trash_hovered(batch, self.cursor) {
@@ -296,7 +281,7 @@ impl Game<'_> {
             self.draw_tooltip_lines(batch, &lines, self.cursor.0, self.cursor.1);
         }
         // CreativeModeInventoryScreen.checkTabHovering: a tab says its name.
-        if let Some(i) = Creative::hovered_tab(&tabs, (ox, oy), self.cursor)
+        if let Some(i) = self.creative_screen.hovered_tab((ox, oy), self.cursor)
             && let Some(t) = tabs.get(i)
         {
             let title = self.creative_tab_title(t);
