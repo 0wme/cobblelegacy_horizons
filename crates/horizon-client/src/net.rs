@@ -729,6 +729,16 @@ fn older_server(address: &str) -> Option<horizon_protocol::adapter::ServerVersio
     if !older_servers_enabled() {
         return None;
     }
+    // CobbleLegacy's fork: the release the network says its servers speak, whatever its proxy answers.
+    if let Ok(name) = std::env::var(crate::modded_server::VERSION) {
+        match crate::modded_server::version_named(&name) {
+            Some(version) => return Some(version).filter(|v| *v != ServerVersion::Current),
+            None => log::warn!(
+                "Horizon: {} names no release Horizon translates ({name}): the server is asked",
+                crate::modded_server::VERSION
+            ),
+        }
+    }
     let (json, _) = ping(address, Duration::from_secs(5)).ok()?;
     let protocol = i32::try_from(json["version"]["protocol"].as_i64()?).ok()?;
     ServerVersion::from_protocol(protocol).filter(|v| *v != ServerVersion::Current)

@@ -15,12 +15,27 @@
 //! A server state becomes the client state of the block of that name whose properties say the same;
 //! a property the client's block lacks is dropped, one the server's lacks keeps the client's default.
 //! A block the client has none for stays air, as before.
+use horizon_protocol::adapter::ServerVersion;
 use horizon_protocol::adapter::fabric::{Modded, RegistrySync, Skip};
 use horizon_world::registry::{BlockRegistry, BlockStateId};
 use std::{collections::HashMap, io, path::Path};
 
 /// The variable that names the server report.
 pub const REPORT: &str = "HORIZON_SERVER_REPORT";
+
+/// The variable that names the release a network's servers speak (`1.21.1`).
+///
+/// A status ping tells what the address answers, and behind a proxy that is the proxy: Velocity names
+/// the newest release it takes and lets the player in as that, then the server it hands the player to,
+/// which speaks its own release only, turns the player away ("Outdated server!"). A network's launcher
+/// knows which release its servers run and says so here; the server is then not asked.
+pub const VERSION: &str = "HORIZON_SERVER_VERSION";
+
+/// The release of that name among those the adapter translates: `1.21.1`, `1.21.11`...
+pub fn version_named(name: &str) -> Option<ServerVersion> {
+    let name = name.trim();
+    ServerVersion::ALL.into_iter().find(|v| v.name() == name)
+}
 
 /// A mod's block as the server has it: its state properties in the game's order (by name), each
 /// with its values in theirs. Its states are numbered one after another, the last property varying
@@ -259,6 +274,16 @@ pub fn from_resources(sync: &RegistrySync, resources: &Path) -> io::Result<(Modd
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_network_s_release_is_found_by_its_name() {
+        assert!(version_named("1.21.1") == Some(ServerVersion::V1_21_1));
+        assert!(version_named(" 1.21.11\n") == Some(ServerVersion::V1_21_11));
+        // The pinned release has a name too: nothing is translated for it.
+        assert!(version_named(horizon_protocol::GAME_VERSION) == Some(ServerVersion::Current));
+        assert!(version_named("1.8").is_none());
+        assert!(version_named("").is_none());
+    }
 
     const REPORT_JSON: &str = r#"{
         "vanilla_states": 26684,
