@@ -14,6 +14,17 @@ selected packs over the prepared vanilla resources, later packs winning. Files v
 Every loader then reads that one tree; `game/packs.rs` (`reload_packs`) reloads all of them in game, as
 `Minecraft.reloadResourcePacks` does. Unchanged selections reuse the overlay: `packs::build_overlay` keeps a versioned marker beside it and rebuilds when a pack, the order, a filter or a vanilla input changes.
 
+The overlay is a real folder, in `.horizon-cache/resourcepacks/` of the game folder: on Windows a junction for each of
+vanilla's folders the packs leave alone, a hard link for each vanilla file beside a pack's, and the zip packs' entries
+unpacked. A large pack makes tens of thousands of them (22,800 for a 13,900-file pack over vanilla): about fifteen
+seconds on an SSD, and five to ten minutes on a hard disk behind USB, where every new file is a few seeks. While it
+is built, the loading screen and a reload's overlay say *Preparing resources* and their bar follows the build
+(`packs::BuildProgress`); the log says how long it took (`resource pack overlay built in ...`), or that it was found
+built (`... found built in ...`: a folder listing for each of vanilla's folders the packs add to, some tens of
+milliseconds). `HORIZON_PACK_CACHE` names another folder for the overlays, for a game folder kept on a slow disk
+(one folder a game folder). `cargo run --profile fast -p horizon-client-render --example pack_overlay_time` times
+both on real folders.
+
 Vanilla 26.3's reload listeners (`Minecraft.<init>`, `Gui`, `Hud`): languages, textures, shaders, sounds, atlases,
 fonts, grass / foliage / dry foliage colour maps, models (block states, block models, item definitions), equipment
 assets, paletted textures, entity and block entity renderers, particles, the game renderer (post effects), the level

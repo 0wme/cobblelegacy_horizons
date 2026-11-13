@@ -21,6 +21,9 @@ pub(super) const STAGE_LINES: [&str; 10] = [
 pub(super) struct Progress {
     pub(super) value: Arc<AtomicU32>,
     pub(super) lines: &'static [&'static str],
+    /// The resource packs' overlay, when this load has to build it: before the first
+    /// checkpoint, and with a large pack longer than every stage after it.
+    pub(super) overlay: Arc<horizon_client::packs::BuildProgress>,
 }
 impl Progress {
     pub(super) fn new() -> Self {
@@ -30,18 +33,31 @@ impl Progress {
         Self {
             value: Arc::new(AtomicU32::new(0)),
             lines,
+            overlay: Arc::default(),
         }
     }
     pub(super) fn set(&self, stage: u32) {
         self.value.store(stage, Ordering::Relaxed);
     }
+    /// The bar: the stages, or with an overlay to build, its build for the first half (the
+    /// bar then moves while thousands of files are written) and the stages for the second.
     pub(super) fn fraction(&self) -> f32 {
-        self.value.load(Ordering::Relaxed) as f32 / (self.lines.len() - 1) as f32
+        let stages = self.value.load(Ordering::Relaxed) as f32 / (self.lines.len() - 1) as f32;
+        match self.overlay.fraction() {
+            Some(built) => 0.5 * built + 0.5 * stages,
+            None => stages,
+        }
     }
     pub(super) fn line(&self) -> &'static str {
-        self.lines[(self.value.load(Ordering::Relaxed) as usize).min(self.lines.len() - 1)]
+        let stage = self.value.load(Ordering::Relaxed) as usize;
+        if stage == 0 && self.overlay.fraction().is_some_and(|built| built < 1.0) {
+            return OVERLAY_LINE;
+        }
+        self.lines[stage.min(self.lines.len() - 1)]
     }
 }
+/// The line while the packs' overlay is built, at a start as in a reload.
+pub(super) const OVERLAY_LINE: &str = "Preparing resources";
 
 /// Harness and dedicated runs keep the fully-synchronous startup so their
 /// output stays byte-identical; only an ordinary launch shows the window first.

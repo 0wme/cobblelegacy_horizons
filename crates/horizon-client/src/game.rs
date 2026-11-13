@@ -12599,8 +12599,12 @@ pub fn run_with() -> Result<()> {
     if !synchronous_startup(&options) {
         return run_loading(options, early_settings, vanilla_root, None, started);
     }
-    let (root, pack_error) =
-        startup_menu::startup_resource_root(&vanilla_root, &early_settings, &options.dev_mods);
+    let (root, pack_error) = startup_menu::startup_resource_root(
+        &vanilla_root,
+        &early_settings,
+        &options.dev_mods,
+        &Progress::new(),
+    );
     options.resources = root;
     if let Some(error) = &pack_error {
         log::warn!("Horizon: resource packs not applied: {error}");

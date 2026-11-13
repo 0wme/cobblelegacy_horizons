@@ -20,8 +20,15 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// Where overlay roots are built (beside options.txt).
+/// Where overlay roots are built: beside options.txt, or in the folder `HORIZON_PACK_CACHE`
+/// names. An overlay is tens of thousands of small files and links, written in seconds on a
+/// fast disk and in minutes on a slow one (a USB hard disk): a game folder kept on such a disk
+/// can have its overlays elsewhere. One folder a game folder: overlays are named after their
+/// packs' names.
 pub fn cache_dir() -> PathBuf {
+    if let Some(dir) = std::env::var_os("HORIZON_PACK_CACHE").filter(|dir| !dir.is_empty()) {
+        return dir.into();
+    }
     std::env::current_dir()
         .unwrap_or_default()
         .join(".horizon-cache/resourcepacks")
@@ -55,17 +62,19 @@ pub fn open_uri(uri: &str) {
 /// (`Pack.Position.TOP`, fixed), laid over `base`. `base` is the mods' content root
 /// ([`super::mods::content_root`] of `vanilla`), so mod resources sit below the player's packs
 /// as in vanilla, and a pack change leaves the content root's cache alone (#12403). Built-in
-/// packs are found in `vanilla`.
+/// packs are found in `vanilla`. `built` follows the overlay's build, when there is one to wait
+/// for.
 pub fn startup_root(
     vanilla: &Path,
     base: &Path,
     selected: &[String],
     server: &[Pack],
+    built: &packs::BuildProgress,
 ) -> std::io::Result<PathBuf> {
     let all = packs::discover(vanilla, &packs_dir());
     let mut enabled = packs::enabled(&all, selected);
     enabled.extend_from_slice(server);
-    packs::resource_root(base, &enabled, &cache_dir())
+    packs::resource_root_reporting(base, &enabled, &cache_dir(), built)
 }
 fn info(p: &Pack) -> PackInfo {
     let built_in = !p.id.starts_with("file/");
@@ -538,7 +547,7 @@ pub(super) fn stage_pack(
     progress: &super::Progress,
 ) -> horizon_client::Result<StagedPack> {
     let base = super::mods::content_root(vanilla_root, mods_enabled, mods_disabled, dev_mods);
-    let root = startup_root(vanilla_root, &base, selected, server)?;
+    let root = startup_root(vanilla_root, &base, selected, server, &progress.overlay)?;
     progress.set(1);
     // The world's models and sprites and the GUI atlas read the same root and nothing of
     // each other: about a second each, side by side.
