@@ -2157,6 +2157,8 @@ struct Game<'a> {
         std::time::Instant,
         Vec<(String, u64, Option<std::time::SystemTime>)>,
     )>,
+    /// `packs::pack_readings` when the options' pack lists were last taken (`follow_pack_lists`).
+    pack_lists_seen: u64,
     /// A pack reload staged on a worker (`LoadingOverlay`): the frame draws
     /// its progress until `drive_pack_reload` applies it.
     pack_reload: Option<packs::PackReload>,
@@ -11643,6 +11645,7 @@ impl<'a> Game<'a> {
             pending_pack_reload: false,
             frame_attempted: render_settings::FrameAttempt::default(),
             pack_folder: None,
+            pack_lists_seen: 0,
             pack_reload: None,
             server_packs: Default::default(),
             link_prompt: None,

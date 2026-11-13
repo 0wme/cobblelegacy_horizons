@@ -71,8 +71,9 @@ pub fn startup_root(
     server: &[Pack],
     built: &packs::BuildProgress,
 ) -> std::io::Result<PathBuf> {
-    let all = packs::discover(vanilla, &packs_dir());
-    let mut enabled = packs::enabled(&all, selected);
+    // Kept for the options screens, which list the same packs.
+    let all = discovered(vanilla);
+    let mut enabled = packs::enabled(&all.packs, selected);
     enabled.extend_from_slice(server);
     packs::resource_root_reporting(base, &enabled, &cache_dir(), built)
 }
@@ -138,25 +139,135 @@ fn vanilla_info(vanilla: &Path) -> PackInfo {
         fixed: false,
     }
 }
+/// The pack folder's entries with their sizes and times: what changes when a pack is added,
+/// removed or replaced.
+pub(super) type FolderStamp = Vec<(String, u64, Option<std::time::SystemTime>)>;
+pub(super) fn folder_stamp() -> FolderStamp {
+    let mut stamp: FolderStamp = std::fs::read_dir(packs_dir())
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| {
+            let meta = e.metadata().ok();
+            (
+                e.file_name().to_string_lossy().into_owned(),
+                meta.as_ref().map_or(0, |m| m.len()),
+                meta.and_then(|m| m.modified().ok()),
+            )
+        })
+        .collect();
+    stamp.sort();
+    stamp
+}
+
+/// The packs found in the pack folder, as the options screens list them, with what they were
+/// found from. Opening the options listed the packs again every time: each zip's directory,
+/// metadata, Polytone entries and icon, 55 ms of the frame that opened them with two large
+/// packs, and two seconds of it on a busy hard disk. They are read again only when the
+/// folder, the game's resources or the Polytone choices (which a pack's entries take their
+/// values from) changed, and the options screens never wait for the reading
+/// ([`pack_lists_last`]).
+struct Discovered {
+    key: (PathBuf, FolderStamp, String),
+    packs: Vec<Pack>,
+    infos: Vec<PackInfo>,
+    vanilla: PackInfo,
+}
+impl Discovered {
+    fn infos(&self, server: &[Pack]) -> Vec<PackInfo> {
+        let mut infos = self.infos.clone();
+        infos.extend(server.iter().map(downloaded_info));
+        infos.push(self.vanilla.clone());
+        infos
+    }
+    fn configs(&self) -> std::collections::BTreeMap<String, packs::Configs> {
+        self.packs
+            .iter()
+            .filter(|p| !p.polytone_configs.entries().is_empty())
+            .map(|p| (p.id.clone(), p.polytone_configs.clone()))
+            .collect()
+    }
+}
+/// What the pack folder was last read as.
+static DISCOVERED: std::sync::Mutex<Option<Arc<Discovered>>> = std::sync::Mutex::new(None);
+/// How many readings found the folder changed: [`pack_readings`].
+static READINGS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The pack folder as it is now: read here, unless it is as it was last read.
+fn discovered(vanilla: &Path) -> Arc<Discovered> {
+    let key = (
+        vanilla.to_owned(),
+        folder_stamp(),
+        format!("{:?}", packs::polytone_choices()),
+    );
+    let last = || {
+        DISCOVERED
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    };
+    if let Some(found) = last().as_ref().filter(|found| found.key == key) {
+        return found.clone();
+    }
+    // Read without the lock: whoever only wants the last reading never waits for this one.
+    let packs = packs::discover(vanilla, &packs_dir());
+    let found = Arc::new(Discovered {
+        key,
+        infos: packs.iter().map(info).collect(),
+        packs,
+        vanilla: vanilla_info(vanilla),
+    });
+    *last() = Some(found.clone());
+    READINGS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    found
+}
+/// Counts the readings of the pack folder that found it changed: a screen that showed
+/// [`pack_lists_last`] asks for the lists again when this moves.
+pub(super) fn pack_readings() -> u64 {
+    READINGS.load(std::sync::atomic::Ordering::Relaxed)
+}
+/// [`pack_infos`] and [`pack_configs`] as the folder was last read, at once, while a thread
+/// reads it again: for the frame that opens the options. Read here only when it never was (a
+/// start reads it on its loader's thread, [`startup_root`]).
+pub(super) fn pack_lists_last(
+    vanilla: &Path,
+    server: &[Pack],
+) -> (
+    Vec<PackInfo>,
+    std::collections::BTreeMap<String, packs::Configs>,
+) {
+    static READING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    use std::sync::atomic::Ordering;
+    let last = DISCOVERED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    let Some(found) = last else {
+        let found = discovered(vanilla);
+        return (found.infos(server), found.configs());
+    };
+    if !READING.swap(true, Ordering::AcqRel) {
+        let root = vanilla.to_owned();
+        let reader = std::thread::Builder::new()
+            .name("pack-list".into())
+            .spawn(move || {
+                discovered(&root);
+                READING.store(false, Ordering::Release);
+            });
+        if reader.is_err() {
+            READING.store(false, Ordering::Release);
+        }
+    }
+    (found.infos(server), found.configs())
+}
 /// Packs the Resource Packs screen lists: folder and built-in packs, then any
 /// active downloaded server (or world) packs, then vanilla.
 pub(super) fn pack_infos(vanilla: &Path, server: &[Pack]) -> Vec<PackInfo> {
-    let mut infos: Vec<PackInfo> = packs::discover(vanilla, &packs_dir())
-        .iter()
-        .map(info)
-        .collect();
-    infos.extend(server.iter().map(downloaded_info));
-    infos.push(vanilla_info(vanilla));
-    infos
+    discovered(vanilla).infos(server)
 }
 /// The folder packs' Polytone config entries (#11486), by pack id, for those that have some:
 /// what the Pack Options page edits.
 pub(super) fn pack_configs(vanilla: &Path) -> std::collections::BTreeMap<String, packs::Configs> {
-    packs::discover(vanilla, &packs_dir())
-        .into_iter()
-        .filter(|p| !p.polytone_configs.entries().is_empty())
-        .map(|p| (p.id, p.polytone_configs))
-        .collect()
+    discovered(vanilla).configs()
 }
 /// The player changed Pack Options: `chosen` replaces their choices for `entries`, kept in
 /// `polytone-configs.json`.
@@ -200,8 +311,8 @@ impl Game<'_> {
     /// The packs the pack screen offers and the current selection
     /// (`PackSelectionScreen` makes its `PackSelectionModel` from them).
     pub(super) fn refresh_pack_lists(&mut self) {
-        let infos = pack_infos(&self.vanilla_root(), &self.server_packs.active);
-        let configs = pack_configs(&self.vanilla_root());
+        self.pack_lists_seen = pack_readings();
+        let (infos, configs) = pack_lists_last(&self.vanilla_root(), &self.server_packs.active);
         let browsing = self.settings.extras.pack_browser;
         let o = &mut self.ui.options;
         o.pack_browser = browsing;
@@ -219,6 +330,17 @@ impl Game<'_> {
     /// a worker under the progress overlay (`LoadingOverlay` over
     /// `ReloadableResourceManager.createReload`'s background executor), so
     /// the window keeps drawing; `drive_pack_reload` applies it.
+    /// The lists [`Self::refresh_pack_lists`] showed were the folder's last reading: once the
+    /// thread reading it again found it changed, the screens take the new ones.
+    pub(super) fn follow_pack_lists(&mut self) {
+        if self.pack_lists_seen == pack_readings() {
+            return;
+        }
+        self.pack_lists_seen = pack_readings();
+        let (infos, configs) = pack_lists_last(&self.vanilla_root(), &self.server_packs.active);
+        self.ui.options.update_pack_infos(infos);
+        self.ui.options.pack_configs = configs;
+    }
     /// Horizon's pack browser: what its worker finished since the last
     /// frame. A pack that landed becomes an entry in the available list.
     pub(super) fn drive_pack_browser(&mut self) {
@@ -251,6 +373,7 @@ impl Game<'_> {
             let infos = pack_infos(&self.vanilla_root(), &self.server_packs.active);
             self.ui.options.pack_infos = infos;
             self.ui.options.pack_configs = pack_configs(&self.vanilla_root());
+            self.pack_lists_seen = pack_readings();
             self.ui.options.pack_selection = selection;
             self.ui.options.pack_screen = None;
         }

@@ -302,7 +302,10 @@ pub fn main_with(mods: crate::mod_api::Mods) {
         log::warn!("Native sound hook already installed; keeping the first callback");
     }
     raise_open_file_limit();
-    if let Err(error) = game::run_with() {
+    let run = game::run_with();
+    // The options screens' last save, still on its way to the disk.
+    horizon_client::settings::Settings::flush_saves();
+    if let Err(error) = run {
         // A bad command line is the caller's mistake, not a crash: no report.
         let usage = error.is::<game::UsageError>();
         log::error!("Horizon: {error}");
