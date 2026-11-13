@@ -9,7 +9,9 @@
 //! started when the player is on a server and talks over its standard input and output ([`wire`]). Its
 //! pixels come through a file both sides hold open: the host writes what changed of its image there,
 //! says which rectangle, and waits for the game to say it has read it before it writes again. So an
-//! image costs one copy of what changed, and nothing while the screen stands still.
+//! image costs one copy of what changed, and nothing while the screen stands still. That copy is made
+//! by the thread that reads the host's words, not by a frame: a frame only hands the atlas pixels that
+//! are in memory already.
 //!
 //! The image goes into a slot of the HUD atlas (`hud::HOSTED_SCREEN_SPRITE`), which bounds its size: a
 //! larger window is drawn at a whole fraction of its size and stretched.
@@ -533,6 +535,48 @@ fn inventory_json(size: usize, selected: usize, items: Vec<serde_json::Value>) -
     serde_json::json!({ "size": size, "selected": selected, "items": items }).to_string()
 }
 
+/// A part of the host's image as it was taken from the shared file.
+struct Part {
+    rgba: Vec<u8>,
+    /// Whether the bytes match the host's sum. `None` when the host gave none.
+    sound: Option<bool>,
+}
+
+/// What the thread that reads the host hands the game: one of the host's messages, and for an image
+/// its part, read already.
+struct Taken {
+    message: FromHost,
+    part: Option<Result<Part, String>>,
+}
+
+/// The pixels of `frame`'s rectangle, read from the shared file.
+fn read_part(mut file: &File, frame: &Frame) -> std::io::Result<Vec<u8>> {
+    let row = frame.width as usize * 4;
+    let mut band = vec![0; row * frame.h as usize];
+    file.seek(SeekFrom::Start(u64::from(frame.y) * row as u64))?;
+    file.read_exact(&mut band)?;
+    if frame.w == frame.width {
+        return Ok(band);
+    }
+    let (from, wide) = (frame.x as usize * 4, frame.w as usize * 4);
+    let mut rgba = Vec::with_capacity(wide * frame.h as usize);
+    for line in band.chunks_exact(row) {
+        rgba.extend_from_slice(&line[from..from + wide]);
+    }
+    Ok(rgba)
+}
+
+/// The part of the image `frame` names, taken from the shared file and held against the host's sum.
+/// The host does not write there again before the game says it has this part.
+fn part_of(file: &File, frame: &Frame) -> Result<Part, String> {
+    if !frame_fits(frame) {
+        return Err(format!("an image that does not fit: {frame:?}"));
+    }
+    let rgba = read_part(file, frame).map_err(|e| e.to_string())?;
+    let sound = (frame.crc != 0).then(|| crc32fast::hash(&rgba) == frame.crc);
+    Ok(Part { rgba, sound })
+}
+
 /// The bytes the shared file holds for the slot's largest image.
 fn file_size() -> u64 {
     u64::from(HOSTED_SCREEN_SIZE.0) * u64::from(HOSTED_SCREEN_SIZE.1) * 4
@@ -650,10 +694,11 @@ struct Link {
     child: Child,
     /// To the thread that writes the host's input: the game never waits on the host.
     to_host: Sender<Vec<u8>>,
-    /// From the thread that reads the host's output. It closes when the host is gone.
-    from_host: Receiver<FromHost>,
-    /// The file the host writes its pixels in, and where it is.
-    pixels: File,
+    /// From the thread that reads the host's output, and the parts of its image with it. It closes
+    /// when the host is gone.
+    from_host: Receiver<Taken>,
+    /// Where the file is that the host writes its pixels in. The thread that reads the host holds it
+    /// open.
     path: PathBuf,
     started: Instant,
 }
@@ -713,6 +758,7 @@ impl Link {
                 }
             })
             .map_err(|e| e.to_string())?;
+        // An image's pixels are read where the host's words are, so that no frame waits on the file.
         let (messages, from_host) = mpsc::channel();
         std::thread::Builder::new()
             .name("screen host in".into())
@@ -733,7 +779,11 @@ impl Link {
                     }
                     match wire::read(&body) {
                         Ok(message) => {
-                            if messages.send(message).is_err() {
+                            let part = match &message {
+                                FromHost::Frame(frame) => Some(part_of(&pixels, frame)),
+                                _ => None,
+                            };
+                            if messages.send(Taken { message, part }).is_err() {
                                 break;
                             }
                         }
@@ -749,7 +799,6 @@ impl Link {
             child,
             to_host,
             from_host,
-            pixels,
             path,
             started,
         })
@@ -758,24 +807,6 @@ impl Link {
     fn tell(&self, message: &ToHost) {
         // A host that is gone is found out by the reader: nothing to do here.
         let _ = self.to_host.send(message.bytes());
-    }
-
-    /// The pixels of `frame`'s rectangle, read from the shared file.
-    fn read(&self, frame: &Frame) -> std::io::Result<Vec<u8>> {
-        let row = frame.width as usize * 4;
-        let mut band = vec![0; row * frame.h as usize];
-        let mut file = &self.pixels;
-        file.seek(SeekFrom::Start(u64::from(frame.y) * row as u64))?;
-        file.read_exact(&mut band)?;
-        if frame.w == frame.width {
-            return Ok(band);
-        }
-        let (from, wide) = (frame.x as usize * 4, frame.w as usize * 4);
-        let mut rgba = Vec::with_capacity(wide * frame.h as usize);
-        for line in band.chunks_exact(row) {
-            rgba.extend_from_slice(&line[from..from + wide]);
-        }
-        Ok(rgba)
     }
 }
 
@@ -985,6 +1016,7 @@ impl Game<'_> {
     /// Once a frame: the host is started when a launch file names one, what it said since the last
     /// frame is taken, and it is told where the pointer is and how large the window is.
     pub(super) fn pokemon_host_frame(&mut self) {
+        let _span = horizon_client::spans::guard("pokemon_host");
         let Some(host) = self.remote.as_mut().map(|remote| &mut remote.pokemon.host) else {
             return;
         };
@@ -1012,7 +1044,7 @@ impl Game<'_> {
                 return;
             };
             match link.from_host.try_recv() {
-                Ok(message) => self.pokemon_host_message(message),
+                Ok(taken) => self.pokemon_host_message(taken.message, taken.part),
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
                     log::warn!("Horizon: the screen host is gone");
@@ -1138,7 +1170,7 @@ impl Game<'_> {
         ])
     }
 
-    fn pokemon_host_message(&mut self, message: FromHost) {
+    fn pokemon_host_message(&mut self, message: FromHost, part: Option<Result<Part, String>>) {
         match message {
             FromHost::Ready {
                 startup_ms,
@@ -1167,7 +1199,7 @@ impl Game<'_> {
             }
             FromHost::Show { name, keeps_escape } => self.pokemon_host_show(name, keeps_escape),
             FromHost::Hide => self.pokemon_host_hidden(),
-            FromHost::Frame(frame) => self.pokemon_host_image(frame),
+            FromHost::Frame(frame) => self.pokemon_host_image(frame, part),
             FromHost::Seen(serial) => {
                 if let Some(host) = self.pokemon_host() {
                     host.stats.answered(serial, false);
@@ -1305,9 +1337,9 @@ impl Game<'_> {
         self.pokemon_host_hidden();
     }
 
-    /// A part of the host's image: read from the shared file into the atlas's slot, and the host
-    /// told it may write the next.
-    fn pokemon_host_image(&mut self, frame: Frame) {
+    /// A part of the host's image, which the thread that reads the host took from the shared file:
+    /// it goes into the atlas's slot, and the host is told it may write the next.
+    fn pokemon_host_image(&mut self, frame: Frame, part: Option<Result<Part, String>>) {
         let slot = self.pokemon_host_slot();
         let Some(host) = self.pokemon_host() else {
             return;
@@ -1315,28 +1347,24 @@ impl Game<'_> {
         let Some(link) = &host.link else {
             return;
         };
-        let read = if frame_fits(&frame) {
-            link.read(&frame).map_err(|e| e.to_string())
-        } else {
-            Err(format!("an image that does not fit: {frame:?}"))
-        };
         link.tell(&ToHost::Ack {
             frame: frame.number,
         });
         host.stats.answered(frame.serial, true);
-        let rgba = match read {
-            Ok(rgba) => rgba,
+        let part = match part.unwrap_or_else(|| Err("no pixels came with it".into())) {
+            Ok(part) => part,
             Err(e) => {
                 log::warn!("Horizon: the screen host's image: {e}");
                 return;
             }
         };
-        if frame.crc != 0 {
+        if let Some(sound) = part.sound {
             host.stats.checked += 1;
-            if crc32fast::hash(&rgba) != frame.crc {
+            if !sound {
                 host.stats.corrupt += 1;
             }
         }
+        let rgba = part.rgba;
         host.stats.frames += 1;
         host.stats.bytes += rgba.len() as u64;
         if host.stats.host_micros.len() == Stats::KEPT {
@@ -1381,6 +1409,7 @@ impl Game<'_> {
 
     /// The host's screen: its image over the whole window.
     pub(in super::super::super) fn draw_pokemon_host_screen(&mut self, batch: &mut HudBatch) {
+        let _span = horizon_client::spans::guard("pokemon_host_draw");
         // The models its screen shows, asked for before anything is drawn: each is there once its
         // files are read.
         let models: Vec<(usize, Option<super::Look>)> = self
@@ -1892,6 +1921,53 @@ mod tests {
             y: u32::MAX,
             ..frame
         }));
+    }
+
+    #[test]
+    fn an_image_s_part_is_taken_from_the_shared_file_and_held_against_its_sum() {
+        let path = std::env::temp_dir().join(format!(
+            "horizon-screen-host-test-{}.rgba",
+            std::process::id()
+        ));
+        // An image 4 pixels wide and 3 high whose every byte is its own place in the file.
+        std::fs::write(&path, (0..48).collect::<Vec<u8>>()).unwrap();
+        let file = File::open(&path).unwrap();
+        let mut frame = Frame {
+            number: 1,
+            width: 4,
+            height: 3,
+            x: 1,
+            y: 1,
+            w: 2,
+            h: 2,
+            serial: 0,
+            micros: 0,
+            crc: 0,
+        };
+        let part = part_of(&file, &frame).unwrap();
+        assert_eq!(
+            part.rgba,
+            [
+                20, 21, 22, 23, 24, 25, 26, 27, 36, 37, 38, 39, 40, 41, 42, 43
+            ]
+        );
+        // The host gave no sum: nothing to hold the bytes against.
+        assert_eq!(part.sound, None);
+        frame.crc = crc32fast::hash(&part.rgba);
+        assert_eq!(part_of(&file, &frame).unwrap().sound, Some(true));
+        frame.crc = !frame.crc | 1;
+        assert_eq!(part_of(&file, &frame).unwrap().sound, Some(false));
+        // Whole rows are taken as they are.
+        (frame.x, frame.w, frame.crc) = (0, 4, 0);
+        assert_eq!(
+            part_of(&file, &frame).unwrap().rgba,
+            (16..48).collect::<Vec<u8>>()
+        );
+        // A rectangle past the image is not read at all.
+        frame.h = 3;
+        assert!(part_of(&file, &frame).is_err());
+        drop(file);
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]
