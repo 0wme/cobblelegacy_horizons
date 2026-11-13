@@ -19,7 +19,7 @@
 //!
 //! A Pokémon whose species or aspects change where it stands (it evolves, it is sheared) gets the
 //! look they now pick ([`Game::pokemon_relook`]). The item it holds is drawn on its model
-//! (`remote_pokemon_held.rs`).
+//! (`remote_pokemon_held.rs`), and an alpha's eyes glow (`remote_pokemon_alpha.rs`).
 //!
 //! The same looks draw the portraits of the player's own party (`remote_pokemon_party.rs`).
 use super::super::Game;
@@ -40,6 +40,8 @@ use std::{
     sync::{Arc, Mutex, PoisonError},
 };
 
+#[path = "remote_pokemon_alpha.rs"]
+mod alpha;
 #[path = "remote_pokemon_anim.rs"]
 mod anim;
 #[path = "remote_pokemon_capture.rs"]
@@ -139,6 +141,8 @@ pub(super) struct Pokemon {
     players: anim::Players,
     /// The items the Pokémon of the level show.
     held: held::Held,
+    /// The eyes of the alphas among them.
+    alphas: alpha::Alphas,
     /// The summary screen of one of the player's Pokémon.
     summary: summary::Summary,
     /// The process that draws the screens of the server's mods, and the one it shows.
@@ -187,6 +191,7 @@ impl Pokemon {
         self.particles.forget(id);
         self.players.forget(id);
         self.held.forget(id);
+        self.alphas.forget(id);
     }
 }
 
@@ -657,6 +662,7 @@ impl Game<'_> {
         self.pokemon_looks_frame();
         self.pokemon_animation_frame();
         self.pokemon_held_frame();
+        self.pokemon_alpha_frame();
         self.pokemon_phase_frame();
         self.pokemon_sounds_frame();
         self.pokemon_capture_frame();
@@ -938,6 +944,10 @@ impl Game<'_> {
             return;
         };
         let id = spawn.entity.id;
+        if anim::trace() {
+            let (species, aspects) = (&spawn.species, &spawn.aspects);
+            log::info!("Horizon: Pokémon {id} appears, {species} {aspects:?}");
+        }
         let kind = match self.pokemon_look_for(&spawn.species, &spawn.aspects, Some(id)) {
             Looked::Made(look) => look.kind,
             // No body until its files are read: `pokemon_looks_frame` gives it one.

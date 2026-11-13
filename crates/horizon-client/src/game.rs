@@ -9697,6 +9697,8 @@ impl Game<'_> {
         if !title {
             let mut dragon = Vec::new();
             self.dragon_geometry(camera, alpha, &mut dragon, &mut additive);
+            // CobbleLegacy's fork: the glow and the trail of an alpha Pokémon's eyes.
+            self.pokemon_alpha_eye_geometry(camera, alpha, &mut additive);
             self.dragon_fireball_geometry(camera, alpha, &mut dragon);
             entities.extend(dragon);
         }

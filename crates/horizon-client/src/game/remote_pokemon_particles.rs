@@ -614,6 +614,21 @@ impl Particles {
         self.wearers.remove(&id);
     }
 
+    /// `q.particle(effect, locator)`: `effect` starts on entity `entity`, at its locator `locator`,
+    /// as one the server asks for does. For what the client starts by itself (an aspect's sparks).
+    pub(super) fn ask_on(&mut self, entity: i32, effect: &str, locator: &str) {
+        self.later.push(Later {
+            at: Instant::now(),
+            what: What::On(SpawnEntityParticle {
+                effect: effect.to_owned(),
+                entity,
+                locators: vec![locator.to_owned()],
+                target: None,
+                target_locators: None,
+            }),
+        });
+    }
+
     /// The textures of the effects that play, which keep their slots in the atlas.
     pub(super) fn textures(&self) -> impl Iterator<Item = String> + '_ {
         self.worn.iter().cloned()
