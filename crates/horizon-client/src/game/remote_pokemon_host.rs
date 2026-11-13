@@ -328,6 +328,8 @@ pub(super) mod wire {
         /// A line for the player's chat, as a mod writes one (`player.sendMessage`), legacy colour
         /// codes and all.
         Chat(String),
+        /// A text a screen puts on the clipboard (`KeyboardHandler.setClipboard`: a Copy button).
+        Clipboard(String),
     }
 
     /// A thing only the game can draw (an item), which the host's screen lays out: the host leaves its
@@ -438,6 +440,7 @@ pub(super) mod wire {
                 FromHost::Overlays(overlays)
             }
             11 => FromHost::Chat(r.string()?),
+            12 => FromHost::Clipboard(r.string()?),
             other => return Err(format!("an unknown message of the host: {other}")),
         })
     }
@@ -522,6 +525,12 @@ fn players_json(players: &[(u128, &str)]) -> String {
         })
         .collect();
     serde_json::json!({ "players": players }).to_string()
+}
+
+/// What the player carries, as the host is told: how many slots there are, which one of the hotbar
+/// is in the main hand (a screen takes « the item in hand » from it), and the stacks.
+fn inventory_json(size: usize, selected: usize, items: Vec<serde_json::Value>) -> String {
+    serde_json::json!({ "size": size, "selected": selected, "items": items }).to_string()
 }
 
 /// The bytes the shared file holds for the slot's largest image.
@@ -1103,8 +1112,7 @@ impl Game<'_> {
                     }))
                 })
                 .collect();
-            let json =
-                serde_json::json!({ "size": self.inventory.len(), "items": items }).to_string();
+            let json = inventory_json(self.inventory.len(), self.selected, items);
             if let Some(host) = self.pokemon_host() {
                 host.state("inventory", json);
             }
@@ -1196,6 +1204,10 @@ impl Game<'_> {
             }
             FromHost::Log(text) => log::info!("Horizon: the screen host: {text}"),
             FromHost::Chat(text) => self.system_message(Text::literal(text)),
+            FromHost::Clipboard(text) => {
+                use horizon_client::clipboard::Clipboard;
+                self.clipboard.set(&text);
+            }
             FromHost::Overlays(overlays) => {
                 if let Some(host) = self.pokemon_host() {
                     host.overlays = overlays;
@@ -1818,6 +1830,10 @@ mod tests {
             wire::read(&[11, 0, 0, 0, 2, b'h', b'i']),
             Ok(FromHost::Chat("hi".to_owned()))
         );
+        assert_eq!(
+            wire::read(&[12, 0, 0, 0, 2, b'i', b'd']),
+            Ok(FromHost::Clipboard("id".to_owned()))
+        );
         let mut overlays = vec![10, 0, 0, 0, 1, 1];
         for value in [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0] {
             overlays.extend_from_slice(&value.to_be_bytes());
@@ -1977,6 +1993,17 @@ mod tests {
             r#"{"players":[{"name":"Rouge","uuid":"01234567-89ab-cdef-0123-456789abcdef"}]}"#
         );
         assert_eq!(players_json(&[]), r#"{"players":[]}"#);
+    }
+
+    #[test]
+    fn the_inventory_is_told_with_the_slot_in_hand() {
+        let diamond = serde_json::json!({ "slot": 2, "id": "minecraft:diamond", "count": 3 });
+        let told: serde_json::Value =
+            serde_json::from_str(&inventory_json(41, 2, vec![diamond.clone()])).unwrap();
+        assert_eq!(
+            told,
+            serde_json::json!({ "size": 41, "selected": 2, "items": [diamond] })
+        );
     }
 
     #[test]
