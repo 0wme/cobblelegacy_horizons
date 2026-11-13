@@ -2183,8 +2183,8 @@ mod tests {
     fn what_a_screen_said_to_the_server_is_kept_by_name_and_counted() {
         let mut stats = Stats::default();
         stats.said("mod:open".to_owned());
-        stats.said("/pokematos".to_owned());
-        assert_eq!(stats.said, ["mod:open", "/pokematos"]);
+        stats.said("/menu".to_owned());
+        assert_eq!(stats.said, ["mod:open", "/menu"]);
         for at in 0..Stats::SAID {
             stats.said(format!("mod:{at}"));
         }
