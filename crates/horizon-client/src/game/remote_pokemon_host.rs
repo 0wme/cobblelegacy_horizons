@@ -37,7 +37,7 @@ use std::{
         OnceLock, RwLock,
         mpsc::{self, Receiver, Sender, TryRecvError},
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 use winit::{event::MouseButton, keyboard::KeyCode};
 
@@ -294,7 +294,13 @@ pub(super) mod wire {
             channels: Vec<String>,
         },
         /// A screen opens (a mod's `setScreen`).
-        Show(String),
+        Show {
+            name: String,
+            /// The screen reads Escape itself (`Screen.shouldCloseOnEsc` is false, or its
+            /// `keyPressed` is its own): the key goes to the host as the others do, and the host says
+            /// when the screen closes.
+            keeps_escape: bool,
+        },
         /// The screen closes by itself.
         Hide,
         Frame(Frame),
@@ -325,7 +331,8 @@ pub(super) mod wire {
     /// height in the image's pixels; nothing of it shows outside `clip`.
     #[derive(Clone, Debug, PartialEq)]
     pub struct Overlay {
-        /// 1: an item, `what` its id.
+        /// 1: an item, `what` its id. 2 and 3: a Pokémon's model ([`super::model_of`]). 4: the face of
+        /// the player `what` names.
         pub kind: u8,
         pub rect: [f32; 4],
         pub clip: [f32; 4],
@@ -376,7 +383,15 @@ pub(super) mod wire {
                     channels,
                 }
             }
-            2 => FromHost::Show(r.string()?),
+            2 => {
+                let name = r.string()?;
+                // Flags follow the name; a host that says nothing more leaves Escape to the game.
+                let flags = r.0.first().copied().unwrap_or(0);
+                FromHost::Show {
+                    name,
+                    keeps_escape: flags & 1 != 0,
+                }
+            }
             3 => FromHost::Hide,
             4 => FromHost::Frame(Frame {
                 number: r.u32()?,
@@ -472,6 +487,37 @@ fn model_of(what: &str) -> (&str, Vec<String>, bool) {
         .map(str::to_owned)
         .collect();
     (species, aspects, parts.next() == Some("silhouette"))
+}
+
+/// How long the host may leave an input unanswered before Escape stops being its own.
+const HUNG: Duration = Duration::from_secs(3);
+
+/// Whether Escape goes to the host instead of putting its screen away: on a screen that keeps the
+/// key, while the host answers. `unanswered` is how long its oldest input has waited: a host that
+/// hangs does not hold the player in its screen.
+fn escape_is_the_host_s(keeps_escape: bool, unanswered: Option<Duration>) -> bool {
+    keeps_escape && unanswered.is_none_or(|waited| waited < HUNG)
+}
+
+/// The players of the list as a screen's mod may ask for them (`getPlayerListEntry`): their names
+/// and ids, as JSON.
+fn players_json(players: &[(u128, &str)]) -> String {
+    let players: Vec<serde_json::Value> = players
+        .iter()
+        .map(|(uuid, name)| {
+            let hex = format!("{uuid:032x}");
+            let uuid = [
+                &hex[..8],
+                &hex[8..12],
+                &hex[12..16],
+                &hex[16..20],
+                &hex[20..],
+            ]
+            .join("-");
+            serde_json::json!({ "name": name, "uuid": uuid })
+        })
+        .collect();
+    serde_json::json!({ "players": players }).to_string()
 }
 
 /// The bytes the shared file holds for the slot's largest image.
@@ -792,6 +838,8 @@ pub(super) struct Host {
     failed: bool,
     /// The screen that is open, by the name the host gave it.
     open: Option<String>,
+    /// That screen reads Escape itself.
+    keeps_escape: bool,
     /// The size of the image the atlas's slot holds.
     image: Option<[u32; 2]>,
     /// The image's size and scale the host was last told, and how many window pixels one of its
@@ -1040,6 +1088,15 @@ impl Game<'_> {
             if let Some(host) = self.pokemon_host() {
                 host.state("inventory", json);
             }
+            // Who is in the player list, for a screen that draws a player's face when they are there.
+            if let Some((players, _, _)) = self.remote_tab_players() {
+                let listed: Vec<(u128, &str)> =
+                    players.iter().map(|p| (p.uuid, p.name.as_str())).collect();
+                let json = players_json(&listed);
+                if let Some(host) = self.pokemon_host() {
+                    host.state("players", json);
+                }
+            }
         }
     }
 
@@ -1080,7 +1137,7 @@ impl Game<'_> {
                     *read = Some(channels);
                 }
             }
-            FromHost::Show(name) => self.pokemon_host_show(name),
+            FromHost::Show { name, keeps_escape } => self.pokemon_host_show(name, keeps_escape),
             FromHost::Hide => self.pokemon_host_hidden(),
             FromHost::Frame(frame) => self.pokemon_host_image(frame),
             FromHost::Seen(serial) => {
@@ -1121,7 +1178,7 @@ impl Game<'_> {
     }
 
     /// The host opens a screen: it takes the place of play, or of the screen it drew before.
-    fn pokemon_host_show(&mut self, name: String) {
+    fn pokemon_host_show(&mut self, name: String, keeps_escape: bool) {
         // `Minecraft.setScreen` takes the place of whatever is open. Here the pause menu (which the
         // window opens by itself when it loses the focus) and the chat give way; a container, whose
         // closing the server must hear of, does not.
@@ -1144,6 +1201,7 @@ impl Game<'_> {
         };
         log::info!("Horizon: the screen host shows {name}");
         host.open = Some(name);
+        host.keeps_escape = keeps_escape;
         host.opened = Some(Instant::now());
         host.overlays.clear();
         host.image = None;
@@ -1183,6 +1241,7 @@ impl Game<'_> {
             }
             host.overlays.clear();
             host.image = None;
+            host.keeps_escape = false;
         }
         if self.screen == Screen::Hosted {
             self.screen = Screen::Playing;
@@ -1190,8 +1249,17 @@ impl Game<'_> {
         }
     }
 
-    /// The player puts the screen away (Escape): the host is told.
+    /// Escape on the host's screen: the player puts it away and the host is told. A screen that
+    /// keeps the key hears it instead, as it hears the others, and closes when the host says so.
     pub(in super::super::super) fn close_pokemon_host_screen(&mut self) {
+        let to_host = self.pokemon_host().is_some_and(|host| {
+            let unanswered = host.stats.waiting.front().map(|(_, at)| at.elapsed());
+            host.link.is_some() && escape_is_the_host_s(host.keeps_escape, unanswered)
+        });
+        if to_host {
+            self.pokemon_host_key(KeyCode::Escape, true);
+            return;
+        }
         if let Some(link) = self.pokemon_host().and_then(|host| host.link.as_ref()) {
             link.tell(&ToHost::Closed);
         }
@@ -1291,6 +1359,32 @@ impl Game<'_> {
                 (at, look)
             })
             .collect();
+        // And the faces: each player's skin as the player list draws it, from the same slots of the
+        // atlas (a new frame for them, with what the last one drew). A player who is not in the list
+        // has none.
+        let wanted: Vec<(usize, String)> = self
+            .remote
+            .as_ref()
+            .map(|r| r.pokemon.host.overlays.as_slice())
+            .unwrap_or_default()
+            .iter()
+            .enumerate()
+            .filter(|(_, overlay)| overlay.kind == 4)
+            .map(|(at, overlay)| (at, overlay.what.clone()))
+            .collect();
+        let mut faces: Vec<(usize, String)> = Vec::new();
+        if !wanted.is_empty() {
+            self.flush_skin_slots();
+            let players = self
+                .remote_tab_players()
+                .map(|(players, _, _)| players)
+                .unwrap_or_default();
+            for (at, name) in wanted {
+                if let Some(player) = players.iter().find(|p| p.name == name) {
+                    faces.push((at, self.face_skin(player.uuid, &player.skin)));
+                }
+            }
+        }
         let Some(host) = self.remote.as_ref().map(|r| &r.pokemon.host) else {
             return;
         };
@@ -1366,6 +1460,23 @@ impl Game<'_> {
                 self.draw_pokemon_model(batch, look, pose, 0.0, gui, clip);
                 continue;
             }
+            if overlay.kind == 4 {
+                // A player's face as `PlayerSkinDrawer.draw` lays it: the face of the skin and its hat
+                // layer, over the rectangle. Painted eight pixels wide at the origin, then put in
+                // place: the rectangle need not lie on whole GUI pixels.
+                let Some((_, skin)) = faces.iter().find(|(face, _)| *face == at) else {
+                    continue;
+                };
+                let mut draws = Vec::new();
+                horizon_client::tab_list::face(&mut draws, skin, 0, 0, 8, true, false, u32::MAX);
+                let start = batch.vertices.len();
+                horizon_client::hud_layout::paint(batch, &self.gui.atlas, &draws);
+                for vertex in &mut batch.vertices[start..] {
+                    vertex.pos = [x + vertex.pos[0] * w / 8.0, y + vertex.pos[1] * h / 8.0];
+                }
+                batch.clip_since(start, clip[0], clip[1], clip[2], clip[3]);
+                continue;
+            }
             if overlay.kind != 1 {
                 continue;
             }
@@ -1436,7 +1547,8 @@ impl Game<'_> {
     }
 
     /// A key pressed or let go while the host's screen is open: the host hears every one of them but
-    /// Escape, which puts the screen away.
+    /// Escape, which puts the screen away unless the screen keeps it
+    /// ([`Self::close_pokemon_host_screen`]).
     pub(in super::super::super) fn pokemon_host_key(&mut self, key: KeyCode, down: bool) {
         if self.screen != Screen::Hosted {
             return;
@@ -1554,6 +1666,7 @@ impl Game<'_> {
             "ready_ms": stats.ready_ms,
             "startup_ms": stats.startup_ms,
             "screen": host.open,
+            "keeps_escape": host.keeps_escape,
             "image": host.image,
             "divisor": host.divisor,
             "overlays": host.overlays.len(),
@@ -1656,6 +1769,21 @@ mod tests {
             }))
         );
         assert_eq!(wire::read(&[3]), Ok(FromHost::Hide));
+        // A screen says whether it keeps Escape; a host that does not say leaves it to the game.
+        assert_eq!(
+            wire::read(&[2, 0, 0, 0, 1, b's']),
+            Ok(FromHost::Show {
+                name: "s".to_owned(),
+                keeps_escape: false,
+            })
+        );
+        assert_eq!(
+            wire::read(&[2, 0, 0, 0, 1, b's', 1]),
+            Ok(FromHost::Show {
+                name: "s".to_owned(),
+                keeps_escape: true,
+            })
+        );
         assert_eq!(
             wire::read(&[11, 0, 0, 0, 2, b'h', b'i']),
             Ok(FromHost::Chat("hi".to_owned()))
@@ -1800,6 +1928,25 @@ mod tests {
         };
         failed.payload("mod:keys", &[1]);
         assert!(failed.early.is_empty());
+    }
+
+    #[test]
+    fn escape_is_the_host_s_on_a_screen_that_keeps_it_while_the_host_answers() {
+        assert!(!escape_is_the_host_s(false, None));
+        assert!(!escape_is_the_host_s(false, Some(Duration::ZERO)));
+        assert!(escape_is_the_host_s(true, None));
+        assert!(escape_is_the_host_s(true, Some(Duration::from_millis(200))));
+        // A host that has not answered for that long is taken for hung: Escape closes its screen.
+        assert!(!escape_is_the_host_s(true, Some(HUNG)));
+    }
+
+    #[test]
+    fn the_player_list_is_told_by_name_and_id() {
+        assert_eq!(
+            players_json(&[(0x0123_4567_89ab_cdef_0123_4567_89ab_cdef, "Rouge")]),
+            r#"{"players":[{"name":"Rouge","uuid":"01234567-89ab-cdef-0123-456789abcdef"}]}"#
+        );
+        assert_eq!(players_json(&[]), r#"{"players":[]}"#);
     }
 
     #[test]
