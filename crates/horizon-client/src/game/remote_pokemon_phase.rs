@@ -360,6 +360,8 @@ impl Game<'_> {
         };
         let pokemon = &mut r.pokemon;
         let mut thrown = Vec::new();
+        // The Balls that open, for their particles (`remote_pokemon_particles.rs`).
+        let mut opening = Vec::new();
         for (&id, phase) in &mut pokemon.phases.of {
             if phase.over {
                 continue;
@@ -367,6 +369,7 @@ impl Game<'_> {
             if let Some((_, hand)) = hands.iter().find(|(of, _)| *of == id) {
                 phase.source = Some(*hand);
                 thrown.push(phase.ball.clone());
+                opening.push((id, phase.ball.clone(), phase.since));
             }
             let seconds = now.duration_since(phase.since).as_secs_f32();
             let own = pokemon.seen.get(&id).map_or(1.0, |s| s.scale_modifier);
@@ -394,6 +397,10 @@ impl Game<'_> {
             .retain(|_, phase| !(phase.over && phase.released));
         for ball in thrown {
             self.pokemon_ball(&ball);
+        }
+        for (id, ball, since) in opening {
+            let opens = since + std::time::Duration::from_secs_f32(AIR);
+            self.pokemon_particles_thrown(id, &ball, opens);
         }
     }
 

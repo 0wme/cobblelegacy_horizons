@@ -45,6 +45,8 @@ mod fight;
 mod label;
 #[path = "remote_pokemon_looks.rs"]
 mod looks;
+#[path = "remote_pokemon_particles.rs"]
+mod particles;
 #[path = "remote_pokemon_party.rs"]
 mod party;
 #[path = "remote_pokemon_pc.rs"]
@@ -67,6 +69,7 @@ pub(super) fn reads(channel: &str) -> bool {
         || channel == cobblelegacy_cobblemon::moves::MOVES_SYNC
         || channel == cobblelegacy_cobblemon::sound::PLAY_ANIMATION
         || channel == cobblelegacy_cobblemon::capture::SPAWN_POKEBALL
+        || cobblelegacy_cobblemon::snowstorm::reads(channel)
 }
 
 /// The vanilla type that lends a Pokémon its attributes, and its body when Cobblemon's own cannot be
@@ -113,6 +116,8 @@ pub(super) struct Pokemon {
     sounds: sounds::Sounds,
     /// The Balls thrown at Pokémon to catch them.
     captures: capture::Captures,
+    /// The particle effects that play.
+    particles: particles::Particles,
 }
 
 /// What there is of a look when it is asked for.
@@ -577,6 +582,7 @@ impl Game<'_> {
         self.pokemon_phase_frame();
         self.pokemon_sounds_frame();
         self.pokemon_capture_frame();
+        self.pokemon_particles_frame();
     }
 
     /// An image in one of the atlas's Pokémon slots, as the sprite `sprite`. The slots are shared: only
@@ -594,6 +600,7 @@ impl Game<'_> {
             .chain(pokemon.pcs.textures())
             .chain(pokemon.phases.textures())
             .chain(pokemon.phases.ball_textures(pokemon.captures.names()))
+            .chain(pokemon.particles.textures())
             .collect();
         let slots = pokemon
             .slots
@@ -610,6 +617,7 @@ impl Game<'_> {
             pokemon.party.forget_texture(&old);
             pokemon.pcs.forget_texture(&old);
             pokemon.phases.forget_texture(&old);
+            pokemon.particles.forget_texture(&old);
         }
         let mut rect = *atlas.sprites.get(&format!("horizon/pokemon{slot}"))?;
         let (aw, ah) = (atlas.width as f32, atlas.height as f32);
@@ -641,6 +649,9 @@ impl Game<'_> {
             battle if cobblelegacy_cobblemon::battle::reads(battle) => {
                 self.pokemon_battle_sounds(battle, data);
                 self.remote_pokemon_battle(battle, data);
+            }
+            particle if cobblelegacy_cobblemon::snowstorm::reads(particle) => {
+                self.pokemon_particle_payload(particle, data);
             }
             cobblelegacy_cobblemon::moves::MOVES_SYNC => {
                 match cobblelegacy_cobblemon::moves::Moves::read(data) {

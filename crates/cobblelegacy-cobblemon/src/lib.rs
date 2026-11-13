@@ -18,4 +18,6 @@ pub mod pose;
 pub mod poser;
 pub mod resolver;
 pub mod sound;
+pub mod snowstorm;
+pub mod storm;
 pub mod wire;
