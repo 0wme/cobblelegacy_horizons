@@ -24,6 +24,7 @@ use super::super::super::{Game, Screen};
 use horizon_client::{
     hud::{HOSTED_SCREEN_SIZE, HOSTED_SCREEN_SPRITE, HudBatch},
     items::ItemStack,
+    text::Text,
     widgets,
 };
 use std::{
@@ -314,6 +315,9 @@ pub(super) mod wire {
         Log(String),
         /// What the game draws itself over the image: the whole list, each time it changes.
         Overlays(Vec<Overlay>),
+        /// A line for the player's chat, as a mod writes one (`player.sendMessage`), legacy colour
+        /// codes and all.
+        Chat(String),
     }
 
     /// A thing only the game can draw (an item), which the host's screen lays out: the host leaves its
@@ -414,6 +418,7 @@ pub(super) mod wire {
                 }
                 FromHost::Overlays(overlays)
             }
+            11 => FromHost::Chat(r.string()?),
             other => return Err(format!("an unknown message of the host: {other}")),
         })
     }
@@ -994,6 +999,7 @@ impl Game<'_> {
         }
         host.frames = host.frames.wrapping_add(1);
         let (party, player) = (host.frames % 32 == 0, hosted && host.frames % 4 == 0);
+        let inventory = hosted && host.frames % 16 == 0;
         if party {
             let json = self.pokemon_party_status().to_string();
             if let Some(host) = self.pokemon_host() {
@@ -1011,6 +1017,28 @@ impl Game<'_> {
             .to_string();
             if let Some(host) = self.pokemon_host() {
                 host.state("player", json);
+            }
+        }
+        if inventory {
+            // What the player carries, for a screen that lists it (an item to put up for sale).
+            let items: Vec<serde_json::Value> = self
+                .inventory
+                .iter()
+                .enumerate()
+                .filter_map(|(slot, stack)| {
+                    let stack = stack.as_ref().filter(|stack| stack.count > 0)?;
+                    Some(serde_json::json!({
+                        "slot": slot,
+                        "id": &*stack.item,
+                        "count": stack.count,
+                        "name": horizon_client::stations::hover_name(&self.pack.names, stack),
+                    }))
+                })
+                .collect();
+            let json =
+                serde_json::json!({ "size": self.inventory.len(), "items": items }).to_string();
+            if let Some(host) = self.pokemon_host() {
+                host.state("inventory", json);
             }
         }
     }
@@ -1083,6 +1111,7 @@ impl Game<'_> {
                 self.audio.play(&id, None, volume, pitch);
             }
             FromHost::Log(text) => log::info!("Horizon: the screen host: {text}"),
+            FromHost::Chat(text) => self.system_message(Text::literal(text)),
             FromHost::Overlays(overlays) => {
                 if let Some(host) = self.pokemon_host() {
                     host.overlays = overlays;
@@ -1254,7 +1283,7 @@ impl Game<'_> {
             .unwrap_or_default()
             .iter()
             .enumerate()
-            .filter(|(_, overlay)| overlay.kind == 2)
+            .filter(|(_, overlay)| matches!(overlay.kind, 2 | 3))
             .map(|(at, overlay)| {
                 let (species, aspects, _) = model_of(&overlay.what);
                 let template = self.res.mob_types().get(super::STAND_IN).cloned();
@@ -1314,6 +1343,27 @@ impl Game<'_> {
                         vertex.color = 0xFF00_0000;
                     }
                 }
+                continue;
+            }
+            if overlay.kind == 3 {
+                // A Pokémon as Cobblemon's item of its model shows it (`PokemonItemRenderer`, in an
+                // interface): `x`, `y` is where the item's renderer puts the model's origin, in the
+                // middle of the slot and a little above its bottom, and `w` how many GUI pixels half
+                // the slot is. No profile offset there: the model's profile scale, a quarter turn less
+                // than a profile's, and the portrait pose.
+                let look = models.iter().find(|(model, _)| *model == at);
+                let Some(look) = look.and_then(|(_, look)| look.as_ref()) else {
+                    continue;
+                };
+                use glam::{Mat4, Vec3 as V};
+                let scale = look.profile_scale;
+                let gui = Mat4::from_translation(V::new(x, y, 0.0))
+                    * Mat4::from_scale(V::new(w, w, -w))
+                    * Mat4::from_translation(V::new(0.0, 1.5 * scale, 0.0))
+                    * Mat4::from_scale(V::new(scale, scale, 1.05))
+                    * Mat4::from_rotation_y(325f32.to_radians());
+                let pose = cobblelegacy_cobblemon::wire::PoseType::Portrait;
+                self.draw_pokemon_model(batch, look, pose, 0.0, gui, clip);
                 continue;
             }
             if overlay.kind != 1 {
@@ -1606,6 +1656,10 @@ mod tests {
             }))
         );
         assert_eq!(wire::read(&[3]), Ok(FromHost::Hide));
+        assert_eq!(
+            wire::read(&[11, 0, 0, 0, 2, b'h', b'i']),
+            Ok(FromHost::Chat("hi".to_owned()))
+        );
         let mut overlays = vec![10, 0, 0, 0, 1, 1];
         for value in [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0] {
             overlays.extend_from_slice(&value.to_be_bytes());
