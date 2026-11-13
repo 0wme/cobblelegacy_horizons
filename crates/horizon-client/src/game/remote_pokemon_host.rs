@@ -1443,8 +1443,9 @@ impl Game<'_> {
                 // A Pokémon as Cobblemon's item of its model shows it (`PokemonItemRenderer`, in an
                 // interface): `x`, `y` is where the item's renderer puts the model's origin, in the
                 // middle of the slot and a little above its bottom, and `w` how many GUI pixels half
-                // the slot is. No profile offset there: the model's profile scale, a quarter turn less
-                // than a profile's, and the portrait pose.
+                // the slot is. The model stands on that origin: a profile's translation, and the block
+                // and a half that goes with it, are `drawProfilePokemon`'s alone. The model's profile
+                // scale, a quarter turn less than a profile's, and the portrait pose.
                 let look = models.iter().find(|(model, _)| *model == at);
                 let Some(look) = look.and_then(|(_, look)| look.as_ref()) else {
                     continue;
@@ -1453,7 +1454,6 @@ impl Game<'_> {
                 let scale = look.profile_scale;
                 let gui = Mat4::from_translation(V::new(x, y, 0.0))
                     * Mat4::from_scale(V::new(w, w, -w))
-                    * Mat4::from_translation(V::new(0.0, 1.5 * scale, 0.0))
                     * Mat4::from_scale(V::new(scale, scale, 1.05))
                     * Mat4::from_rotation_y(325f32.to_radians());
                 let pose = cobblelegacy_cobblemon::wire::PoseType::Portrait;
