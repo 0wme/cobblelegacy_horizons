@@ -258,6 +258,11 @@ impl Party {
     pub(super) fn forget_texture(&mut self, texture: &str) {
         self.portraits.retain(|_, p| p.look.kind.texture != texture);
     }
+
+    /// The atlas is a new one: every portrait is made again.
+    pub(super) fn forget_textures(&mut self) {
+        self.portraits.clear();
+    }
 }
 
 /// The species' facts for `pokemon`, read from its file the first time.

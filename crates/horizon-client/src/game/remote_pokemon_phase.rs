@@ -206,6 +206,11 @@ impl Phases {
         self.balls
             .retain(|_, kind| kind.as_ref().is_none_or(|k| k.texture != texture));
     }
+
+    /// The atlas is a new one: every Ball is made again when next thrown.
+    pub(super) fn forget_textures(&mut self) {
+        self.balls.clear();
+    }
 }
 
 /// `RenderHelper.renderBeaconBeam` as `PokemonRenderer.renderBeam` calls it: a thin core that turns on

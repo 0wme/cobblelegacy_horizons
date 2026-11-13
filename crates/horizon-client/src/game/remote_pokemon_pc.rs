@@ -136,6 +136,11 @@ impl Pcs {
         self.shown.retain(|_, p| p.look.kind.texture != texture);
     }
 
+    /// The atlas is a new one: every look the screen shows is made again.
+    pub(super) fn forget_textures(&mut self) {
+        self.shown.clear();
+    }
+
     /// The Pokémon `uuid` of the PC the screen shows, wherever it is in it.
     fn stored(&self, uuid: u128) -> Option<&PartyPokemon> {
         let held = self.storage.pc(self.open.as_ref()?.store)?;

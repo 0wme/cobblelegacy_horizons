@@ -182,6 +182,22 @@ struct Look {
 }
 
 impl Pokemon {
+    /// The atlas is a new one (the renderer was made again: a resource pack reloaded, a device
+    /// lost): its Pokémon slots are blank. Whatever is kept by the texture it has there is
+    /// forgotten, to be read and placed again the next time it is asked for.
+    fn forget_atlas(&mut self) {
+        if let Some(slots) = self.slots.as_mut() {
+            slots.forget();
+        }
+        self.sheets.clear();
+        // A look that failed is tried again too: the packs may have changed.
+        self.looks.clear();
+        self.party.forget_textures();
+        self.pcs.forget_textures();
+        self.phases.forget_textures();
+        self.particles.forget_textures();
+    }
+
     pub(super) fn forget(&mut self, id: i32) {
         self.seen.remove(&id);
         self.labels.forget(id);
@@ -657,6 +673,32 @@ impl Game<'_> {
         )
     }
 
+    /// The atlas is a new one, with a renderer made again (`Game::forget_atlas_slots`) or with the
+    /// resource packs reloaded (`apply_staged_pack`, which forgets its slots itself): nothing of
+    /// what was drawn into its Pokémon slots is there any more. Every look is forgotten, and the
+    /// Pokémon in the level ask for theirs again: each gets its body back as its files are read
+    /// (`pokemon_looks_frame`), as the portraits and the Balls do when next drawn.
+    pub(in super::super) fn pokemon_forget_atlas(&mut self) {
+        let Some(r) = self.remote.as_mut() else {
+            return;
+        };
+        r.pokemon.forget_atlas();
+        let seen = &r.pokemon.seen;
+        let again: Vec<(i32, String, Vec<String>)> = self
+            .mobs
+            .iter()
+            .filter(|mob| mob.species() == Species::Pokemon)
+            .filter_map(|mob| {
+                let id = mob.id as i32;
+                let seen = seen.get(&id)?;
+                Some((id, seen.species.clone(), seen.aspects.clone()))
+            })
+            .collect();
+        for (id, species, aspects) in again {
+            self.pokemon_look_for(&species, &aspects, Some(id));
+        }
+    }
+
     /// Once a frame, before it is drawn: what of the Pokémon moves on by itself.
     pub(in super::super) fn pokemon_frame(&mut self) {
         self.pokemon_looks_frame();
@@ -1035,4 +1077,40 @@ fn pokemon_type(template: &MobType, species: &str) -> MobType {
     kind.sounds = [""; 3];
     kind.step_sound = None;
     kind
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_new_atlas_forgets_what_was_placed_in_the_old_one() {
+        let mut pokemon = Pokemon::default();
+        // Two looks in their slots, one of them over two, and what goes with them.
+        let mut slots = SkinSlots::new(POKEMON_SLOTS);
+        for sheet in ["pikachu", "zygarde", "zygarde/1"] {
+            slots.place(sheet.to_owned());
+        }
+        pokemon.slots = Some(slots);
+        let more = vec!["zygarde/1".to_owned()];
+        pokemon.sheets.insert("zygarde".to_owned(), more);
+        // A look that did not load, and one whose files are being read for a Pokémon in the level.
+        let key = |name: &str| (format!("{name}.geo"), name.to_owned());
+        pokemon.looks.insert(key("missingno"), None);
+        pokemon.reading.insert(key("eevee"), vec![12]);
+
+        pokemon.forget_atlas();
+        // No texture is in a slot any more: each is read and placed again, from the first slot.
+        let slots = pokemon.slots.as_mut().unwrap();
+        assert!(!slots.contains("pikachu") && !slots.contains("zygarde/1"));
+        assert_eq!(slots.place("pikachu".to_owned()), Some((0, None)));
+        assert!(pokemon.sheets.is_empty());
+        // Every look is made again, the one that failed too; what is being read comes as it would.
+        assert!(pokemon.looks.is_empty());
+        assert_eq!(pokemon.reading.get(&key("eevee")), Some(&vec![12]));
+        // And it is nothing to forget where nothing was placed.
+        let mut none = Pokemon::default();
+        none.forget_atlas();
+        assert!(none.slots.is_none() && none.looks.is_empty());
+    }
 }

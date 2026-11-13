@@ -640,6 +640,13 @@ impl Particles {
             .retain(|_, sheet| !matches!(sheet, Sheet::Placed { sprite, .. } if sprite == texture));
     }
 
+    /// The atlas is a new one: every sheet is read again when next needed. One whose file is being
+    /// read is placed when it comes, as it would have been.
+    pub(super) fn forget_textures(&mut self) {
+        self.sheets.retain(|_, sheet| matches!(sheet, Sheet::Asked));
+        self.worn.clear();
+    }
+
     /// Nothing plays and nothing is about to.
     fn idle(&self) -> bool {
         self.storms.is_empty() && self.later.is_empty()
@@ -1704,6 +1711,34 @@ mod tests {
             baby: false,
             partial: 0.0,
         }
+    }
+
+    #[test]
+    fn a_new_atlas_forgets_the_sheets_placed_in_the_old_one() {
+        let mut particles = Particles::default();
+        let key = |name: &str| -> SheetKey { (name.to_owned(), [64, 64], [8, 8]) };
+        let layout = Layout {
+            sheet: [64, 64],
+            packed: [64, 64],
+            cut: Option::None,
+        };
+        let placed = Sheet::Placed {
+            sprite: "sparks".into(),
+            layout,
+        };
+        particles.sheets.insert(key("sparks"), placed);
+        particles.sheets.insert(key("smoke"), Sheet::Asked);
+        particles.sheets.insert(key("lost"), Sheet::None);
+        particles.worn.insert("sparks".into());
+        particles.forget_textures();
+        // What was placed is read again when next needed, and what had no slot gets its chance;
+        // what is being read is placed when it comes.
+        assert_eq!(particles.sheets.len(), 1);
+        assert!(matches!(
+            particles.sheets.get(&key("smoke")),
+            Some(Sheet::Asked)
+        ));
+        assert!(particles.worn.is_empty());
     }
 
     #[test]
