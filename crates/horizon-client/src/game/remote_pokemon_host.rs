@@ -14,6 +14,11 @@
 //! The image goes into a slot of the HUD atlas (`hud::HOSTED_SCREEN_SPRITE`), which bounds its size: a
 //! larger window is drawn at a whole fraction of its size and stretched.
 //!
+//! A Fabric server sends a mod's messages only on the channels the client said it takes, so whoever
+//! launches the game names the host's in `HORIZON_ACCEPT_CHANNELS`. Such a server speaks as soon as the
+//! player is in, before the host is started: what comes on those channels until then is kept and
+//! handed to the host first.
+//!
 //! A host that dies or hangs takes its screen with it and nothing else: the game never waits for it.
 use super::super::super::{Game, Screen};
 use horizon_client::{
@@ -28,7 +33,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{
-        RwLock,
+        OnceLock, RwLock,
         mpsc::{self, Receiver, Sender, TryRecvError},
     },
     time::Instant,
@@ -39,14 +44,54 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 const LAUNCH: &str = "HORIZON_SCREEN_HOST";
 
 /// The channels the running host reads, which [`reads`] answers from: `remote.rs` asks before it has
-/// the game at hand.
-static CHANNELS: RwLock<Vec<String>> = RwLock::new(Vec::new());
+/// the game at hand. `None` until a host has said which.
+static CHANNELS: RwLock<Option<Vec<String>>> = RwLock::new(None);
+
+/// The channels a Fabric server is told the client takes for the host: what `HORIZON_ACCEPT_CHANNELS`
+/// adds to those the client always names, which whoever launches the game fills with what the host's
+/// mods read. None without a host.
+///
+/// A server sends on them from the moment the player is in (a mod's state, pushed on join), which is
+/// before the host is started: until the host says what it reads, they are all that is known of it.
+fn announced() -> &'static [String] {
+    static ANNOUNCED: OnceLock<Vec<String>> = OnceLock::new();
+    ANNOUNCED.get_or_init(|| {
+        if std::env::var_os(LAUNCH).is_none() {
+            return Vec::new();
+        }
+        let added = std::env::var(horizon_client::modded_server::ACCEPTED).ok();
+        let always = horizon_client::modded_server::accepted_channels(None).len();
+        horizon_client::modded_server::accepted_channels(added.as_deref())
+            .into_iter()
+            .skip(always)
+            .collect()
+    })
+}
+
+/// Whether a message on `channel` is the host's: on a channel it said it reads (`known`), or, before
+/// it said anything, on one the server was told is taken for it.
+fn is_read(known: Option<&[String]>, announced: &[String], channel: &str) -> bool {
+    known.unwrap_or(announced).iter().any(|c| c == channel)
+}
 
 /// Whether the host reads the server's messages on `channel`.
 pub(super) fn reads(channel: &str) -> bool {
     CHANNELS
         .read()
-        .is_ok_and(|channels| channels.iter().any(|c| c == channel))
+        .is_ok_and(|known| is_read(known.as_deref(), announced(), channel))
+}
+
+/// The mean and the largest of `values`, and how many there are. `None` without any.
+fn mean_max(values: impl Iterator<Item = f32>) -> Option<(f32, f32, usize)> {
+    let values: Vec<f32> = values.collect();
+    let count = values.len();
+    (count > 0).then(|| {
+        (
+            values.iter().sum::<f32>() / count as f32,
+            values.iter().copied().fold(0.0, f32::max),
+            count,
+        )
+    })
 }
 
 /// The messages between the game and the host: a length (`u32`, of what follows), a type (`u8`), then
@@ -674,8 +719,9 @@ impl Drop for Link {
         let _ = self.child.kill();
         let _ = self.child.wait();
         let _ = std::fs::remove_file(&self.path);
+        // The next host, on the next server, has not said what it reads.
         if let Ok(mut channels) = CHANNELS.write() {
-            channels.clear();
+            *channels = None;
         }
     }
 }
@@ -758,11 +804,30 @@ pub(super) struct Host {
     frames: u32,
     /// When the screen opened: its models' animations start then.
     opened: Option<Instant>,
+    /// The server's messages that came before the host was started, in order: it has them once it is.
+    early: Vec<(String, Vec<u8>)>,
     serial: u32,
     stats: Stats,
 }
 
 impl Host {
+    /// How many of the server's messages wait for the host to be started: a server says little that
+    /// early, and what a host that never starts would have read is not kept for ever.
+    const EARLY: usize = 256;
+
+    /// A message of the server on a channel the host reads: it goes to the host as it came, or waits
+    /// for the host to be started.
+    fn payload(&mut self, channel: &str, data: &[u8]) {
+        self.stats.payload_at = Some(Instant::now());
+        match &self.link {
+            Some(link) => link.tell(&ToHost::Payload { channel, data }),
+            None if !self.failed && self.early.len() < Self::EARLY => {
+                self.early.push((channel.to_owned(), data.to_vec()));
+            }
+            None => {}
+        }
+    }
+
     /// An input goes to the host under the next serial, timed from now.
     fn input(&mut self, message: impl FnOnce(u32) -> Vec<u8>) {
         let Some(link) = &self.link else {
@@ -856,6 +921,7 @@ impl Game<'_> {
                 Err(e) => {
                     log::warn!("Horizon: the screen host does not start: {e}");
                     host.failed = true;
+                    host.early.clear();
                 }
             }
         }
@@ -903,6 +969,19 @@ impl Game<'_> {
                 language: &language,
                 player: &player,
             });
+        }
+        // What the server sent before the host was started, now that the host knows the window.
+        if !host.early.is_empty() {
+            log::info!(
+                "Horizon: the screen host is handed {} messages the server sent before it was started",
+                host.early.len()
+            );
+            for (channel, data) in host.early.drain(..) {
+                link.tell(&ToHost::Payload {
+                    channel: &channel,
+                    data: &data,
+                });
+            }
         }
         // An atlas made again (a resource pack) holds nothing of the image any more.
         if host.image.is_some() && host.slot != slot {
@@ -961,13 +1040,16 @@ impl Game<'_> {
                     .map(|link| link.started.elapsed().as_secs_f32() * 1000.0);
                 host.stats.ready_ms = ready;
                 host.stats.startup_ms = Some(startup_ms);
+                // A Fabric server sends a mod's messages only on the channels it was told are taken.
+                let told = channels.iter().filter(|c| announced().contains(*c)).count();
                 log::info!(
-                    "Horizon: the screen host is ready after {:.0} ms and reads {} channels",
+                    "Horizon: the screen host is ready after {:.0} ms and reads {} channels, {told} of \
+                     which a Fabric server is told are taken",
                     ready.unwrap_or_default(),
                     channels.len()
                 );
                 if let Ok(mut read) = CHANNELS.write() {
-                    *read = channels;
+                    *read = Some(channels);
                 }
             }
             FromHost::Show(name) => self.pokemon_host_show(name),
@@ -978,18 +1060,22 @@ impl Game<'_> {
                     host.stats.answered(serial, false);
                 }
             }
+            // What a screen makes the game say to the server is rare, and is the player's doing: it is
+            // always in the log. A command is there by its name alone, what follows being the
+            // player's own words; a test asks for all of it.
             FromHost::Send { channel, data } => {
-                if std::env::var_os("HORIZON_COBBLEMON_TRACE").is_some() {
-                    log::info!(
-                        "Horizon: the screen host sends the server {channel} ({} bytes)",
-                        data.len()
-                    );
-                }
+                log::info!(
+                    "Horizon: the screen host sends the server {channel} ({} bytes)",
+                    data.len()
+                );
                 self.pokemon_send(&channel, data);
             }
             FromHost::Command(command) => {
                 if std::env::var_os("HORIZON_COBBLEMON_TRACE").is_some() {
                     log::info!("Horizon: the screen host runs the command /{command}");
+                } else {
+                    let name = command.split_whitespace().next().unwrap_or_default();
+                    log::info!("Horizon: the screen host runs the command /{name}");
                 }
                 self.send_command(&command);
             }
@@ -1047,7 +1133,25 @@ impl Game<'_> {
     /// The host's screen is no more, by its own doing or because the host is gone.
     fn pokemon_host_hidden(&mut self) {
         if let Some(host) = self.pokemon_host() {
-            host.open = None;
+            if let Some(name) = host.open.take() {
+                // What a trial without a control socket leaves to read: the link's figures so far.
+                let stats = &host.stats;
+                let inputs = mean_max(stats.latencies.iter().copied())
+                    .map(|(mean, max, count)| {
+                        format!(
+                            "{count} inputs answered by an image in {mean:.1} ms on average \
+                             ({max:.1} at most)"
+                        )
+                    })
+                    .unwrap_or_else(|| "no input answered by an image".to_owned());
+                log::info!(
+                    "Horizon: the screen host's {name} is closed; since the host started: {} images, \
+                     {inputs}, {} of {} images checked were damaged",
+                    stats.frames,
+                    stats.corrupt,
+                    stats.checked
+                );
+            }
             host.overlays.clear();
             host.image = None;
         }
@@ -1108,6 +1212,16 @@ impl Game<'_> {
                 .stats
                 .payload_at
                 .map(|at| at.elapsed().as_secs_f32() * 1000.0);
+            // A screen the server's message opened: how long the player waited for it. One a click
+            // in another screen opened has no recent message to count from.
+            if let (Some(name), Some(ms)) = (&host.open, host.stats.open_ms)
+                && ms < 10_000.0
+            {
+                log::info!(
+                    "Horizon: the screen host's {name} is on screen {ms:.0} ms after the server's \
+                     last message"
+                );
+            }
         }
         // The first part of an image is all of it; a part of another size's image has no place.
         let whole = frame.w == frame.width && frame.h == frame.height;
@@ -1328,10 +1442,7 @@ impl Game<'_> {
             return false;
         }
         if let Some(host) = self.pokemon_host() {
-            host.stats.payload_at = Some(Instant::now());
-            if let Some(link) = &host.link {
-                link.tell(&ToHost::Payload { channel, data });
-            }
+            host.payload(channel, data);
         }
         true
     }
@@ -1385,19 +1496,8 @@ impl Game<'_> {
             return Value::Null;
         }
         let stats = &host.stats;
-        let mean = |values: &mut dyn Iterator<Item = f32>| -> Option<(f32, f32, usize)> {
-            let values: Vec<f32> = values.collect();
-            let count = values.len();
-            (count > 0).then(|| {
-                (
-                    values.iter().sum::<f32>() / count as f32,
-                    values.iter().copied().fold(0.0, f32::max),
-                    count,
-                )
-            })
-        };
-        let latency = mean(&mut stats.latencies.iter().copied());
-        let drawing = mean(&mut stats.host_micros.iter().map(|m| *m as f32 / 1000.0));
+        let latency = mean_max(stats.latencies.iter().copied());
+        let drawing = mean_max(stats.host_micros.iter().map(|m| *m as f32 / 1000.0));
         json!({
             "running": host.link.is_some(),
             "pid": host.link.as_ref().map(|link| link.child.id()),
@@ -1607,5 +1707,50 @@ mod tests {
         assert_eq!(stats.latencies.len(), 1);
         stats.answered(5, false);
         assert_eq!((stats.unchanged, stats.waiting.len()), (1, 0));
+    }
+
+    #[test]
+    fn before_the_host_speaks_its_channels_are_those_the_server_was_told() {
+        let announced = ["mod:open".to_owned(), "mod:state".to_owned()];
+        assert!(is_read(None, &announced, "mod:state"));
+        assert!(!is_read(None, &announced, "other:thing"));
+        assert!(!is_read(None, &[], "mod:state"));
+        // Once it has said what it reads, nothing else is its own.
+        let known = ["mod:open".to_owned(), "host:test".to_owned()];
+        assert!(is_read(Some(&known), &announced, "mod:open"));
+        assert!(is_read(Some(&known), &announced, "host:test"));
+        assert!(!is_read(Some(&known), &announced, "mod:state"));
+    }
+
+    #[test]
+    fn what_the_server_says_before_the_host_is_started_waits_for_it() {
+        let mut host = Host::default();
+        host.payload("mod:keys", &[1, 2]);
+        host.payload("mod:state", &[]);
+        assert_eq!(
+            host.early,
+            [
+                ("mod:keys".to_owned(), vec![1, 2]),
+                ("mod:state".to_owned(), Vec::new())
+            ]
+        );
+        assert!(host.stats.payload_at.is_some());
+        for _ in 0..Host::EARLY * 2 {
+            host.payload("mod:state", &[0]);
+        }
+        assert_eq!(host.early.len(), Host::EARLY);
+        // A host that did not start will never read them.
+        let mut failed = Host {
+            failed: true,
+            ..Host::default()
+        };
+        failed.payload("mod:keys", &[1]);
+        assert!(failed.early.is_empty());
+    }
+
+    #[test]
+    fn figures_are_a_mean_a_largest_and_a_count() {
+        assert_eq!(mean_max([1.0, 2.0, 6.0].into_iter()), Some((3.0, 6.0, 3)));
+        assert_eq!(mean_max(std::iter::empty()), None);
     }
 }
