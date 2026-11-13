@@ -8,6 +8,48 @@ use std::{fs, path::Path};
 
 pub use horizon_client_core::sound_source::SOUND_SOURCES;
 
+/// Settings on their way to the disk ([`Settings::save_in_background`]).
+struct Saves {
+    /// The newest settings asked to be saved for each path, oldest path first.
+    waiting: Vec<(std::path::PathBuf, Settings)>,
+    /// One is being written.
+    writing: bool,
+    /// The thread that writes them runs.
+    started: bool,
+}
+static SAVES: std::sync::Mutex<Saves> = std::sync::Mutex::new(Saves {
+    waiting: Vec::new(),
+    writing: false,
+    started: false,
+});
+/// Told when settings wait to be written, and when some were.
+static SAVED: std::sync::Condvar = std::sync::Condvar::new();
+
+/// The thread of [`Settings::save_in_background`]: writes what waits, in the order it was asked.
+fn write_saves() {
+    let mut saves = SAVES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    loop {
+        if saves.waiting.is_empty() {
+            saves = SAVED
+                .wait(saves)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            continue;
+        }
+        let (path, settings) = saves.waiting.remove(0);
+        saves.writing = true;
+        drop(saves);
+        // A write that panics must not leave `flush_saves` waiting for it.
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| settings.write(&path)));
+        saves = SAVES
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        saves.writing = false;
+        SAVED.notify_all();
+    }
+}
+
 /// Per-source volumes for the mixer (soundCategory_* except master).
 static SOURCE_VOLUMES: std::sync::RwLock<[f32; 11]> = std::sync::RwLock::new([1.0; 11]);
 pub fn set_source_volumes(volumes: [f32; 11]) {
@@ -349,6 +391,8 @@ impl Settings {
         horizon_hooks::settings::engine::load(&mut |file| fs::read_to_string(dir?.join(file)).ok());
     }
     pub fn load(path: &Path) -> Self {
+        // What was saved a moment ago is what is read.
+        Self::flush_saves();
         let mut horizon = path
             .parent()
             .map(crate::graphics::Graphics::load)
@@ -698,8 +742,62 @@ impl Settings {
     pub fn serialize(&self) -> String {
         self.to_file().serialize()
     }
+    /// Saves the settings beside `path` (options.txt and Horizon's own files) before it
+    /// returns.
     pub fn save(&self, path: &Path) {
         self.describe_for_crashes();
+        // Older settings still waiting for this path would be written over these.
+        Self::flush_saves();
+        self.write(path);
+    }
+    /// [`Self::save`] on a thread of its own, for the options screens: six files, each an
+    /// open, a write and a close, which a slow disk (a hard disk behind USB) takes tens to
+    /// hundreds of milliseconds for. Written where they were asked for, every Done of those
+    /// screens froze the game there for 0.3 to 1.5 s. The newest settings for a path replace
+    /// those still waiting for it; [`Self::flush_saves`] waits for the disk.
+    pub fn save_in_background(&self, path: &Path) {
+        self.describe_for_crashes();
+        let mut saves = SAVES
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        match saves
+            .waiting
+            .iter_mut()
+            .find(|(waiting, _)| waiting == path)
+        {
+            Some((_, settings)) => *settings = self.clone(),
+            None => saves.waiting.push((path.to_owned(), self.clone())),
+        }
+        if !saves.started {
+            saves.started = std::thread::Builder::new()
+                .name("settings-save".into())
+                .spawn(write_saves)
+                .is_ok();
+        }
+        if !saves.started {
+            // No thread to be had: written here, as it always was.
+            let waiting = std::mem::take(&mut saves.waiting);
+            drop(saves);
+            for (path, settings) in waiting {
+                settings.write(&path);
+            }
+            return;
+        }
+        SAVED.notify_all();
+    }
+    /// Waits until every save asked for is on the disk: before the files are read again, and
+    /// before the game exits.
+    pub fn flush_saves() {
+        let mut saves = SAVES
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        while !saves.waiting.is_empty() || saves.writing {
+            saves = SAVED
+                .wait(saves)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+    }
+    fn write(&self, path: &Path) {
         if let Err(e) = fs::write(path, self.serialize()) {
             log::warn!("Horizon: options.txt is not saved: {e}");
         }
@@ -1018,6 +1116,39 @@ mod tests {
         let mut s = Settings::default();
         s.keys.set("key.emote", "key.keyboard.g");
         assert!(!s.serialize().contains("emote"));
+    }
+
+    /// The options screens' saves reach the disk without the caller waiting for it, the
+    /// newest last, and a load reads what was saved.
+    #[test]
+    fn a_background_save_is_on_the_disk_once_flushed_or_loaded() {
+        let dir = scratch("background-save");
+        let options = dir.join("options.txt");
+        let mut s = Settings::default();
+        for fov in [40.0, 55.0, 90.0] {
+            s.fov = fov;
+            s.save_in_background(&options);
+        }
+        assert_eq!(
+            Settings::load(&options).fov,
+            90.0,
+            "a load waits for the saves"
+        );
+        s.fov = 100.0;
+        s.save_in_background(&options);
+        Settings::flush_saves();
+        assert_eq!(
+            Settings::parse(&fs::read_to_string(&options).unwrap()).fov,
+            100.0
+        );
+        // A plain save after one in the background is the one that stays.
+        s.fov = 30.0;
+        s.save_in_background(&options);
+        s.fov = 110.0;
+        s.save(&options);
+        Settings::flush_saves();
+        assert_eq!(Settings::load(&options).fov, 110.0);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

@@ -751,10 +751,78 @@ fn junction(target: &Path, at: &Path) -> io::Result<()> {
 fn junction(_: &Path, _: &Path) -> io::Result<()> {
     Err(io::ErrorKind::Unsupported.into())
 }
+/// How far the overlay being built is, for whoever draws the wait: the steps done of the steps
+/// found so far (a folder, a link or a file each). An overlay found built takes none.
+#[derive(Default)]
+pub struct BuildProgress {
+    done: std::sync::atomic::AtomicU64,
+    found: std::sync::atomic::AtomicU64,
+    /// The largest share given out, in millionths: the walk finds steps as it goes, and a bar
+    /// never goes back.
+    shown: std::sync::atomic::AtomicU32,
+}
+impl BuildProgress {
+    /// The share of the build done, 0 to 1; `None` while there is no build to wait for.
+    pub fn fraction(&self) -> Option<f32> {
+        use std::sync::atomic::Ordering::Relaxed;
+        let found = self.found.load(Relaxed);
+        if found == 0 {
+            return None;
+        }
+        let now = (self.done.load(Relaxed).min(found) * 1_000_000 / found) as u32;
+        Some(self.shown.fetch_max(now, Relaxed).max(now) as f32 / 1e6)
+    }
+    fn expect(&self, steps: usize) {
+        self.found
+            .fetch_add(steps as u64, std::sync::atomic::Ordering::Relaxed);
+    }
+    fn step(&self) {
+        self.done.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+    /// The steps done so far.
+    fn steps(&self) -> u64 {
+        self.done.load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
+
 /// Build `out` as `vanilla` with the packs' files layered on top (packs in
 /// load order, last wins). Untouched directories are links into vanilla.
 pub fn build_overlay(vanilla: &Path, packs: &[Pack], out: &Path) -> io::Result<()> {
-    cache::build(vanilla, packs, out)
+    cache::build(vanilla, packs, out, &BuildProgress::default())
+}
+
+/// A file of the overlay made after the walk, when its folder exists.
+enum Job<'a> {
+    /// A link at the second path to the file at the first.
+    Link(PathBuf, PathBuf),
+    /// A zip entry to unpack: its pack, its name in the zip and where it goes.
+    Unpack(usize, &'a str, PathBuf),
+}
+
+/// Writes the entry `inner` of `zip` at `target`, taking its bytes from `budget`.
+fn unpack(
+    zip: &Zip,
+    inner: &str,
+    target: &Path,
+    budget: &std::sync::atomic::AtomicU64,
+) -> io::Result<()> {
+    let copied = fs::File::create(target).and_then(|file| {
+        let mut file = io::BufWriter::new(file);
+        zip.copy_to(inner, &mut file, budget)?;
+        io::Write::flush(&mut file)
+    });
+    match copied {
+        Ok(()) => Ok(()),
+        // Past the budget the build fails, and the reload drops the server packs.
+        Err(e) if e.kind() == io::ErrorKind::FileTooLarge => Err(e),
+        // One unreadable entry costs that file, not the pack: an error here
+        // failed the build and the reload dropped every server pack in the stack.
+        Err(e) => {
+            log::warn!("Horizon: skipping unreadable pack entry {inner}: {e}");
+            let _ = fs::remove_file(target);
+            Ok(())
+        }
+    }
 }
 
 fn build_overlay_uncached(
@@ -762,6 +830,7 @@ fn build_overlay_uncached(
     packs: &[Pack],
     out: &Path,
     dependencies: &mut cache::Dependencies,
+    progress: &BuildProgress,
 ) -> io::Result<()> {
     if out.exists() {
         fs::remove_dir_all(out)?;
@@ -877,8 +946,6 @@ fn build_overlay_uncached(
             merged.insert(name.clone(), bytes);
         }
     }
-    /// A zip entry to write: its pack, its name in the zip and where it goes.
-    type Extract<'a> = (usize, &'a str, PathBuf);
     #[allow(clippy::too_many_arguments)]
     fn mirror<'a>(
         rel: &str,
@@ -890,7 +957,7 @@ fn build_overlay_uncached(
         merged: &BTreeMap<String, Vec<u8>>,
         filters: &[&Filter],
         dependencies: &mut cache::Dependencies,
-        extract: &mut Vec<Extract<'a>>,
+        (jobs, progress): (&mut Vec<Job<'a>>, &BuildProgress),
     ) -> io::Result<()> {
         let src = if rel.is_empty() {
             vanilla.to_path_buf()
@@ -903,14 +970,20 @@ fn build_overlay_uncached(
             out.join(rel)
         };
         fs::create_dir_all(&dst)?;
+        progress.step();
         dependencies.directory(&src);
-        let mut names: BTreeSet<String> = BTreeSet::new();
+        // Vanilla's entries, and whether each is a folder: the listing says so, where asking
+        // each file was three opens a file.
+        let mut names: BTreeMap<String, bool> = BTreeMap::new();
         if let Ok(entries) = fs::read_dir(&src) {
-            names.extend(
-                entries
-                    .flatten()
-                    .map(|e| e.file_name().to_string_lossy().into_owned()),
-            );
+            names.extend(entries.flatten().map(|e| {
+                // A link (a content root links into its base) is followed.
+                let folder = match e.file_type() {
+                    Ok(t) if !t.is_symlink() => t.is_dir(),
+                    _ => e.path().is_dir(),
+                };
+                (e.file_name().to_string_lossy().into_owned(), folder)
+            }));
         }
         let prefix = if rel.is_empty() {
             String::new()
@@ -924,9 +997,11 @@ fn build_overlay_uncached(
             .range(prefix.clone()..)
             .map_while(|(f, _)| f.strip_prefix(&prefix))
         {
-            names.insert(f.split('/').next().unwrap_or("").to_owned());
+            names
+                .entry(f.split('/').next().unwrap_or("").to_owned())
+                .or_insert(false);
         }
-        for name in names {
+        for (name, folder) in names {
             let child = format!("{prefix}{name}");
             // Vanilla's files in one file: it describes vanilla's root, not this mirror.
             if hidden.contains(&child) || child == horizon_core::prepared_files::FILE_NAME {
@@ -934,16 +1009,17 @@ fn build_overlay_uncached(
             }
             if let Some(bytes) = merged.get(&child) {
                 fs::write(out.join(&child), bytes)?;
+                progress.step();
             } else if let Some((owner, (path, inner))) = files.get(&child) {
                 let target = out.join(&child);
-                match path {
-                    Some(p) => link(p, &target)?,
-                    // Inflated and written after the walk, on every thread.
-                    None => extract.push((*owner, inner.as_str(), target)),
-                }
+                // Linked, or inflated and written, after the walk.
+                jobs.push(match path {
+                    Some(p) => Job::Link(p.clone(), target),
+                    None => Job::Unpack(*owner, inner.as_str(), target),
+                });
             } else if filters.is_empty()
                 && !touched.contains(&child)
-                && vanilla.join(&child).is_dir()
+                && folder
                 && junction(&vanilla.join(&child), &out.join(&child)).is_ok()
             {
                 // Linked whole, like the unix symlink: no file in it is visited or copied.
@@ -952,8 +1028,12 @@ fn build_overlay_uncached(
                 // above), so an untouched one has to be mirrored: skipping it hid textures/font
                 // and the title panorama from the overlay, and a font json that names those
                 // sheets then failed to load (#1688).
-                || (vanilla.join(&child).is_dir() && (cfg!(not(unix)) || !filters.is_empty()))
+                || (folder && (cfg!(not(unix)) || !filters.is_empty()))
             {
+                // A folder only vanilla has was not counted among the packs'.
+                if !touched.contains(&child) {
+                    progress.expect(1);
+                }
                 mirror(
                     &child,
                     vanilla,
@@ -964,21 +1044,25 @@ fn build_overlay_uncached(
                     merged,
                     filters,
                     dependencies,
-                    extract,
+                    (jobs, progress),
                 )?;
             } else if filters.iter().any(|f| f.blocks(&child)) {
                 // Hidden by a pack's filter.
-            } else {
-                #[cfg(not(unix))]
-                if vanilla.join(&child).is_file() {
-                    dependencies.file(&vanilla.join(&child));
-                }
+            } else if cfg!(unix) {
+                // A link to the file or to the whole folder, live: nothing to wait for.
                 link(&vanilla.join(&child), &out.join(&child))?;
+            } else if !folder {
+                dependencies.file(&vanilla.join(&child));
+                progress.expect(1);
+                jobs.push(Job::Link(vanilla.join(&child), out.join(&child)));
             }
         }
         Ok(())
     }
-    let mut extract = Vec::new();
+    // A folder for each the packs touch and the root's, and a file for each they provide;
+    // the walk adds vanilla's files beside them as it finds them.
+    progress.expect(touched_dirs.len() + 1 + files.len());
+    let mut jobs = Vec::new();
     mirror(
         "",
         vanilla,
@@ -989,34 +1073,23 @@ fn build_overlay_uncached(
         &merged,
         &filters,
         dependencies,
-        &mut extract,
+        (&mut jobs, progress),
     )?;
     // What the zips may unpack to, all threads together: a server's pack is a download the
     // player only accepts, and a gigabyte of zeros deflates to a megabyte, so without it a pack
     // at the download limit wrote hundreds of gigabytes here. Vanilla never unpacks a pack.
     let budget = std::sync::atomic::AtomicU64::new(unpack_budget(packs));
-    // Inflating and writing a big pack's files one by one was most of a cold build; its
-    // folders all exist by now.
-    let extracted: io::Result<()> = crate::par::par_map(&extract, |(owner, inner, target)| {
-        let Some(Some(z)) = zips.get(*owner) else {
-            return Ok(());
-        };
-        let copied = fs::File::create(target).and_then(|file| {
-            let mut file = io::BufWriter::new(file);
-            z.copy_to(inner, &mut file, &budget)?;
-            io::Write::flush(&mut file)
-        });
-        match copied {
-            Ok(()) => Ok(()),
-            // Past the budget the build fails, and the reload drops the server packs.
-            Err(e) if e.kind() == io::ErrorKind::FileTooLarge => Err(e),
-            // One unreadable entry costs that file, not the pack: an error here
-            // failed the build and the reload dropped every server pack in the stack.
-            Err(e) => {
-                log::warn!("Horizon: skipping unreadable pack entry {inner}: {e}");
-                let _ = fs::remove_file(target);
-                Ok(())
-            }
+    // Linking vanilla's files and writing a big pack's are most of a cold build, one file
+    // after the other; their folders all exist by now. In the walk's order, so that the threads
+    // fill a folder together.
+    let extracted: io::Result<()> = crate::par::par_map(&jobs, |job| {
+        progress.step();
+        match job {
+            Job::Link(target, at) => link(target, at),
+            Job::Unpack(owner, inner, target) => match zips.get(*owner) {
+                Some(Some(z)) => unpack(z, inner, target, &budget),
+                _ => Ok(()),
+            },
         }
     })
     .into_iter()
@@ -1173,6 +1246,15 @@ pub fn able_to_clear_any_pack(all: &[Pack], selected: &[String]) -> bool {
 }
 /// Resource root for a pack selection: vanilla itself when no pack is on.
 pub fn resource_root(vanilla: &Path, packs: &[Pack], cache: &Path) -> io::Result<PathBuf> {
+    resource_root_reporting(vanilla, packs, cache, &BuildProgress::default())
+}
+/// [`resource_root`], saying in `progress` how far the overlay's build is while it lasts.
+pub fn resource_root_reporting(
+    vanilla: &Path,
+    packs: &[Pack],
+    cache: &Path,
+    progress: &BuildProgress,
+) -> io::Result<PathBuf> {
     if packs.is_empty() {
         return Ok(vanilla.to_path_buf());
     }
@@ -1186,7 +1268,7 @@ pub fn resource_root(vanilla: &Path, packs: &[Pack], cache: &Path) -> io::Result
     });
     let out = cache.join(format!("{hash:016x}"));
     cache::hold(&out)?;
-    build_overlay(vanilla, packs, &out)?;
+    cache::build(vanilla, packs, &out, progress)?;
     // Old selections' overlays would otherwise stay for good, each a whole unpacked copy.
     cache::prune(cache);
     Ok(out)
@@ -1397,6 +1479,22 @@ impl SelectionModel {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_builds_share_never_goes_back() {
+        let progress = BuildProgress::default();
+        assert_eq!(progress.fraction(), None, "no build to wait for");
+        progress.expect(4);
+        progress.step();
+        progress.step();
+        assert_eq!(progress.fraction(), Some(0.5));
+        // The walk finds more to do: the bar waits where it is.
+        progress.expect(4);
+        assert_eq!(progress.fraction(), Some(0.5));
+        (0..6).for_each(|_| progress.step());
+        assert_eq!(progress.fraction(), Some(1.0));
+        assert_eq!(progress.steps(), 8);
+    }
 
     /// `DownloadedPackSource.DOWNLOADED_PACK_SELECTION`: the pack is selected,
     /// fixed at the top, cannot be removed, and stays out of options.txt.

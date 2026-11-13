@@ -478,9 +478,7 @@ impl Sprites {
         let metadata = match horizon_core::prepared_files::read_to_string(
             &path.with_extension("png.mcmeta"),
         ) {
-            Ok(text) => Some(serde_json::from_str::<
-                BTreeMap<String, Box<serde_json::value::RawValue>>,
-            >(&text)?),
+            Ok(text) => Some(metadata_sections(&text)?),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
             Err(error) => return Err(error.into()),
         };
@@ -589,9 +587,7 @@ impl Sprites {
         let metadata = match horizon_core::prepared_files::read_to_string(
             &path.with_extension("png.mcmeta"),
         ) {
-            Ok(text) => Some(serde_json::from_str::<
-                BTreeMap<String, Box<serde_json::value::RawValue>>,
-            >(&text)?),
+            Ok(text) => Some(metadata_sections(&text)?),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
             Err(error) => return Err(error.into()),
         };
@@ -841,6 +837,18 @@ fn pbr_map(
         .collect();
     Some((output_side, frames))
 }
+/// A texture's `.mcmeta` by section: the file's first JSON value, as Gson's reader takes it
+/// (`AbstractPackResources.getMetadataFromStream`). What follows is not read: packs leave a
+/// brace too many or a signature there, and vanilla animates their textures all the same, where
+/// refusing the file drew the missing texture instead.
+fn metadata_sections(text: &str) -> Result<BTreeMap<String, Box<serde_json::value::RawValue>>> {
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
+    Ok(serde_json::Deserializer::from_str(text)
+        .into_iter()
+        .next()
+        .ok_or("empty texture metadata")??)
+}
+
 /// SpriteContents: the `.mcmeta` `texture` section (TextureMetadataSection's
 /// mipmap strategy and alpha cutoff bias).
 fn texture_section(
@@ -1119,6 +1127,22 @@ mod tests {
         assert!(sprites.insert_tiles(&root, name, (4, 1), false).is_err());
         assert!(sprites.insert_tiles(&root, name, (3, 3), false).is_err());
         fs::remove_dir_all(&root).unwrap();
+    }
+    /// A pack's `.mcmeta` with a brace too many after its object still gives its sections.
+    #[test]
+    fn texture_metadata_is_the_files_first_value() {
+        let stray = "{\n\t\"animation\": {\n\t\t\"frametime\": 2\n\t\t}\n\t}\n}";
+        let sections = metadata_sections(stray).unwrap();
+        let animation: serde_json::Value =
+            serde_json::from_str(sections["animation"].get()).unwrap();
+        assert_eq!(animation["frametime"], 2);
+        assert!(
+            metadata_sections("\u{feff}{} signed, the author")
+                .unwrap()
+                .is_empty()
+        );
+        assert!(metadata_sections("").is_err());
+        assert!(metadata_sections("[1]").is_err());
     }
     #[test]
     fn custom_item_texture_ids_load_with_their_animation() {

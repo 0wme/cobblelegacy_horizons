@@ -10118,6 +10118,24 @@ impl Game<'_> {
             }));
         }
     }
+    /// Whether the server leaves Pick Block to the client: 1.21.3 and older have no
+    /// `pick_item_from_block` (`remote_pick.rs`).
+    pub(super) fn remote_picks_locally(&self) -> bool {
+        self.remote.as_ref().is_some_and(|r| {
+            r.session
+                .server_version()
+                .at_most(horizon_protocol::adapter::ServerVersion::V1_21_3)
+        })
+    }
+    /// A hotbar swap click on the inventory menu: main inventory slot `slot` and hotbar slot
+    /// `hotbar` trade places, as a number key over the slot does in the inventory screen.
+    pub(super) fn remote_swap_into_hotbar(&mut self, slot: usize, hotbar: usize) {
+        let carried = self.carried.clone();
+        self.send_clicks(
+            0,
+            vec![(slot as i16, hotbar as i32, Input::Swap, Vec::new(), carried)],
+        );
+    }
     /// The server's open menu is the inventory or a chest-like container
     /// (chests, barrels, ender chests: `generic_9xN`; shulker boxes).
     pub(super) fn remote_storage_open(&self) -> bool {
@@ -11351,6 +11369,15 @@ impl horizon_client::interaction_input::InteractionWorld for RemoteInputWorld<'_
                 if self.0.native_interaction(2, Hand::Main).is_some() {
                     return;
                 }
+                if self.0.remote_picks_locally() {
+                    // `Minecraft.pickBlock` of those versions: an entity only in creative.
+                    if self.0.creative
+                        && let Some(stack) = self.0.entity_pick_result(id)
+                    {
+                        self.0.remote_pick_locally(&stack);
+                    }
+                    return;
+                }
                 self.0.send(S::PickItemFromEntity(play::PickItemFromEntity {
                     id,
                     include_data: self.0.has_control_down(),
@@ -11358,6 +11385,13 @@ impl horizon_client::interaction_input::InteractionWorld for RemoteInputWorld<'_
             }
         } else if let Some(hit) = self.0.pick() {
             if self.0.native_interaction(2, Hand::Main).is_some() {
+                return;
+            }
+            if self.0.remote_picks_locally() {
+                let data = self.0.creative && self.0.has_control_down();
+                if let Some(stack) = self.0.picked_stack(hit.pos, data) {
+                    self.0.remote_pick_locally(&stack);
+                }
                 return;
             }
             self.0.send(S::PickItemFromBlock(play::PickItemFromBlock {

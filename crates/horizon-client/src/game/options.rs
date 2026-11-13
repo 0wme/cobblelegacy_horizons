@@ -152,20 +152,7 @@ impl Game<'_> {
         {
             return;
         }
-        let signature: Vec<(String, u64, Option<std::time::SystemTime>)> =
-            std::fs::read_dir(super::packs::packs_dir())
-                .into_iter()
-                .flatten()
-                .flatten()
-                .map(|e| {
-                    let meta = e.metadata().ok();
-                    (
-                        e.file_name().to_string_lossy().into_owned(),
-                        meta.as_ref().map_or(0, |m| m.len()),
-                        meta.and_then(|m| m.modified().ok()),
-                    )
-                })
-                .collect();
+        let signature = super::packs::folder_stamp();
         let changed = self
             .pack_folder
             .as_ref()
@@ -175,9 +162,11 @@ impl Game<'_> {
             let infos = super::packs::pack_infos(&self.vanilla_root(), &self.server_packs.active);
             self.ui.options.update_pack_infos(infos);
             self.ui.options.pack_configs = super::packs::pack_configs(&self.vanilla_root());
+            self.pack_lists_seen = super::packs::pack_readings();
         }
     }
     pub(super) fn draw_options(&mut self, batch: &mut HudBatch) {
+        self.follow_pack_lists();
         self.watch_pack_folder();
         let context = self.controller_settings_context();
         let mut ui = std::mem::take(&mut self.ui.options);
@@ -358,7 +347,7 @@ impl Game<'_> {
             match e {
                 Event::ButtonClick => self.audio.play_button_click(),
                 Event::Changed => {
-                    self.settings.save(&Self::options_path());
+                    self.settings.save_in_background(&Self::options_path());
                     self.apply_settings();
                     self.switch_mods();
                     self.sync_native_switches();
@@ -388,7 +377,7 @@ impl Game<'_> {
                 Event::PlayMusicTrack(event, track) => self.play_music_track(&event, &track),
                 Event::Close if self.ui.options.resource_error.is_some() => {}
                 Event::Close => {
-                    self.settings.save(&Self::options_path());
+                    self.settings.save_in_background(&Self::options_path());
                     self.screen = if let Some(screen) = self.panel.recipes_settings_return.take() {
                         screen
                     } else if std::mem::take(&mut self.options_to_world_options) {
@@ -406,12 +395,13 @@ impl Game<'_> {
                     self.load_language(&code);
                 }
                 Event::Packs(_) => {
-                    self.settings.save(&Self::options_path());
+                    self.settings.save_in_background(&Self::options_path());
                     self.reload_packs();
                 }
                 Event::PackOptions { entries, chosen } => {
                     super::packs::save_pack_options(&entries, chosen);
                     self.ui.options.pack_configs = super::packs::pack_configs(&self.vanilla_root());
+                    self.pack_lists_seen = super::packs::pack_readings();
                     self.reload_packs();
                 }
                 Event::OpenPackFolder => {

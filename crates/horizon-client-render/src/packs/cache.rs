@@ -25,13 +25,16 @@ pub(super) struct Dependencies {
     /// The vanilla root (absolute): its files are stamped without reading them.
     #[serde(skip)]
     vanilla: PathBuf,
+    /// The folders listed while recording.
+    #[serde(skip)]
+    listings: Listings,
 }
 impl Dependencies {
     fn record(&mut self, path: &Path, directory: bool) {
         if !self.tracking {
             return;
         }
-        match dependency_signature(path, directory, &self.vanilla) {
+        match dependency_signature(path, directory, &self.vanilla, &mut self.listings) {
             Ok(signature) => self.entries.push((path.into(), directory, signature)),
             Err(_) => self.failed = true,
         }
@@ -43,10 +46,74 @@ impl Dependencies {
         self.record(path, true);
     }
     fn valid(&self) -> bool {
+        // Listed again: what was recorded is what may have changed.
+        let mut listings = Listings::default();
         !self.failed
             && self.entries.iter().all(|(path, directory, signature)| {
-                dependency_signature(path, *directory, &self.vanilla).is_ok_and(|s| s == *signature)
+                dependency_signature(path, *directory, &self.vanilla, &mut listings)
+                    .is_ok_and(|s| s == *signature)
             })
+    }
+}
+
+/// Folder listings, read once each, answering for the files in them. On Windows a listing
+/// gives every entry's size and times with its name, while asking one file for them opens it:
+/// the antivirus looks at every open and a hard disk seeks for each. A pack that adds to
+/// vanilla's model and texture folders leaves ten thousand such files to check at each start,
+/// which was a second of it on a fast disk and most of it on a slow one.
+#[derive(Default)]
+struct Listings(
+    #[cfg_attr(not(windows), allow(dead_code))]
+    std::collections::HashMap<
+        PathBuf,
+        Option<std::collections::HashMap<std::ffi::OsString, fs::Metadata>>,
+    >,
+);
+impl Listings {
+    /// `path`'s metadata, as `fs::metadata` gives it; `directory` says a folder is expected
+    /// there. A folder's own times are asked of the folder: the copy its parent's listing keeps
+    /// is brought up to date when the file system pleases, and an overlay would be built again
+    /// for it.
+    fn metadata(&mut self, path: &Path, directory: bool) -> io::Result<fs::Metadata> {
+        #[cfg(windows)]
+        if let (Some(folder), Some(name)) = (path.parent(), path.file_name()) {
+            let listing = self
+                .0
+                .entry(folder.into())
+                .or_insert_with(|| Self::list(folder));
+            match listing {
+                // Nothing is in a folder that isn't there.
+                None => return Err(io::ErrorKind::NotFound.into()),
+                Some(entries) => {
+                    if let Some(meta) = entries.get(name).filter(|m| !directory && m.is_file()) {
+                        return Ok(meta.clone());
+                    }
+                }
+            }
+        }
+        #[cfg(not(windows))]
+        let _ = directory;
+        // A name the listing doesn't have as written (another case, a link) is asked itself.
+        fs::metadata(path)
+    }
+    /// `folder`'s entries by name, links left out (a link's own times are not those of what it
+    /// leads to); `None` when there is no such folder. One that cannot be listed answers for
+    /// nothing.
+    #[cfg(windows)]
+    fn list(folder: &Path) -> Option<std::collections::HashMap<std::ffi::OsString, fs::Metadata>> {
+        match fs::read_dir(folder) {
+            Ok(entries) => Some(
+                entries
+                    .flatten()
+                    .filter_map(|e| {
+                        let meta = e.metadata().ok().filter(|m| !m.file_type().is_symlink())?;
+                        Some((e.file_name(), meta))
+                    })
+                    .collect(),
+            ),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => None,
+            Err(_) => Some(Default::default()),
+        }
     }
 }
 
@@ -99,7 +166,10 @@ fn zip_content(hash: &mut Sha256, path: &Path, whole: u64) -> io::Result<()> {
 }
 /// `path`'s stamp; `read` lets platforms without a change timestamp hash a file's bytes.
 fn stamp(hash: &mut Sha256, path: &Path, read: bool) -> io::Result<()> {
-    let meta = fs::metadata(path)?;
+    stamp_of(hash, path, &fs::metadata(path)?, read)
+}
+/// [`stamp`] of `path`, whose metadata is `meta`.
+fn stamp_of(hash: &mut Sha256, path: &Path, meta: &fs::Metadata, read: bool) -> io::Result<()> {
     hash.update(meta.len().to_le_bytes());
     field(hash, format!("{:?}", meta.modified()?).as_bytes());
     #[cfg(unix)]
@@ -135,18 +205,23 @@ fn entries(path: &Path) -> io::Result<Vec<PathBuf>> {
     entries.sort();
     Ok(entries)
 }
-fn dependency_signature(path: &Path, directory: bool, vanilla: &Path) -> io::Result<String> {
+fn dependency_signature(
+    path: &Path,
+    directory: bool,
+    vanilla: &Path,
+    listings: &mut Listings,
+) -> io::Result<String> {
     let mut hash = Sha256::new();
     let read = !(path.starts_with(vanilla) || absolute(path).is_ok_and(|p| p.starts_with(vanilla)));
-    match fs::metadata(path) {
+    match listings.metadata(path, directory) {
         Err(e) if e.kind() == io::ErrorKind::NotFound => field(&mut hash, b"missing"),
         Err(e) => return Err(e),
         Ok(meta) if directory && meta.is_dir() => {
             field(&mut hash, b"directory");
-            stamp(&mut hash, path, read)?;
+            stamp_of(&mut hash, path, &meta, read)?;
         }
         Ok(_) if directory => field(&mut hash, b"not-directory"),
-        Ok(_) => stamp(&mut hash, path, read)?,
+        Ok(meta) => stamp_of(&mut hash, path, &meta, read)?,
     }
     Ok(finish(hash))
 }
@@ -398,7 +473,13 @@ fn remove_unused(out: &Path) -> io::Result<()> {
     fs::remove_dir_all(out)
 }
 
-pub(super) fn build(vanilla: &Path, packs: &[Pack], out: &Path) -> io::Result<()> {
+/// Builds `out`, or finds it built: `progress` follows a build.
+pub(super) fn build(
+    vanilla: &Path,
+    packs: &[Pack],
+    out: &Path,
+    progress: &super::BuildProgress,
+) -> io::Result<()> {
     if let Some(parent) = out.parent().filter(|p| !p.as_os_str().is_empty()) {
         fs::create_dir_all(parent)?;
     }
@@ -411,6 +492,7 @@ pub(super) fn build(vanilla: &Path, packs: &[Pack], out: &Path) -> io::Result<()
         .truncate(false)
         .open(lock_path(out))?;
     lock.lock()?;
+    let started = std::time::Instant::now();
     let vanilla_key = absolute(vanilla)?;
     let marker_path = marker_path(out);
     let signature = pack_signature(packs);
@@ -426,6 +508,10 @@ pub(super) fn build(vanilla: &Path, packs: &[Pack], out: &Path) -> io::Result<()
         }
         && out.is_dir()
     {
+        log::info!(
+            "Horizon: resource pack overlay found built in {} ms",
+            started.elapsed().as_millis()
+        );
         return Ok(());
     }
     // An interrupted/failed rebuild must never leave a reusable marker.
@@ -439,7 +525,12 @@ pub(super) fn build(vanilla: &Path, packs: &[Pack], out: &Path) -> io::Result<()
         vanilla: vanilla_key.clone(),
         ..Dependencies::default()
     };
-    build_overlay_uncached(vanilla, packs, out, &mut dependencies)?;
+    build_overlay_uncached(vanilla, packs, out, &mut dependencies, progress)?;
+    log::info!(
+        "Horizon: resource pack overlay built in {:.1} s ({} folders, links and files)",
+        started.elapsed().as_secs_f32(),
+        progress.steps()
+    );
     if let Ok(signature) = signature
         && dependencies.valid()
         && pack_signature(packs).is_ok_and(|s| s == signature)
@@ -595,6 +686,7 @@ mod tests {
                 selected,
                 &self.0.join("reference"),
                 &mut Dependencies::default(),
+                &packs::BuildProgress::default(),
             )
             .unwrap();
             assert_eq!(
@@ -1155,6 +1247,7 @@ mod tests {
             std::slice::from_ref(&pack),
             &reference,
             &mut Dependencies::default(),
+            &packs::BuildProgress::default(),
         )
         .unwrap();
         for root in [&out, &reference] {
@@ -1165,6 +1258,89 @@ mod tests {
         packs::build_overlay(&vanilla, &[pack], &out).unwrap();
         assert_eq!(fs::read(out.join(name)).unwrap(), b"pack");
         assert_eq!(fs::read(out.join("facts.json")).unwrap(), b"[]");
+    }
+
+    /// A build says how far it is; an overlay found built gives nothing to wait for.
+    #[test]
+    fn a_build_counts_its_steps_and_a_built_overlay_has_none() {
+        let f = Fixture::new();
+        f.write("vanilla/facts.json", b"[]");
+        f.write(
+            "vanilla/assets/minecraft/textures/block/stone.png",
+            b"vanilla",
+        );
+        f.write(
+            "vanilla/assets/minecraft/lang/en_us.json",
+            br#"{"a":"vanilla"}"#,
+        );
+        let texture = "assets/minecraft/textures/block/dirt.png";
+        let own = "assets/own/textures/a/b.png";
+        f.write(
+            "pack.zip",
+            &archive(
+                &[
+                    (
+                        "pack.mcmeta",
+                        br#"{"pack":{"description":"test","pack_format":97}}"#.to_vec(),
+                    ),
+                    (texture, b"pack".to_vec()),
+                    (own, b"own".to_vec()),
+                    (
+                        "assets/minecraft/lang/en_us.json",
+                        br#"{"b":"pack"}"#.to_vec(),
+                    ),
+                ],
+                true,
+            ),
+        );
+        let pack = packs::pack(
+            "zip".into(),
+            Text::empty(),
+            Source::Zip(f.0.join("pack.zip")),
+        )
+        .unwrap();
+        let (vanilla, out) = (f.0.join("vanilla"), f.0.join("cached"));
+        let selected = std::slice::from_ref(&pack);
+        let progress = packs::BuildProgress::default();
+        assert_eq!(progress.fraction(), None, "nothing to wait for yet");
+        build(&vanilla, selected, &out, &progress).unwrap();
+        assert_eq!(progress.fraction(), Some(1.0), "every step found was done");
+        assert_eq!(fs::read(out.join(texture)).unwrap(), b"pack");
+        assert_eq!(fs::read(out.join(own)).unwrap(), b"own");
+        assert_eq!(
+            fs::read(out.join("assets/minecraft/textures/block/stone.png")).unwrap(),
+            b"vanilla"
+        );
+        let again = packs::BuildProgress::default();
+        build(&vanilla, selected, &out, &again).unwrap();
+        assert_eq!(again.fraction(), None, "found built");
+    }
+
+    /// A vanilla file beside a pack's is one of the overlay's own links: replaced, the overlay
+    /// is built again, and found built while nothing changes.
+    #[test]
+    fn a_replaced_vanilla_file_beside_a_packs_rebuilds() {
+        let f = Fixture::new();
+        f.write("vanilla/assets/minecraft/textures/block/stone.png", b"old");
+        f.write("vanilla/assets/minecraft/textures/block/sand.png", b"sand");
+        let pack = f.dir_pack("pack");
+        f.write("pack/assets/minecraft/textures/block/dirt.png", b"pack");
+        let selected = std::slice::from_ref(&pack);
+        f.rebuild_matches(selected);
+        let out = f.0.join("cached");
+        let stone = out.join("assets/minecraft/textures/block/stone.png");
+        let marker = marker_path(&out);
+        let built = fs::metadata(&marker).unwrap().modified().unwrap();
+        f.rebuild_matches(selected);
+        assert_eq!(fs::metadata(&marker).unwrap().modified().unwrap(), built);
+        // A new file under the old name, as a launcher writes its update.
+        let vanilla =
+            f.0.join("vanilla/assets/minecraft/textures/block/stone.png");
+        fs::remove_file(&vanilla).unwrap();
+        fs::write(&vanilla, b"new").unwrap();
+        f.rebuild_matches(selected);
+        assert_eq!(fs::read(&stone).unwrap(), b"new");
+        assert_ne!(fs::metadata(&marker).unwrap().modified().unwrap(), built);
     }
 
     #[test]
@@ -1186,7 +1362,14 @@ mod tests {
                 (h ^ u64::from(b)).wrapping_mul(0x100_0000_01b3)
             });
             let out = cache.join(format!("{hash:016x}"));
-            build_overlay_uncached(vanilla, packs, &out, &mut Dependencies::default()).unwrap();
+            build_overlay_uncached(
+                vanilla,
+                packs,
+                &out,
+                &mut Dependencies::default(),
+                &packs::BuildProgress::default(),
+            )
+            .unwrap();
             out
         }
         let median = |mut times: Vec<f64>| {

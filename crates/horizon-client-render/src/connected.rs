@@ -123,6 +123,57 @@ fn sprite_name(resource: &str) -> String {
     }
 }
 
+/// `rule`'s tiles as sprite layers, inserted into `sprites`, and how many of them have no file.
+/// Such a tile is skipped, the rule kept: Continuity gives it the atlas's missing sprite, which
+/// is what it draws `<skip>` with, and packs made with it write `skip` (a file that does not
+/// exist) for the tiles of an overlay they leave out. Dropping the rule lost all its tiles.
+fn tile_layers(
+    root: &Path,
+    rule: &Rule,
+    sprites: &mut Sprites,
+) -> crate::Result<(Vec<TileLayer>, usize)> {
+    let mut absent = 0;
+    let mut layers = Vec::with_capacity(rule.tiles.len());
+    for tile in &rule.tiles {
+        layers.push(match tile {
+            Tile::Skip => TileLayer::Skip,
+            Tile::Default => TileLayer::Default,
+            Tile::Texture(path) => {
+                // A tile among the textures is that sprite, under its own name.
+                let name = sprite_name(path);
+                let layer = match name != *path {
+                    true => sprites.try_insert(root, &name),
+                    false => sprites.insert_file(root, path),
+                };
+                let layer = match layer {
+                    Ok(layer) => layer,
+                    Err(e) if is_not_found(e.as_ref()) => {
+                        absent += 1;
+                        layers.push(TileLayer::Skip);
+                        continue;
+                    }
+                    // A texture that is there and does not load is the missing texture's.
+                    Err(_) if name != *path => sprites.insert(root, &name)?,
+                    Err(e) => return Err(e),
+                };
+                TileLayer::Layer {
+                    layer: u16::try_from(layer)?,
+                    translucent: sprites.translucent[layer as usize],
+                    opaque: sprites.opaque[layer as usize],
+                }
+            }
+        });
+    }
+    Ok((layers, absent))
+}
+
+/// Whether `error` is a file that is not there.
+fn is_not_found(error: &(dyn std::error::Error + 'static)) -> bool {
+    error
+        .downcast_ref::<std::io::Error>()
+        .is_some_and(|e| e.kind() == std::io::ErrorKind::NotFound)
+}
+
 impl ConnectedTextures {
     /// The sprites `rules` match by name (`matchTiles`, `connectTiles`), for
     /// [`Sprites::keep_apart`]: before the models insert theirs.
@@ -163,37 +214,23 @@ impl ConnectedTextures {
         sprites.prefetch(root, tiles.iter().map(String::as_str));
         let loaded = rules
             .into_iter()
-            .filter_map(|rule| {
-                let tiles = rule
-                    .tiles
-                    .iter()
-                    .map(|tile| match tile {
-                        Tile::Skip => Ok(TileLayer::Skip),
-                        Tile::Default => Ok(TileLayer::Default),
-                        Tile::Texture(path) => {
-                            // A tile among the textures is that sprite, under its own name.
-                            let layer = match sprite_name(path) {
-                                name if name != *path => sprites.insert(root, &name)?,
-                                _ => sprites.insert_file(root, path)?,
-                            };
-                            Ok(TileLayer::Layer {
-                                layer: u16::try_from(layer)?,
-                                translucent: sprites.translucent[layer as usize],
-                                opaque: sprites.opaque[layer as usize],
-                            })
-                        }
-                    })
-                    .collect::<crate::Result<Vec<_>>>();
-                match tiles {
-                    Ok(tiles) => Some(LoadedRule {
+            .filter_map(|rule| match tile_layers(root, &rule, sprites) {
+                Ok((tiles, absent)) => {
+                    if absent > 0 {
+                        log::warn!(
+                            "Horizon: connected textures {}: {absent} tiles have no file and are skipped",
+                            rule.path
+                        );
+                    }
+                    Some(LoadedRule {
                         rule,
                         tiles,
                         overlay: OverlayJoin::default(),
-                    }),
-                    Err(e) => {
-                        log::warn!("Horizon: connected textures {}: a tile: {e}", rule.path);
-                        None
-                    }
+                    })
+                }
+                Err(e) => {
+                    log::warn!("Horizon: connected textures {}: a tile: {e}", rule.path);
+                    None
                 }
             })
             .collect();
@@ -654,6 +691,47 @@ impl ConnectedTextures {
 mod tests {
     use super::*;
     use horizon_optifine::Properties;
+
+    /// A pack's overlay rule that writes `skip` for the tiles it leaves out keeps the others.
+    #[test]
+    fn a_tile_without_a_file_is_skipped_and_its_rule_kept() {
+        let root = std::env::temp_dir().join(format!("horizon-ctm-absent-{}", std::process::id()));
+        let dir = root.join("assets/minecraft/optifine/ctm/overlays/slab");
+        std::fs::create_dir_all(&dir).unwrap();
+        for name in ["1.png", "3.png"] {
+            let file = std::fs::File::create(dir.join(name)).unwrap();
+            let mut encoder = png::Encoder::new(file, 16, 16);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            let pixels: Vec<u8> = (0..16 * 16).flat_map(|_| [90, 90, 90, 255]).collect();
+            encoder
+                .write_header()
+                .unwrap()
+                .write_image_data(&pixels)
+                .unwrap();
+        }
+        let tiles = "skip 1 skip 3".to_owned() + &" skip".repeat(13);
+        let rule = Rule::parse(
+            "assets/minecraft/optifine/ctm/overlays/slab/slab.properties",
+            &Properties::parse(&format!(
+                "matchBlocks=stone\nmethod=overlay\ntiles={tiles}\nconnectBlocks=glass"
+            )),
+        )
+        .unwrap()
+        .unwrap();
+        let mut sprites = Sprites::default();
+        let (layers, absent) = tile_layers(&root, &rule, &mut sprites).unwrap();
+        assert_eq!((layers.len(), absent), (17, 15));
+        for (i, layer) in layers.iter().enumerate() {
+            assert_eq!(
+                matches!(layer, TileLayer::Layer { .. }),
+                i == 1 || i == 3,
+                "tile {i}"
+            );
+            assert!(i == 1 || i == 3 || *layer == TileLayer::Skip);
+        }
+        std::fs::remove_dir_all(&root).unwrap();
+    }
 
     /// A tile whose layer says which tile of its rule it is: rule `r`'s tile `i` is layer
     /// `1000 * (r + 1) + i`.

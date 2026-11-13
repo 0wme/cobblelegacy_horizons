@@ -354,10 +354,12 @@ fn panic_text(payload: &(dyn std::any::Any + Send)) -> &str {
 }
 
 /// Resolve vanilla and native content before applying the selected resource packs.
+/// `progress` follows the packs' overlay while it is built.
 pub(super) fn startup_resource_root(
     vanilla_root: &std::path::Path,
     settings: &Settings,
     dev_mods: &[PathBuf],
+    progress: &Progress,
 ) -> (PathBuf, Option<String>) {
     let base = mods::content_root(
         vanilla_root,
@@ -365,7 +367,13 @@ pub(super) fn startup_resource_root(
         &settings.mods.disabled,
         dev_mods,
     );
-    match packs::startup_root(vanilla_root, &base, &settings.resource_packs, &[]) {
+    match packs::startup_root(
+        vanilla_root,
+        &base,
+        &settings.resource_packs,
+        &[],
+        &progress.overlay,
+    ) {
         Ok(root) => (root, None),
         Err(error) => (base, Some(error.to_string())),
     }
@@ -389,7 +397,8 @@ pub(super) fn spawn_loader(
     let handle = std::thread::Builder::new()
         .name("resource-loader".into())
         .spawn(move || {
-            let (root, pack_error) = startup_resource_root(&vanilla_root, &settings, &dev_mods);
+            let (root, pack_error) =
+                startup_resource_root(&vanilla_root, &settings, &dev_mods, &progress);
             let result = load_resources(
                 root,
                 world.as_deref(),
