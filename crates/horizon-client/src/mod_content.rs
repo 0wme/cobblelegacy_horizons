@@ -3155,7 +3155,8 @@ pub fn build(base: &Path, mods: &[ContentMod], out: &Path) -> Result<Vec<String>
 /// over it, built in `cache/mod-content/<stamp>`: one folder per mod set, so
 /// a running game keeps reading the root it was given while a switch builds
 /// another (docs/design/mod-hotload.md). Roots of other sets unused for a day
-/// are removed.
+/// are removed, on a thread of their own once the start has read the disk
+/// ([`prune_roots_apart`]).
 ///
 /// The root is built once and kept: later starts with the same build, base
 /// and mod files reuse it. With ATM10's carried mods a build takes about
@@ -3176,14 +3177,18 @@ pub fn resource_root(base: &Path, mods: &[ContentMod], cache: &Path) -> Result<P
         warnings.lines().for_each(|w| log::warn!("Horizon: {w}"));
         // Used again: kept another day. Marked beside the root, not in it: the pack overlay
         // laid over the root reads its files, and a rewritten one would rebuild it (#12403).
-        let _ = fs::write(used_path(&out), b"");
+        mark_used(&out);
+        // Every start looks, not only one that built: a root goes a day after its last use
+        // whether or not the mods change again, and a removal a game quit in the middle of
+        // is taken up.
+        prune_roots_apart(&roots, &out, PRUNE_AFTER);
         return Ok(out);
     }
     for warning in build(base, mods, &out)? {
         log::warn!("Horizon: {warning}");
     }
     fs::write(out.join(STAMP), stamp)?;
-    prune_roots(&roots, &out, KEEP_ROOTS);
+    prune_roots_apart(&roots, &out, PRUNE_AFTER);
     Ok(out)
 }
 
@@ -3191,24 +3196,113 @@ pub fn resource_root(base: &Path, mods: &[ContentMod], cache: &Path) -> Result<P
 const ROOT_NAME: usize = 16;
 /// How long a root no start or switch used is kept.
 const KEEP_ROOTS: std::time::Duration = std::time::Duration::from_secs(24 * 3600);
+/// How long after a start the old roots' files begin to go: the start reads
+/// the disk first.
+const PRUNE_AFTER: std::time::Duration = std::time::Duration::from_secs(60);
+/// The ending of what is being removed from the roots' folder
+/// (`<name>.removing`, see [`doomed_roots`]).
+const REMOVING: &str = "removing";
 /// The file beside `root` whose time is its last reuse (`<root>.used`).
 fn used_path(root: &Path) -> PathBuf {
     root.with_extension("used")
 }
 
-/// Removes from `roots` the roots other than `current` whose stamp is older
-/// than `keep`, and what an older game left there (one root built straight in
-/// the folder). A game still running on a removed root was started more than
-/// `keep` ago and reads its tables already; only the folders' own names are
-/// touched.
-fn prune_roots(roots: &Path, current: &Path, keep: std::time::Duration) {
+/// Marks `root` used now, in the time of the empty file beside it. The time is
+/// set outright: `fs::write` of nothing into a file already empty leaves its
+/// time where it was on Windows, so a root every start of a day reused kept
+/// the time of its first reuse and counted as unused the next day.
+fn mark_used(root: &Path) {
+    let marked = fs::File::options()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(used_path(root))
+        .and_then(|file| file.set_modified(std::time::SystemTime::now()));
+    if let Err(e) = marked {
+        log::warn!(
+            "Horizon: a mod content root's use is not marked: {}: {e}",
+            root.display()
+        );
+    }
+}
+
+/// Removes from `roots` what [`doomed_roots`] finds there, without the caller
+/// waiting for it: the old roots leave their names at once, and their files go
+/// on a thread of its own, `after` later. Removing a root is tens of thousands
+/// of files and links: on a hard disk behind USB a start that had just built a
+/// root sat ten minutes in the first of six old ones, nothing on screen and
+/// nothing in its log. The thread, when there was something to remove.
+fn prune_roots_apart(
+    roots: &Path,
+    current: &Path,
+    after: std::time::Duration,
+) -> Option<std::thread::JoinHandle<()>> {
+    let doomed = doomed_roots(roots, current, KEEP_ROOTS);
+    if doomed.is_empty() {
+        return None;
+    }
+    std::thread::Builder::new()
+        .name("mod-content-prune".into())
+        .spawn(move || {
+            // Nothing waits for this: behind everything else, and after the start's own reads.
+            horizon_threads::idle_current();
+            std::thread::sleep(after);
+            let started = std::time::Instant::now();
+            log::info!("Horizon: removing {} old mod content root(s)", doomed.len());
+            remove_doomed(&doomed);
+            log::info!(
+                "Horizon: old mod content roots removed in {} s",
+                started.elapsed().as_secs()
+            );
+        })
+        .inspect_err(|e| {
+            log::warn!("Horizon: old mod content roots stay until the next start: {e}")
+        })
+        .ok()
+}
+
+/// What is to go from `roots`, each under the name it has from now on: the
+/// roots other than `current` unused for `keep`, what an older game left there
+/// (one root built straight in the folder), and what an earlier removal did
+/// not finish. Each is renamed `<name>.removing` here, which is all a start
+/// waits for (one listing, and a rename each: no file of a root is read), so
+/// no start takes a root half removed for its own and a removal a game quit
+/// in the middle of is found again. A game still running on a renamed root was
+/// started more than `keep` ago and reads its tables already; where the system
+/// refuses to rename a folder a game holds open, the root stays.
+fn doomed_roots(roots: &Path, current: &Path, keep: std::time::Duration) -> Vec<PathBuf> {
     let Ok(entries) = fs::read_dir(roots) else {
-        return;
+        return Vec::new();
     };
-    let old_layout = roots.join(STAMP).exists();
+    let old_stamp = roots.join(STAMP);
+    let old_layout = old_stamp.exists();
+    let age = |file: PathBuf| {
+        fs::metadata(file)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.elapsed().ok())
+    };
+    let aside = |path: &Path| match set_aside(path) {
+        Ok(aside) => Some(aside),
+        // Another game starting beside this one took it first.
+        Err(_) if fs::symlink_metadata(path).is_err() => None,
+        Err(e) => {
+            log::warn!(
+                "Horizon: an old mod content root stays: {}: {e}",
+                path.display()
+            );
+            None
+        }
+    };
+    let mut doomed = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
-        if path == current {
+        // The old layout's stamp goes last: while it is there, the rest is known for its own.
+        if path == current || path == old_stamp {
+            continue;
+        }
+        if path.extension().is_some_and(|e| e == REMOVING) {
+            doomed.push(path);
             continue;
         }
         let name = entry.file_name();
@@ -3218,38 +3312,81 @@ fn prune_roots(roots: &Path, current: &Path, keep: std::time::Duration) {
                 .bytes()
                 .all(|b| b.is_ascii_hexdigit())
             && path.is_dir();
-        let age = |file: PathBuf| {
-            fs::metadata(file)
-                .and_then(|m| m.modified())
-                .ok()
-                .and_then(|t| t.elapsed().ok())
-        };
-        let stale = match is_root {
-            // Its build (the stamp) or its last reuse, whichever is newer.
-            true => [age(path.join(STAMP)), age(used_path(&path))]
-                .into_iter()
-                .flatten()
-                .min()
-                .is_none_or(|age| age > keep),
+        let stale = if is_root {
+            match age(path.join(STAMP)) {
+                // Its build (the stamp) or its last reuse, whichever is newer.
+                Some(built) => age(used_path(&path)).map_or(built, |used| used.min(built)) > keep,
+                // No stamp yet: another game is building it, or one gave up. Its folder's
+                // own time tells which.
+                None => age(path.clone()).is_none_or(|age| age > keep),
+            }
+        } else if path.extension().is_some_and(|e| e == "used") {
+            // A root's mark stays with its root, and goes with it.
+            !path.with_extension("").is_dir()
+        } else {
             // The old single root's files and folders.
-            false => old_layout,
+            old_layout
         };
         if !stale {
             continue;
         }
-        let removed = match path.is_dir() {
-            true => fs::remove_dir_all(&path).inspect(|_| {
+        if let Some(aside) = aside(&path) {
+            doomed.push(aside);
+            if is_root {
                 let _ = fs::remove_file(used_path(&path));
-            }),
-            false => fs::remove_file(&path),
+            }
+        }
+    }
+    if old_layout {
+        doomed.extend(aside(&old_stamp));
+    }
+    doomed
+}
+
+/// Renames `path` to a free name ending in [`REMOVING`]: what an earlier
+/// removal of a root of the same name left may still be there.
+fn set_aside(path: &Path) -> std::io::Result<PathBuf> {
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    let mut again = 0u32;
+    let aside = loop {
+        let aside = path.with_file_name(match again {
+            0 => format!("{name}.{REMOVING}"),
+            n => format!("{name}.{n}.{REMOVING}"),
+        });
+        if fs::symlink_metadata(&aside).is_err() {
+            break aside;
+        }
+        again += 1;
+    };
+    fs::rename(path, &aside)?;
+    Ok(aside)
+}
+
+/// Removes what [`doomed_roots`] set aside. What does not go keeps its name
+/// and is tried again by the next start.
+fn remove_doomed(doomed: &[PathBuf]) {
+    for path in doomed {
+        let removed = match fs::symlink_metadata(path) {
+            Ok(meta) if meta.is_dir() => fs::remove_dir_all(path),
+            Ok(_) => fs::remove_file(path),
+            // Another game's removal got there first.
+            Err(_) => continue,
         };
-        if let Err(e) = removed {
+        if let Err(e) = removed
+            && fs::symlink_metadata(path).is_ok()
+        {
             log::warn!(
                 "Horizon: an old mod content root stays: {}: {e}",
                 path.display()
             );
         }
     }
+}
+
+/// What a start used to do in line: [`doomed_roots`] removed on the spot.
+#[cfg(test)]
+fn prune_roots(roots: &Path, current: &Path, keep: std::time::Duration) {
+    remove_doomed(&doomed_roots(roots, current, keep));
 }
 
 /// Whether turning a content mod on or off can apply in a running game
