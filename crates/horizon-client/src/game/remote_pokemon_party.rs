@@ -238,6 +238,17 @@ impl Party {
             .any(|pokemon| matches!(pokemon.state, State::SentOut { entity, .. } if entity == id))
     }
 
+    /// The player's party as the server told it, for the summary screen.
+    pub(super) fn storage(&self) -> &Storage {
+        &self.storage
+    }
+
+    /// The same to change what the client itself decides of a Pokémon; the tiles are made again.
+    pub(super) fn storage_mut(&mut self) -> &mut Storage {
+        self.tiles = None;
+        &mut self.storage
+    }
+
     /// The textures the portraits wear, which keep their slots in the atlas.
     pub(super) fn textures(&self) -> impl Iterator<Item = String> + '_ {
         self.portraits.values().map(|p| p.look.kind.texture.clone())
@@ -656,19 +667,7 @@ impl Game<'_> {
         framing: Framing,
     ) {
         use glam::{Mat4, Vec3 as V};
-        // Stood at the origin, facing the viewer, at rest: Cobblemon's portraits do not move unless
-        // its client is set to.
-        let mut mob = Mob::new(0, look.kind.clone(), Vec3::new(0.0, 0.0, 0.0), 180.0);
-        mob.previous = mob.position;
-        (mob.body_yaw, mob.previous_body_yaw) = (180.0, 180.0);
-        (mob.head_yaw, mob.previous_head_yaw) = (180.0, 180.0);
-        (mob.head_pitch, mob.previous_head_pitch) = (0.0, 0.0);
-        mob.extra.model_scale = 1.0;
-        mob.extra.variant = anim::with_pose(0, PoseType::Portrait);
         let (scale, [x, y, z]) = (look.portrait_scale, look.portrait_translation);
-        // The mob renderer stood the model in the world, y up and sized by its species; the frame
-        // is laid out around the model itself, y down and unsized.
-        let unsized_model = 1.0 / look.base_scale;
         // `reversed`: the model looks the other way, for the tiles on the right.
         let side = if framing.reversed { -1.0 } else { 1.0 };
         let by = framing.scale;
@@ -679,15 +678,45 @@ impl Game<'_> {
             * Mat4::from_translation(V::new(x * side, y + 1.5 * scale, z - 4.0))
             * Mat4::from_scale(V::new(scale, scale, 1.0 / scale))
             * Mat4::from_rotation_y((-32.0 * side).to_radians())
-            * Mat4::from_rotation_x(5f32.to_radians())
-            * Mat4::from_scale(V::new(-unsized_model, -unsized_model, unsized_model));
-        self.draw_pokemon_model(batch, &mob, 0.0, gui, framing.clip);
+            * Mat4::from_rotation_x(5f32.to_radians());
+        // At rest: Cobblemon's portraits do not move unless its client is set to.
+        self.draw_pokemon_model(batch, look, PoseType::Portrait, 0.0, gui, framing.clip);
+    }
+
+    /// A Pokémon's model in the GUI: in `pose`, its animations `age` ticks in, placed by `gui` (what
+    /// Cobblemon's pose stack holds when it renders the model) and cut to `clip` (left, top, right,
+    /// bottom).
+    pub(super) fn draw_pokemon_model(
+        &self,
+        batch: &mut HudBatch,
+        look: &Look,
+        pose: PoseType,
+        age: f32,
+        gui: glam::Mat4,
+        clip: [f32; 4],
+    ) {
+        use glam::{Mat4, Vec3 as V};
+        // Stood at the origin, facing the viewer.
+        let mut mob = Mob::new(0, look.kind.clone(), Vec3::new(0.0, 0.0, 0.0), 180.0);
+        mob.previous = mob.position;
+        (mob.body_yaw, mob.previous_body_yaw) = (180.0, 180.0);
+        (mob.head_yaw, mob.previous_head_yaw) = (180.0, 180.0);
+        (mob.head_pitch, mob.previous_head_pitch) = (0.0, 0.0);
+        mob.extra.model_scale = 1.0;
+        mob.extra.variant = anim::with_pose(0, pose);
+        mob.age = age.max(0.0) as u32;
+        // The mob renderer stood the model in the world, y up and sized by its species; the frame
+        // is laid out around the model itself, y down and unsized.
+        let unsized_model = 1.0 / look.base_scale;
+        let gui = gui * Mat4::from_scale(V::new(-unsized_model, -unsized_model, unsized_model));
+        self.draw_pokemon_mob(batch, &mob, age.max(0.0).fract(), gui, clip);
     }
 
     /// A model in the GUI: `mob`, stood at the origin and facing the viewer (a yaw of 180), drawn
     /// `partial` of a tick into its age, laid out by `gui` (from the world's blocks to GUI pixels) and
-    /// cut to `clip` (left, top, right, bottom).
-    pub(super) fn draw_pokemon_model(
+    /// cut to `clip` (left, top, right, bottom). A Pokémon's comes through [`Self::draw_pokemon_model`];
+    /// a Ball's, which has no look, comes here as it is.
+    pub(super) fn draw_pokemon_mob(
         &self,
         batch: &mut HudBatch,
         mob: &Mob,
@@ -745,9 +774,12 @@ impl Game<'_> {
 
     /// A key pressed in play on a server: whether the party took it ([`Party::key`]).
     pub(in super::super::super) fn pokemon_party_key(&mut self, key: KeyCode) -> bool {
-        self.remote
-            .as_mut()
-            .is_some_and(|r| r.pokemon.party.key(key))
+        // The summary's key first (`SummaryBinding`): it opens a screen of its own.
+        self.pokemon_summary_open_key(key)
+            || self
+                .remote
+                .as_mut()
+                .is_some_and(|r| r.pokemon.party.key(key))
     }
 
     /// The wheel turned in play: whether the party took it ([`Party::wheel`]).

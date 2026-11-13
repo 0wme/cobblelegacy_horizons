@@ -67,6 +67,8 @@ impl Screen {
             | Self::PokemonBattle
             // And its PC's screen (`PCGUI.isPauseScreen`).
             | Self::PokemonPc
+            // And a Pokémon's summary (`Summary.isPauseScreen`).
+            | Self::PokemonSummary
             // WinScreen.isPauseScreen is `!poem`: Game::win_screen_pauses.
             | Self::Win => false,
             // Every other screen, and the game-master block editors
@@ -107,6 +109,7 @@ impl Screen {
             | Self::EmoteWheel
             | Self::PokemonBattle
             | Self::PokemonPc
+            | Self::PokemonSummary
             | Self::Chat
             | Self::Creative
             | Self::Inventory
@@ -989,6 +992,7 @@ mod tests {
             Screen::EmoteWheel,
             Screen::PokemonBattle,
             Screen::PokemonPc,
+            Screen::PokemonSummary,
             Screen::Mod,
             Screen::Studio,
             Screen::Win,

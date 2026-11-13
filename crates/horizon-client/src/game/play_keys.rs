@@ -77,6 +77,7 @@ impl Game<'_> {
                 Screen::EmoteWheel => self.close_emote_wheel(None),
                 Screen::PokemonBattle => self.close_pokemon_battle_screen(),
                 Screen::PokemonPc => self.close_pokemon_pc_screen(),
+                Screen::PokemonSummary => self.close_pokemon_summary(),
                 Screen::Dead => {
                     if self.ui.death_confirm.is_some() {
                         self.death_confirm_answer(false)?;
@@ -179,6 +180,8 @@ impl Game<'_> {
             }
             // And the keys of its PC's screen: the arrows, the inventory's key (`PCGUI.keyPressed`).
             _ if self.screen == Screen::PokemonPc && self.pokemon_pc_key(key) => {}
+            // And the keys of a Pokémon's summary (`Summary.keyPressed`).
+            key if self.screen == Screen::PokemonSummary && self.pokemon_summary_key(key) => {}
             KeyCode::Digit1
             | KeyCode::Digit2
             | KeyCode::Digit3

@@ -55,6 +55,8 @@ mod pc;
 mod phase;
 #[path = "remote_pokemon_sounds.rs"]
 mod sounds;
+#[path = "remote_pokemon_summary.rs"]
+mod summary;
 
 /// Whether `channel` carries one of the messages of a Cobblemon server that are read here: a Pokémon in
 /// place of AddEntity, the part of its data the adapter could not read, the server's settings, the
@@ -118,6 +120,8 @@ pub(super) struct Pokemon {
     captures: capture::Captures,
     /// The particle effects that play.
     particles: particles::Particles,
+    /// The summary screen of one of the player's Pokémon.
+    summary: summary::Summary,
 }
 
 /// What there is of a look when it is asked for.
@@ -141,9 +145,12 @@ struct Look {
     portrait_translation: [f32; 3],
     /// The sounds of its named animations (a cry).
     voice: Arc<sounds::Voice>,
-    /// The poser's `profileScale` and `profileTranslation`, for the whole model in a screen.
+    /// The poser's `profileScale` and `profileTranslation`, which stand the whole model in a slot of
+    /// the summary's party, and the summary's own for the model it shows large.
     profile_scale: f32,
     profile_translation: [f32; 3],
+    summary_scale: f32,
+    summary_translation: [f32; 3],
 }
 
 impl Pokemon {
@@ -547,6 +554,7 @@ impl Game<'_> {
         kind.eye_height = kind.height * 0.85;
         let (portrait_scale, portrait_translation) = read.portrait;
         let (profile_scale, profile_translation) = read.profile;
+        let (summary_scale, summary_translation) = read.summary;
         let look = Look {
             kind: Arc::new(kind),
             base_scale,
@@ -555,6 +563,8 @@ impl Game<'_> {
             voice: Arc::new(read.voice),
             profile_scale,
             profile_translation,
+            summary_scale,
+            summary_translation,
         };
         self.remote
             .as_mut()?

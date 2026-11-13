@@ -20,4 +20,6 @@ pub mod resolver;
 pub mod sound;
 pub mod snowstorm;
 pub mod storm;
+pub mod species;
+pub mod stats;
 pub mod wire;

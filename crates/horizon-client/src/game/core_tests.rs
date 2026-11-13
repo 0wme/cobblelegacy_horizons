@@ -116,6 +116,7 @@ fn screen_ids_are_distinct_and_stable() {
         Screen::EmoteWheel,
         Screen::PokemonBattle,
         Screen::PokemonPc,
+        Screen::PokemonSummary,
         Screen::Paused,
         Screen::Options,
         Screen::Chat,

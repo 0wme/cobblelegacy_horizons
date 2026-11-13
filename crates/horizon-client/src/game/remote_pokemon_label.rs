@@ -161,6 +161,11 @@ impl Labels {
             .is_none_or(|s| s.prevent_complete_party_deposit)
     }
 
+    /// The least and the greatest size the server gives a Pokémon, once it said.
+    pub(super) fn sizes(&self) -> Option<[f32; 2]> {
+        self.settings.map(|settings| settings.intrinsic_size)
+    }
+
     /// `ServerSettingsPacket`.
     pub(super) fn settings(&mut self, payload: &[u8]) {
         match ServerSettings::read(payload) {

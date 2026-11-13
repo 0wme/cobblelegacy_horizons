@@ -753,7 +753,7 @@ impl Game<'_> {
             * Mat4::from_rotation_y((-32.0 * side).to_radians())
             * Mat4::from_rotation_x(5f32.to_radians())
             * Mat4::from_scale(V::new(-whole, -whole, whole));
-        self.draw_pokemon_model(batch, &mob, ticks.fract(), gui, clip);
+        self.draw_pokemon_mob(batch, &mob, ticks.fract(), gui, clip);
     }
 
     /// `PokeBallRenderer.render`: the thrown Balls, among the frame's mobs.
