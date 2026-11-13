@@ -303,6 +303,8 @@ impl Game<'_> {
             Screen::PokemonSummary if self.pokemon_summary_typing() => {
                 self.pokemon_summary_type(text);
             }
+            // And a screen another process draws: its text goes to that process.
+            Screen::Hosted => self.pokemon_host_type(text),
             Screen::BlockEditor => self.block_editor_type(text),
             Screen::DebugOptions => self.debug_options_type(text),
             Screen::Options => self.ui.options.type_text(&self.gui.atlas, text),
@@ -412,6 +414,10 @@ impl Game<'_> {
         }
         if let Some(value) = self.studio_control(&words)? {
             return Ok(Some(value));
+        }
+        // CobbleLegacy: the process that draws some of a server's screens (`host`).
+        if let Some(value) = self.pokemon_host_control(&words) {
+            return Ok(Some(value?));
         }
         match self.agent_command(&words, line, reply, event_loop)? {
             super::agent::Handled::Reply(value) => return Ok(Some(value)),
@@ -1395,6 +1401,7 @@ impl Game<'_> {
         // CobbleLegacy: as a key let go at the window (`mapped_key`), for a Cobblemon server's
         // throwing key, which acts then.
         self.pokemon_party_key_released(key);
+        self.pokemon_host_key(key, false);
     }
 
     fn screen_name(&self) -> &'static str {
@@ -1411,6 +1418,7 @@ impl Game<'_> {
             Screen::PokemonBattle => "pokemon-battle",
             Screen::PokemonPc => "pokemon-pc",
             Screen::PokemonSummary => "pokemon-summary",
+            Screen::Hosted => "hosted",
             Screen::Paused => "paused",
             Screen::Options => "options",
             Screen::Inventory => "inventory",
@@ -1638,6 +1646,7 @@ impl Game<'_> {
         // And the summary of one of its Pokémon (after the macro: one more key in it is one too many
         // for its recursion).
         status["pokemon_summary"] = self.pokemon_summary_status();
+        status["screen_host"] = self.pokemon_host_status();
         status["lod"] = lod;
         let (target, sampled) = self.lod.as_ref().map_or((0, 0), |lod| lod.progress());
         status["lod"]["target_tiles"] = target.into();

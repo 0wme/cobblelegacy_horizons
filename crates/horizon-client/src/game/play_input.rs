@@ -254,6 +254,7 @@ impl Game<'_> {
             self.keys.release(&key, source);
             // CobbleLegacy: a Cobblemon server's throwing key acts when it is let go.
             self.pokemon_party_key_released(key);
+            self.pokemon_host_key(key, false);
             return Ok(());
         } else {
             self.keys.press(key, source);

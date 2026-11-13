@@ -41,6 +41,11 @@ impl Game<'_> {
         if self.remote.is_some() && self.remote_key(key)? {
             return Ok(());
         }
+        // CobbleLegacy: a screen another process draws takes every key but Escape, which closes it.
+        if self.screen == Screen::Hosted && key != KeyCode::Escape {
+            self.pokemon_host_key(raw, true);
+            return Ok(());
+        }
         match key {
             KeyCode::Escape => match self.screen {
                 Screen::Options => self.options_key(KeyCode::Escape, None)?,
@@ -78,6 +83,7 @@ impl Game<'_> {
                 Screen::PokemonBattle => self.close_pokemon_battle_screen(),
                 Screen::PokemonPc => self.close_pokemon_pc_screen(),
                 Screen::PokemonSummary => self.close_pokemon_summary(),
+                Screen::Hosted => self.close_pokemon_host_screen(),
                 Screen::Dead => {
                     if self.ui.death_confirm.is_some() {
                         self.death_confirm_answer(false)?;

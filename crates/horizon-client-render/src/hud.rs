@@ -161,6 +161,17 @@ pub fn pokemon_slots() -> bool {
         std::sync::LazyLock::new(|| std::env::var_os("HORIZON_COBBLEMON_ROOT").is_some());
     *ON
 }
+/// The atlas slot a screen another process draws goes into (CobbleLegacy's fork,
+/// `game/remote_pokemon_host.rs`): that process's image of the window, up to this size.
+pub const HOSTED_SCREEN_SPRITE: &str = "horizon/hosted-screen";
+pub const HOSTED_SCREEN_SIZE: (u32, u32) = (1920, 1080);
+/// Whether the atlas reserves that slot: only when `HORIZON_SCREEN_HOST` names a host to start, so the
+/// atlas of every other run is what it was.
+pub fn hosted_screen_slot() -> bool {
+    static ON: std::sync::LazyLock<bool> =
+        std::sync::LazyLock::new(|| std::env::var_os("HORIZON_SCREEN_HOST").is_some());
+    *ON
+}
 /// Reused by the visible rows of the classic world selector.
 pub const WORLD_ICON_SLOTS: usize = 32;
 /// Atlas slots for the pack icons on the pack screen, one per icon drawn
@@ -953,6 +964,15 @@ impl HudAtlas {
                     Vec::new(),
                 ));
             }
+        }
+        // The image of a screen another process draws (game/remote_pokemon_host.rs).
+        if hosted_screen_slot() {
+            images.push((
+                HOSTED_SCREEN_SPRITE.into(),
+                HOSTED_SCREEN_SIZE.0,
+                HOSTED_SCREEN_SIZE.1,
+                Vec::new(),
+            ));
         }
         for i in 0..TRIM_SLOTS {
             images.push((format!("horizon/trim{i}"), trim.0, trim.1, Vec::new()));

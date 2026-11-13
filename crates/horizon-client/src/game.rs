@@ -647,6 +647,9 @@ enum Screen {
     /// CobbleLegacy: the summary of one of the player's Pokémon (`game/remote_pokemon_summary.rs`),
     /// over the world, not pausing.
     PokemonSummary,
+    /// CobbleLegacy: a screen another process draws (`game/remote_pokemon_host.rs`), over the world,
+    /// not pausing.
+    Hosted,
     Paused,
     Options,
     Chat,
@@ -699,6 +702,7 @@ impl Screen {
             Screen::PokemonBattle => "pokemon_battle",
             Screen::PokemonPc => "pokemon_pc",
             Screen::PokemonSummary => "pokemon_summary",
+            Screen::Hosted => "hosted",
             Screen::Paused => "paused",
             Screen::Options => "options",
             Screen::Chat => "chat",
@@ -6255,6 +6259,7 @@ impl Game<'_> {
             Screen::PokemonBattle => self.draw_pokemon_battle_screen(&mut batch),
             Screen::PokemonPc => self.draw_pokemon_pc_screen(&mut batch),
             Screen::PokemonSummary => self.draw_pokemon_summary(&mut batch),
+            Screen::Hosted => self.draw_pokemon_host_screen(&mut batch),
             Screen::Dead => self.draw_death_screen(&mut batch),
             Screen::Stats => self.draw_stats(&mut batch),
             Screen::Advancements => self.draw_advancements(&mut batch),
@@ -10624,6 +10629,10 @@ impl Game<'_> {
                     if self.screen == Screen::PokemonSummary && d != 0.0 {
                         self.pokemon_summary_scroll(d);
                     }
+                    // And a screen another process draws: the wheel goes to it.
+                    if self.screen == Screen::Hosted && d != 0.0 {
+                        self.pokemon_host_scroll(d);
+                    }
                     if self.screen == Screen::Stats && d != 0.0 {
                         self.stats_scroll(d);
                     }
@@ -10899,6 +10908,7 @@ impl Game<'_> {
                         Screen::PokemonSummary if button == MouseButton::Left => {
                             self.pokemon_summary_mouse(pressed)
                         }
+                        Screen::Hosted => self.pokemon_host_mouse(button, pressed),
                         Screen::DialogWarning if pressed && button == MouseButton::Left => {
                             self.dialog_warning_click()?
                         }
@@ -11070,6 +11080,14 @@ impl Game<'_> {
                             }
                         }
                     }
+                }
+                // And a screen another process draws: every key but Escape, and the text typed.
+                WindowEvent::KeyboardInput { event, .. }
+                    if self.screen == Screen::Hosted
+                        && event.state == ElementState::Pressed
+                        && !matches!(event.physical_key, PhysicalKey::Code(KeyCode::Escape)) =>
+                {
+                    self.pokemon_host_key_event(&event);
                 }
                 WindowEvent::KeyboardInput { event, .. }
                     if self.station_typing()

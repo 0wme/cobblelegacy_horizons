@@ -41,6 +41,8 @@ mod anim;
 mod capture;
 #[path = "remote_pokemon_battle.rs"]
 mod fight;
+#[path = "remote_pokemon_host.rs"]
+mod host;
 #[path = "remote_pokemon_label.rs"]
 mod label;
 #[path = "remote_pokemon_looks.rs"]
@@ -72,6 +74,7 @@ pub(super) fn reads(channel: &str) -> bool {
         || channel == cobblelegacy_cobblemon::sound::PLAY_ANIMATION
         || channel == cobblelegacy_cobblemon::capture::SPAWN_POKEBALL
         || cobblelegacy_cobblemon::snowstorm::reads(channel)
+        || host::reads(channel)
 }
 
 /// The vanilla type that lends a Pokémon its attributes, and its body when Cobblemon's own cannot be
@@ -122,6 +125,8 @@ pub(super) struct Pokemon {
     particles: particles::Particles,
     /// The summary screen of one of the player's Pokémon.
     summary: summary::Summary,
+    /// The process that draws the screens of the server's mods, and the one it shows.
+    host: host::Host,
 }
 
 /// What there is of a look when it is asked for.
@@ -593,6 +598,7 @@ impl Game<'_> {
         self.pokemon_sounds_frame();
         self.pokemon_capture_frame();
         self.pokemon_particles_frame();
+        self.pokemon_host_frame();
     }
 
     /// An image in one of the atlas's Pokémon slots, as the sprite `sprite`. The slots are shared: only
@@ -649,6 +655,10 @@ impl Game<'_> {
     pub(super) fn remote_pokemon_payload(&mut self, channel: &str, data: &[u8]) {
         // The PC's own messages; those it shares with the party go on to the party's reader.
         if self.remote_pokemon_pc(channel, data) {
+            return;
+        }
+        // Those of a mod whose screens another process draws.
+        if self.remote_pokemon_host(channel, data) {
             return;
         }
         match channel {

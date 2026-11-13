@@ -117,6 +117,7 @@ fn screen_ids_are_distinct_and_stable() {
         Screen::PokemonBattle,
         Screen::PokemonPc,
         Screen::PokemonSummary,
+        Screen::Hosted,
         Screen::Paused,
         Screen::Options,
         Screen::Chat,
