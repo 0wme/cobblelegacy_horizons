@@ -318,6 +318,11 @@ impl Game<'_> {
             match (*index, value) {
                 (29, Value::OptUuid(battle)) => self.pokemon_battling(id, battle.is_some()),
                 (31, Value::Bool(dying)) => self.pokemon_faint(id, *dying),
+                // `SHOWN_HELD_ITEM`.
+                (42, Value::Item(stack)) => {
+                    let stack = self.to_stack(stack);
+                    self.pokemon_shown_item(id, stack);
+                }
                 _ => {}
             }
         }

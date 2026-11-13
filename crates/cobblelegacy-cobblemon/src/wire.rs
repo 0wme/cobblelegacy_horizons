@@ -391,6 +391,9 @@ pub struct PokemonData {
     pub aspects: Option<Vec<String>>,
     /// `DYING_EFFECTS_STARTED`: it has fainted, and plays its faint before it goes.
     pub dying: Option<bool>,
+    /// `SHOWN_HELD_ITEM`: whether it shows an item. The item itself is the protocol's to read, not
+    /// this layout's: whoever measured it for [`Self::read_rest_measuring`] has it.
+    pub shown_item: Option<bool>,
     /// `POSE_TYPE`: what it is doing, as `PokemonServerDelegate.updatePoseType` decides it each tick.
     pub pose: Option<PoseType>,
     /// `LABEL_LEVEL`.
@@ -401,8 +404,8 @@ pub struct PokemonData {
     pub scale_modifier: Option<f32>,
     /// `IS_ALPHA`.
     pub alpha: Option<bool>,
-    /// The index reading stopped at, when it is before the end: an item in `SHOWN_HELD_ITEM`, whose
-    /// components nothing here measures, or an index past those of Cobblemon 1.8.1.
+    /// The index reading stopped at, when it is before the end: an item in `SHOWN_HELD_ITEM` that
+    /// nothing measured, or an index past those of Cobblemon 1.8.1.
     pub stopped_at: Option<u8>,
 }
 
@@ -433,6 +436,17 @@ impl PokemonData {
     /// it says vanilla and a mod's where it says Cobblemon's: an entity laid out otherwise (another
     /// version of Cobblemon) is an error, not a misread.
     pub fn read_rest(rest: &[u8]) -> Result<Self> {
+        Self::read_rest_measuring(rest, &mut |_| None)
+    }
+
+    /// [`Self::read_rest`] with someone to measure the item of `SHOWN_HELD_ITEM`: an item stack is
+    /// laid out by the game's protocol, components and all, which nothing here knows. `item` is
+    /// given the bytes from the stack's first on and answers how many of them are the stack's; when
+    /// it cannot, reading stops there ([`Self::stopped_at`]).
+    pub fn read_rest_measuring(
+        rest: &[u8],
+        item: &mut dyn FnMut(&[u8]) -> Option<usize>,
+    ) -> Result<Self> {
         use serializer::*;
         let r = &mut Reader::new(rest);
         let mut data = Self::default();
@@ -492,12 +506,21 @@ impl PokemonData {
                 40 => {
                     string(r)?;
                 }
-                // SHOWN_HELD_ITEM: an empty stack is its count alone.
+                // SHOWN_HELD_ITEM: an empty stack is its count alone, any other as long as `item`
+                // says.
                 42 => {
-                    if r.varint()? > 0 {
-                        data.stopped_at = Some(index);
-                        return Ok(data);
+                    let start = r.position();
+                    let shown = r.varint()? > 0;
+                    if shown {
+                        let read = r.position() - start;
+                        let Some(length) = item(&rest[start..]).filter(|length| *length >= read)
+                        else {
+                            data.stopped_at = Some(index);
+                            return Ok(data);
+                        };
+                        r.bytes(length - read)?;
                     }
+                    data.shown_item = Some(shown);
                 }
                 // `RideBoostsDataSerializer`: `writeMap` of a stat's name and its boost.
                 43 => {
@@ -662,6 +685,26 @@ mod tests {
         // An empty hand is its count alone, and the reading goes on.
         let empty = PokemonData::read_rest(&[42, 7, 0, 46, 8, 0, 0xFF]).unwrap();
         assert_eq!((empty.alpha, empty.stopped_at), (Some(false), None));
+        assert_eq!((empty.shown_item, item.shown_item), (Some(false), None));
+        // With someone to say how long the item is, the reading goes on past it: here a stack of
+        // four bytes (count, item, no component added, none removed), then whether it is an alpha.
+        let held = [32, 33, 0, 0, 0, 2, 42, 7, 1, 9, 0, 0, 46, 8, 1, 0xFF];
+        let mut seen = Vec::new();
+        let read = PokemonData::read_rest_measuring(&held, &mut |bytes| {
+            seen = bytes.to_vec();
+            Some(4)
+        })
+        .unwrap();
+        assert_eq!(seen, held[8..]);
+        assert_eq!(
+            (read.pose, read.shown_item, read.alpha, read.stopped_at),
+            (asleep, Some(true), Some(true), None)
+        );
+        // A length that is no length (shorter than the count read, longer than what is left) is
+        // none, and an error.
+        let short = PokemonData::read_rest_measuring(&held, &mut |_| Some(0)).unwrap();
+        assert_eq!((short.shown_item, short.stopped_at), (None, Some(42)));
+        assert!(PokemonData::read_rest_measuring(&held, &mut |_| Some(99)).is_err());
     }
 
     #[test]

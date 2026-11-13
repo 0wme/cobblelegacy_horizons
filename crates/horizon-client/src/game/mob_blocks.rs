@@ -207,6 +207,8 @@ impl Game<'_> {
     ) {
         self.captain_banner_geometry(mob, camera, alpha, light, out);
         self.held_item_geometry(mob, camera, alpha, light, true, skin, out);
+        // CobbleLegacy's fork: the item a Pokémon of a Cobblemon server shows, on its model.
+        self.pokemon_item_geometry(mob, camera, alpha, light, out);
         self.worn_block_geometry(mob, camera, alpha, light, out);
         self.head_item_geometry(mob, camera, alpha, light, true, out);
         self.golem_flower_geometry(mob, camera, alpha, light, out);

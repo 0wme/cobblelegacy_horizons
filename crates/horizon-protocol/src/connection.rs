@@ -650,6 +650,20 @@ impl ConnWriter {
             .map_or(crate::adapter::ServerVersion::Current, |a| a.version)
     }
 
+    /// One item stack as the server wrote it, at the start of `bytes`: the stack as this client
+    /// numbers it, and how many bytes it took (`adapter::Session::read_item` for an older server).
+    /// None when it cannot be read.
+    pub fn read_server_item(&self, bytes: &[u8]) -> Option<(Option<crate::item::Stack>, usize)> {
+        match &self.adapter {
+            Some(adapter) => adapter.read_item(bytes).ok(),
+            None => {
+                let mut r = crate::buf::Reader::new(bytes);
+                let stack = <crate::item::Slot as crate::buf::Codec<_>>::read(&mut r).ok()?;
+                Some((stack, r.position()))
+            }
+        }
+    }
+
     /// The old ServerData flag, once it arrived on a pre-component connection.
     pub fn legacy_secure_chat_enforcement(&self) -> Option<bool> {
         self.adapter

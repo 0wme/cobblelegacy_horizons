@@ -563,6 +563,9 @@ impl Game<'_> {
             .set_resource_root(self.options.resources.clone());
         self.maps.slots.forget();
         self.map_patches.clear();
+        // CobbleLegacy's fork: so are the slots of a Cobblemon server's Pokémon, whose looks are
+        // read and placed again.
+        self.pokemon_forget_atlas();
         // Kept mod block entities name the old atlas's sprites.
         self.kept_block_entities.get_mut().clear();
         // The atlas's sprites moved: the particle engine re-reads every rect

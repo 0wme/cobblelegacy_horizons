@@ -172,6 +172,17 @@ impl Session {
         )
     }
 
+    /// One item stack as the server wrote it, at the start of `bytes`: the stack as this client
+    /// numbers it, and how many bytes it took. For what of a server's own data reaches the game
+    /// unread (a Pokémon's, past the first entry of a type of Cobblemon's).
+    pub fn read_server_item(
+        &self,
+        bytes: &[u8],
+    ) -> Option<(Option<horizon_protocol::item::Stack>, usize)> {
+        let writer = self.writer.lock().unwrap();
+        writer.as_ref()?.read_server_item(bytes)
+    }
+
     /// Secure-chat enforcement synchronized later than login on older servers.
     pub fn legacy_secure_chat_enforcement(&self) -> Option<bool> {
         self.writer

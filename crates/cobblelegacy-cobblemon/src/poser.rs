@@ -56,6 +56,10 @@ pub struct Poser {
     /// once in `setDefault` and once more in `applyAnimations`, before the pose's own: a part ends up moved
     /// and turned by twice the delta and scaled by its square. Four posers of Cobblemon 1.8.1 have some.
     pub transformed_parts: Vec<TransformedPart>,
+    /// `properties`: open-ended words about the model, in the file's order. Cobblemon reads one kind:
+    /// `<locator>_display_context`, the way an item shown at that locator is held
+    /// ([`Self::display_context`]).
+    pub properties: Vec<(String, String)>,
     /// What Cobblemon reads past in this file without a word, most likely not as its author meant.
     pub oddities: Vec<Oddity>,
 }
@@ -359,6 +363,15 @@ impl PoseAnimation {
 }
 
 impl Poser {
+    /// `PosableModel.getLocatorDisplayContext`: the name of the `ItemDisplayContext` an item shown at
+    /// `locator` is drawn in (`THIRD_PERSON_RIGHT_HAND` for a model that holds it in its hand), None
+    /// for a model that does not say.
+    pub fn display_context(&self, locator: &str) -> Option<&str> {
+        let wanted = format!("{locator}_display_context");
+        let found = self.properties.iter().rev().find(|(key, _)| *key == wanted);
+        found.map(|(_, context)| context.as_str())
+    }
+
     /// The pose Cobblemon picks for an entity that is in none, or in one that no longer fits
     /// (`getFirstSuitablePose`): the first, in the file's order, that the entity [`Pose::fits`], and
     /// when none does the file's first pose, whatever its types and conditions. None for a poser without
@@ -1334,6 +1347,8 @@ struct RawPoser {
     poses: Option<Ordered<RawPose>>,
     #[serde(default, deserialize_with = "given")]
     transformed_parts: Option<Vec<RawPart>>,
+    #[serde(default, deserialize_with = "given")]
+    properties: Option<Ordered<String>>,
 }
 
 #[derive(Deserialize)]
@@ -1727,6 +1742,7 @@ impl Poser {
                 .flatten()
                 .map(transformed_part)
                 .collect(),
+            properties: file.properties.map_or_else(Vec::new, |written| written.0),
             oddities,
         })
     }
@@ -2456,6 +2472,22 @@ mod tests {
                 scale: [0.9, 1.0, 0.9],
             }
         );
+    }
+
+    #[test]
+    fn a_model_says_how_it_holds_an_item() {
+        let poser = Poser::parse(
+            r#"{"properties": {"item_display_context": "THIRD_PERSON_RIGHT_HAND", "other": "x"}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            poser.display_context("item"),
+            Some("THIRD_PERSON_RIGHT_HAND")
+        );
+        assert_eq!(poser.display_context("item_hat"), None);
+        // Most say nothing.
+        assert!(testmon().properties.is_empty());
+        assert_eq!(testmon().display_context("item"), None);
     }
 
     #[test]

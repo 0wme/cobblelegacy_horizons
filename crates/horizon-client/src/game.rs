@@ -8465,6 +8465,8 @@ impl Game<'_> {
         self.maps.slots.forget();
         self.trim_slots.forget();
         self.map_patches.clear();
+        // CobbleLegacy's fork: the looks of a Cobblemon server's Pokémon, in their own slots.
+        self.pokemon_forget_atlas();
         self.kept_block_entities.get_mut().clear();
         horizon_client::ui_theme::reset_atlas();
     }
@@ -9697,6 +9699,8 @@ impl Game<'_> {
         if !title {
             let mut dragon = Vec::new();
             self.dragon_geometry(camera, alpha, &mut dragon, &mut additive);
+            // CobbleLegacy's fork: the glow and the trail of an alpha Pokémon's eyes.
+            self.pokemon_alpha_eye_geometry(camera, alpha, &mut additive);
             self.dragon_fireball_geometry(camera, alpha, &mut dragon);
             entities.extend(dragon);
         }

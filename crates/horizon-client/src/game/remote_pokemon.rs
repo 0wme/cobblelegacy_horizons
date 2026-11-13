@@ -18,7 +18,8 @@
 //! vanilla body stands in.
 //!
 //! A Pokémon whose species or aspects change where it stands (it evolves, it is sheared) gets the
-//! look they now pick ([`Game::pokemon_relook`]).
+//! look they now pick ([`Game::pokemon_relook`]). The item it holds is drawn on its model
+//! (`remote_pokemon_held.rs`), and an alpha's eyes glow (`remote_pokemon_alpha.rs`).
 //!
 //! The same looks draw the portraits of the player's own party (`remote_pokemon_party.rs`).
 use super::super::Game;
@@ -39,12 +40,16 @@ use std::{
     sync::{Arc, Mutex, PoisonError},
 };
 
+#[path = "remote_pokemon_alpha.rs"]
+mod alpha;
 #[path = "remote_pokemon_anim.rs"]
 mod anim;
 #[path = "remote_pokemon_capture.rs"]
 mod capture;
 #[path = "remote_pokemon_battle.rs"]
 mod fight;
+#[path = "remote_pokemon_held.rs"]
+mod held;
 #[path = "remote_pokemon_host.rs"]
 mod host;
 #[path = "remote_pokemon_label.rs"]
@@ -134,6 +139,10 @@ pub(super) struct Pokemon {
     particles: particles::Particles,
     /// What poses each Pokémon of the level, and so what it plays.
     players: anim::Players,
+    /// The items the Pokémon of the level show.
+    held: held::Held,
+    /// The eyes of the alphas among them.
+    alphas: alpha::Alphas,
     /// The summary screen of one of the player's Pokémon.
     summary: summary::Summary,
     /// The process that draws the screens of the server's mods, and the one it shows.
@@ -173,6 +182,22 @@ struct Look {
 }
 
 impl Pokemon {
+    /// The atlas is a new one (the renderer was made again: a resource pack reloaded, a device
+    /// lost): its Pokémon slots are blank. Whatever is kept by the texture it has there is
+    /// forgotten, to be read and placed again the next time it is asked for.
+    fn forget_atlas(&mut self) {
+        if let Some(slots) = self.slots.as_mut() {
+            slots.forget();
+        }
+        self.sheets.clear();
+        // A look that failed is tried again too: the packs may have changed.
+        self.looks.clear();
+        self.party.forget_textures();
+        self.pcs.forget_textures();
+        self.phases.forget_textures();
+        self.particles.forget_textures();
+    }
+
     pub(super) fn forget(&mut self, id: i32) {
         self.seen.remove(&id);
         self.labels.forget(id);
@@ -181,6 +206,8 @@ impl Pokemon {
         self.captures.forget(id);
         self.particles.forget(id);
         self.players.forget(id);
+        self.held.forget(id);
+        self.alphas.forget(id);
     }
 }
 
@@ -646,10 +673,38 @@ impl Game<'_> {
         )
     }
 
+    /// The atlas is a new one, with a renderer made again (`Game::forget_atlas_slots`) or with the
+    /// resource packs reloaded (`apply_staged_pack`, which forgets its slots itself): nothing of
+    /// what was drawn into its Pokémon slots is there any more. Every look is forgotten, and the
+    /// Pokémon in the level ask for theirs again: each gets its body back as its files are read
+    /// (`pokemon_looks_frame`), as the portraits and the Balls do when next drawn.
+    pub(in super::super) fn pokemon_forget_atlas(&mut self) {
+        let Some(r) = self.remote.as_mut() else {
+            return;
+        };
+        r.pokemon.forget_atlas();
+        let seen = &r.pokemon.seen;
+        let again: Vec<(i32, String, Vec<String>)> = self
+            .mobs
+            .iter()
+            .filter(|mob| mob.species() == Species::Pokemon)
+            .filter_map(|mob| {
+                let id = mob.id as i32;
+                let seen = seen.get(&id)?;
+                Some((id, seen.species.clone(), seen.aspects.clone()))
+            })
+            .collect();
+        for (id, species, aspects) in again {
+            self.pokemon_look_for(&species, &aspects, Some(id));
+        }
+    }
+
     /// Once a frame, before it is drawn: what of the Pokémon moves on by itself.
     pub(in super::super) fn pokemon_frame(&mut self) {
         self.pokemon_looks_frame();
         self.pokemon_animation_frame();
+        self.pokemon_held_frame();
+        self.pokemon_alpha_frame();
         self.pokemon_phase_frame();
         self.pokemon_sounds_frame();
         self.pokemon_capture_frame();
@@ -797,8 +852,8 @@ impl Game<'_> {
     /// A Pokémon's data from Cobblemon's own types on, which the protocol adapter sends after the data
     /// vanilla reads (`horizon_protocol::adapter::UNREAD_ENTITY_DATA`: the entity's id, then the
     /// server's bytes). The pose the server puts the Pokémon in is there (asleep, in flight, swimming),
-    /// whether it is in a battle, its aspects, and what its label says of its level. Its raft is
-    /// read and not used yet.
+    /// whether it is in a battle, its aspects, the item it shows, and what its label says of its
+    /// level. Its raft is read and not used yet.
     fn remote_pokemon_data(&mut self, data: &[u8]) {
         let mut r = horizon_protocol::buf::Reader::new(data);
         let Ok(id) = r.varint() else {
@@ -817,7 +872,15 @@ impl Game<'_> {
         {
             return;
         }
-        let data = match PokemonData::read_rest(rest) {
+        // The item it shows is laid out by the protocol, which the session reads and measures.
+        let session = self.remote.as_ref().map(|r| &r.session);
+        let mut shown = None;
+        let read = PokemonData::read_rest_measuring(rest, &mut |bytes| {
+            let (stack, length) = session?.read_server_item(bytes)?;
+            shown = stack;
+            Some(length)
+        });
+        let data = match read {
             Ok(data) => data,
             Err(e) => {
                 log::debug!("Horizon: the data of Pokémon {id} does not decode: {e}");
@@ -838,6 +901,10 @@ impl Game<'_> {
         }
         if let Some(aspects) = data.aspects {
             self.pokemon_relook(id, None, Some(aspects));
+        }
+        if data.shown_item.is_some() {
+            let stack = self.to_stack(&shown);
+            self.pokemon_shown_item(id, stack);
         }
         if let Some(pose) = data.pose
             && let Some(mob) = self.mob_index.get_mut(&mut self.mobs, id as u32)
@@ -919,6 +986,10 @@ impl Game<'_> {
             return;
         };
         let id = spawn.entity.id;
+        if anim::trace() {
+            let (species, aspects) = (&spawn.species, &spawn.aspects);
+            log::info!("Horizon: Pokémon {id} appears, {species} {aspects:?}");
+        }
         let kind = match self.pokemon_look_for(&spawn.species, &spawn.aspects, Some(id)) {
             Looked::Made(look) => look.kind,
             // No body until its files are read: `pokemon_looks_frame` gives it one.
@@ -1006,4 +1077,40 @@ fn pokemon_type(template: &MobType, species: &str) -> MobType {
     kind.sounds = [""; 3];
     kind.step_sound = None;
     kind
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_new_atlas_forgets_what_was_placed_in_the_old_one() {
+        let mut pokemon = Pokemon::default();
+        // Two looks in their slots, one of them over two, and what goes with them.
+        let mut slots = SkinSlots::new(POKEMON_SLOTS);
+        for sheet in ["pikachu", "zygarde", "zygarde/1"] {
+            slots.place(sheet.to_owned());
+        }
+        pokemon.slots = Some(slots);
+        let more = vec!["zygarde/1".to_owned()];
+        pokemon.sheets.insert("zygarde".to_owned(), more);
+        // A look that did not load, and one whose files are being read for a Pokémon in the level.
+        let key = |name: &str| (format!("{name}.geo"), name.to_owned());
+        pokemon.looks.insert(key("missingno"), None);
+        pokemon.reading.insert(key("eevee"), vec![12]);
+
+        pokemon.forget_atlas();
+        // No texture is in a slot any more: each is read and placed again, from the first slot.
+        let slots = pokemon.slots.as_mut().unwrap();
+        assert!(!slots.contains("pikachu") && !slots.contains("zygarde/1"));
+        assert_eq!(slots.place("pikachu".to_owned()), Some((0, None)));
+        assert!(pokemon.sheets.is_empty());
+        // Every look is made again, the one that failed too; what is being read comes as it would.
+        assert!(pokemon.looks.is_empty());
+        assert_eq!(pokemon.reading.get(&key("eevee")), Some(&vec![12]));
+        // And it is nothing to forget where nothing was placed.
+        let mut none = Pokemon::default();
+        none.forget_atlas();
+        assert!(none.slots.is_none() && none.looks.is_empty());
+    }
 }
