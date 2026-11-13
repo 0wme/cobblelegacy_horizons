@@ -20,7 +20,18 @@
 //! (the server refuses one farther than 12 blocks from the player without a word), or the last one
 //! seen without it. From the challenge on, every message of a Cobblemon channel but the spawns is
 //! written to the dump directory in the order it came (`flow-007-battle_initialize.bin`).
+//!
+//! With `CAPTURE_PC=x,y,z`, the place of a PC block near the player, it also uses the PC:
+//! `CAPTURE_PC_AFTER` seconds after joining (20 without it) it right-clicks the block until the server
+//! opens the PC's screen, then asks for one thing every second and a half: a Pokémon of the PC moved to
+//! another box, two swapped, one swapped with the party's last, that one put back in the PC, one taken
+//! into the party, one released, a box renamed, given another wallpaper and sorted, then the link ended
+//! and one request more, which the server refuses by closing the screen. It needs a full party and two
+//! Pokémon in the PC. Every message of a Cobblemon channel but the spawns is written to the dump
+//! directory in the order it came (`pc-041-set_pc_pokemon.bin`), and what the PC holds is printed after
+//! each one that changed it.
 use cobblelegacy_cobblemon::party;
+use cobblelegacy_cobblemon::pc;
 use cobblelegacy_cobblemon::wire::{
     PokedexData, PokemonData, SERVER_SETTINGS, SET_CLIENT_PLAYERDATA, SPAWN_POKEMON,
     ServerSettings, SpawnPokemon,
@@ -234,6 +245,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut refused = 0u32;
     let mut fighter = 0usize;
     let mut flow = 0u32;
+    // A PC used from here (see the top of the file).
+    let pc_at: Option<[i32; 3]> = std::env::var("CAPTURE_PC").ok().and_then(|s| {
+        let at: Vec<i32> = s.split(',').filter_map(|n| n.trim().parse().ok()).collect();
+        at.try_into().ok()
+    });
+    let pc_after: u64 = std::env::var("CAPTURE_PC_AFTER")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(20);
+    let mut pcs = pc::Storage::new();
+    // The PC whose screen the server opened, the step of the script that comes next and when.
+    let mut pc_open: Option<u128> = None;
+    let mut pc_step = 0usize;
+    let mut pc_next = Instant::now();
+    let mut pc_clicked: Option<Instant> = None;
+    let (mut pc_messages, mut pc_errors) = (0u32, 0u32);
+    let mut sequence = 0;
     let custom = |channel: &str, data: Vec<u8>| {
         play::Serverbound::CustomPayload(cfg::CustomPayload {
             channel: channel.into(),
@@ -328,6 +356,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 w.bool(false);
                 println!("battle: choosing {first_move} at {target:?}");
                 c.send(&custom("cobblemon:battle_select_actions", w.data))?;
+            }
+        }
+        if let Some(at) = pc_at
+            && pc_open.is_none()
+            && pc_step == 0
+            && start.elapsed() >= Duration::from_secs(pc_after)
+            && pc_clicked.is_none_or(|clicked| clicked.elapsed() >= Duration::from_secs(3))
+        {
+            pc_clicked = Some(Instant::now());
+            sequence += 1;
+            println!("pc: right click on the block at {at:?}");
+            c.send(
+                &play::Serverbound::UseItemOn(play::UseItemOn {
+                    hand: 0,
+                    pos: at,
+                    // Its south face, at its middle.
+                    face: 3,
+                    cursor: [0.5, 0.5, 1.0],
+                    inside: false,
+                    world_border: false,
+                    sequence,
+                })
+                .encode(),
+            )?;
+        }
+        if let Some(store) = pc_open
+            && pc_next <= Instant::now()
+            && let Some(held) = pcs.pc(store)
+        {
+            pc_next = Instant::now() + Duration::from_millis(1500);
+            match pc_request(pc_step, held, own.party()) {
+                Some(request) => {
+                    println!("pc: step {pc_step} asks {request:?}");
+                    c.send(&custom(request.channel(), request.payload()))?;
+                    pc_step += 1;
+                }
+                None => pc_open = None,
             }
         }
         let (id, payload) = match c.recv() {
@@ -443,6 +508,71 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 note("play", &p.channel, &p.data);
                 if party::reads(&p.channel) {
                     let _ = own.read(&p.channel, &p.data);
+                }
+                if pc_at.is_some()
+                    && p.channel.starts_with("cobblemon:")
+                    && p.channel != SPAWN_POKEMON
+                {
+                    pc_messages += 1;
+                    let name = p.channel.trim_start_matches("cobblemon:").replace('/', "_");
+                    if let Some(dir) = &dump {
+                        let file = format!("pc-{pc_messages:03}-{name}.bin");
+                        let _ = std::fs::write(dir.join(file), &p.data);
+                    }
+                    if pc::reads(&p.channel) || pc::shares(&p.channel) {
+                        match pcs.read(&p.channel, &p.data) {
+                            Ok(pc::Change::Nothing) => {}
+                            Ok(change) => {
+                                println!(
+                                    "pc {pc_messages:03} {name} {} bytes: {}",
+                                    p.data.len(),
+                                    match &change {
+                                        pc::Change::Stores => pc_summary(&pcs),
+                                        other => format!("{other:?}"),
+                                    }
+                                );
+                                match change {
+                                    pc::Change::Open { store, .. } => {
+                                        pc_open = Some(store);
+                                        pc_next = Instant::now() + Duration::from_millis(1500);
+                                    }
+                                    pc::Change::Close { .. } => pc_open = None,
+                                    // As Cobblemon's client: the wallpapers it has textures for.
+                                    pc::Change::WallpapersAsked => {
+                                        let wallpapers = (1..=11)
+                                            .map(|n| {
+                                                format!(
+                                                    "cobblemon:textures/gui/pc/wallpaper/basic/wallpaper_basic_{n:02}.png"
+                                                )
+                                            })
+                                            .collect();
+                                        let answer = pc::Request::Wallpapers(wallpapers);
+                                        c.send(&custom(answer.channel(), answer.payload()))?;
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            Err(e) => {
+                                pc_errors += 1;
+                                println!(
+                                    "pc {pc_messages:03} {name} decode error ({} bytes): {e}",
+                                    p.data.len()
+                                );
+                            }
+                        }
+                    }
+                    if party::reads(&p.channel) && !p.channel.ends_with("_update") {
+                        let party: Vec<String> = own
+                            .party()
+                            .iter()
+                            .map(|slot| {
+                                slot.as_ref().map_or("-".to_owned(), |p| {
+                                    p.species.trim_start_matches("cobblemon:").to_owned()
+                                })
+                            })
+                            .collect();
+                        println!("pc {pc_messages:03} {name}: party {}", party.join(" "));
+                    }
                 }
                 if challenged && p.channel.starts_with("cobblemon:") && p.channel != SPAWN_POKEMON {
                     flow += 1;
@@ -584,5 +714,132 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if dex_errors > 0 {
         return Err(format!("{dex_errors} Pokédex messages did not decode").into());
     }
+    if pc_errors > 0 {
+        return Err(format!("{pc_errors} messages of the PC did not decode").into());
+    }
+    if pc_at.is_some() && pc_step == 0 {
+        return Err("the server never opened the PC".into());
+    }
     Ok(())
+}
+
+/// Every Pokémon the PCs hold, each with its box and slot, and the names the boxes were given.
+fn pc_summary(pcs: &pc::Storage) -> String {
+    let mut held = Vec::new();
+    for pc in pcs.pcs() {
+        held.push(format!("{} boxes", pc.boxes.len()));
+        for (number, pc_box) in pc.boxes.iter().enumerate() {
+            if let Some(name) = &pc_box.name {
+                held.push(format!("box {number} is {name:?}"));
+            }
+            for (slot, pokemon) in pc_box.slots.iter().enumerate() {
+                if let Some(pokemon) = pokemon {
+                    let species = pokemon.species.trim_start_matches("cobblemon:");
+                    held.push(format!("{species} {number}/{slot}"));
+                }
+            }
+        }
+    }
+    held.join(", ")
+}
+
+/// The step `step` of what the probe asks of an open PC, from what the PC and the party hold then;
+/// none once the script is over, or when what a step needs is not there.
+fn pc_request(
+    step: usize,
+    held: &pc::Pc,
+    party: &[Option<party::PartyPokemon>],
+) -> Option<pc::Request> {
+    use pc::{PcPosition, Request};
+    let mut stored = Vec::new();
+    for (number, pc_box) in held.boxes.iter().enumerate() {
+        for (slot, pokemon) in pc_box.slots.iter().enumerate() {
+            if let Some(pokemon) = pokemon {
+                stored.push((pokemon.uuid, PcPosition::new(number, slot)));
+            }
+        }
+    }
+    let free = |number: usize| {
+        let slot = held.boxes.get(number)?.first_free()?;
+        Some(PcPosition::new(number, slot))
+    };
+    let last = party
+        .iter()
+        .enumerate()
+        .rev()
+        .find_map(|(slot, pokemon)| Some((pokemon.as_ref()?.uuid, slot as u16)));
+    let first = stored.first().copied();
+    Some(match step {
+        0 => {
+            let (pokemon, from) = first?;
+            // To the box after its own, a few slots in.
+            let number = (usize::from(from.pc_box) + 1) % held.boxes.len();
+            let to = PcPosition::new(number, 8);
+            Request::MovePc {
+                pokemon,
+                from,
+                to: if held.get(to).is_none() {
+                    to
+                } else {
+                    free(number)?
+                },
+            }
+        }
+        1 => Request::SwapPc {
+            first: first?,
+            second: *stored.get(1)?,
+        },
+        2 => Request::SwapPcParty {
+            party: last?,
+            pc: first?,
+        },
+        3 => {
+            let (pokemon, from) = last?;
+            Request::PartyToPc {
+                pokemon,
+                from,
+                to: free(0),
+            }
+        }
+        4 => {
+            let (pokemon, from) = first?;
+            Request::PcToParty {
+                pokemon,
+                from,
+                to: None,
+            }
+        }
+        5 => {
+            let (pokemon, at) = *stored.last()?;
+            Request::ReleasePc { pokemon, at }
+        }
+        6 => Request::RenameBox {
+            store: held.uuid,
+            pc_box: 1,
+            name: "Atelier".into(),
+        },
+        7 => Request::ChangeWallpaper {
+            store: held.uuid,
+            pc_box: 1,
+            wallpaper: "cobblemon:textures/gui/pc/wallpaper/basic/wallpaper_basic_01.png".into(),
+            alt: None,
+        },
+        8 => Request::SortBox {
+            store: held.uuid,
+            pc_box: first.map_or(0, |(_, at)| at.pc_box),
+            mode: pc::SortMode::Level,
+            descending: true,
+        },
+        9 => Request::Unlink,
+        // Without a link the server answers by closing the screen.
+        10 => {
+            let (pokemon, from) = first?;
+            Request::MovePc {
+                pokemon,
+                from,
+                to: free(2)?,
+            }
+        }
+        _ => return None,
+    })
 }

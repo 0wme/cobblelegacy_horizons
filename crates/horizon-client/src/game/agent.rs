@@ -469,6 +469,7 @@ impl Game<'_> {
             Screen::GameModeSwitcher => "gamemode-switcher",
             Screen::EmoteWheel => "emote-wheel",
             Screen::PokemonBattle => "pokemon-battle",
+            Screen::PokemonPc => "pokemon-pc",
             Screen::Paused => "paused",
             Screen::Options => "options",
             Screen::Inventory if self.station.is_some() => "station",

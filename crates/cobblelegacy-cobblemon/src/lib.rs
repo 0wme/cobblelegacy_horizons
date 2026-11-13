@@ -12,6 +12,7 @@ mod json;
 pub mod molang;
 pub mod moves;
 pub mod party;
+pub mod pc;
 pub mod pose;
 pub mod poser;
 pub mod resolver;

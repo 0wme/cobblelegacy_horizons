@@ -45,6 +45,8 @@ mod label;
 mod looks;
 #[path = "remote_pokemon_party.rs"]
 mod party;
+#[path = "remote_pokemon_pc.rs"]
+mod pc;
 #[path = "remote_pokemon_phase.rs"]
 mod phase;
 #[path = "remote_pokemon_sounds.rs"]
@@ -58,6 +60,7 @@ pub(super) fn reads(channel: &str) -> bool {
         channel,
         SPAWN_POKEMON | UNREAD_ENTITY_DATA | SERVER_SETTINGS | SET_CLIENT_PLAYERDATA
     ) || cobblelegacy_cobblemon::party::reads(channel)
+        || cobblelegacy_cobblemon::pc::reads(channel)
         || cobblelegacy_cobblemon::battle::reads(channel)
         || channel == cobblelegacy_cobblemon::moves::MOVES_SYNC
         || channel == cobblelegacy_cobblemon::sound::PLAY_ANIMATION
@@ -95,6 +98,8 @@ pub(super) struct Pokemon {
     labels: label::Labels,
     /// The player's own Pokémon, which the overlay down the left of the screen shows.
     party: party::Party,
+    /// The player's PC, and its screen while it is open.
+    pcs: pc::Pcs,
     /// The battle the player is in.
     fight: fight::Fight,
     /// The server's moves, sent as the player joins: a battle's tiles take each move's type from it.
@@ -126,6 +131,9 @@ struct Look {
     portrait_translation: [f32; 3],
     /// The sounds of its named animations (a cry).
     voice: Arc<sounds::Voice>,
+    /// The poser's `profileScale` and `profileTranslation`, for the whole model in a screen.
+    profile_scale: f32,
+    profile_translation: [f32; 3],
 }
 
 impl Pokemon {
@@ -527,12 +535,15 @@ impl Game<'_> {
         kind.height = f64::from(height * base_scale);
         kind.eye_height = kind.height * 0.85;
         let (portrait_scale, portrait_translation) = read.portrait;
+        let (profile_scale, profile_translation) = read.profile;
         let look = Look {
             kind: Arc::new(kind),
             base_scale,
             portrait_scale,
             portrait_translation,
             voice: Arc::new(read.voice),
+            profile_scale,
+            profile_translation,
         };
         self.remote
             .as_mut()?
@@ -573,6 +584,7 @@ impl Game<'_> {
             .filter(|m| m.species() == Species::Pokemon)
             .map(|m| m.kind.texture.clone())
             .chain(pokemon.party.textures())
+            .chain(pokemon.pcs.textures())
             .chain(pokemon.phases.textures())
             .collect();
         let slots = pokemon
@@ -588,6 +600,7 @@ impl Game<'_> {
                 .looks
                 .retain(|_, look| look.as_ref().is_none_or(|l| l.kind.texture != old));
             pokemon.party.forget_texture(&old);
+            pokemon.pcs.forget_texture(&old);
             pokemon.phases.forget_texture(&old);
         }
         let mut rect = *atlas.sprites.get(&format!("horizon/pokemon{slot}"))?;
@@ -608,6 +621,10 @@ impl Game<'_> {
 
     /// A message of a Cobblemon server on one of the channels [`reads`] names.
     pub(super) fn remote_pokemon_payload(&mut self, channel: &str, data: &[u8]) {
+        // The PC's own messages; those it shares with the party go on to the party's reader.
+        if self.remote_pokemon_pc(channel, data) {
+            return;
+        }
         match channel {
             SPAWN_POKEMON => self.remote_pokemon_spawn(data),
             UNREAD_ENTITY_DATA => self.remote_pokemon_data(data),

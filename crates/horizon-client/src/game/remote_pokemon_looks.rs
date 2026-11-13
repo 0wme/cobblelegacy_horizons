@@ -36,6 +36,8 @@ pub(super) struct Read {
     pub(super) voice: sounds::Voice,
     /// The poser's `portraitScale` and `portraitTranslation`.
     pub(super) portrait: (f32, [f32; 3]),
+    /// The poser's `profileScale` and `profileTranslation`.
+    pub(super) profile: (f32, [f32; 3]),
     /// The species' `baseScale`, and its hitbox's width and height.
     pub(super) dimensions: (f32, f32, f32),
 }
@@ -123,6 +125,9 @@ fn read_look(assets: &Assets, wanted: &Wanted) -> Result<Read, String> {
     let portrait = poser_file.as_ref().map_or((1.0, [0.0; 3]), |p| {
         (p.portrait_scale, p.portrait_translation)
     });
+    let profile = poser_file.as_ref().map_or((1.0, [0.0; 3]), |p| {
+        (p.profile_scale, p.profile_translation)
+    });
     let root = geometry
         .drawn_root(root_bone.as_deref(), poser)
         .ok_or("a model without a root bone")?;
@@ -147,6 +152,7 @@ fn read_look(assets: &Assets, wanted: &Wanted) -> Result<Read, String> {
         animator,
         voice,
         portrait,
+        profile,
         dimensions: assets.dimensions(path_of(&wanted.species)),
     })
 }

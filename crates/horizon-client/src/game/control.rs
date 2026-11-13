@@ -1402,6 +1402,7 @@ impl Game<'_> {
             Screen::GameModeSwitcher => "gamemode-switcher",
             Screen::EmoteWheel => "emote-wheel",
             Screen::PokemonBattle => "pokemon-battle",
+            Screen::PokemonPc => "pokemon-pc",
             Screen::Paused => "paused",
             Screen::Options => "options",
             Screen::Inventory => "inventory",
@@ -1624,6 +1625,8 @@ impl Game<'_> {
             "pokemon_party": self.pokemon_party_status(),
             "pokemon_battle": self.pokemon_battle_status(),
         });
+        // And its PC, out of the macro above: one more key there is past its recursion limit.
+        status["pokemon_pc"] = self.pokemon_pc_status();
         status["lod"] = lod;
         let (target, sampled) = self.lod.as_ref().map_or((0, 0), |lod| lod.progress());
         status["lod"]["target_tiles"] = target.into();
