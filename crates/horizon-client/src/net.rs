@@ -1140,10 +1140,59 @@ fn configure(
                         .split(|b| *b == 0)
                         .any(|c| c == fabric::REGISTRY_SYNC_COMPLETE.as_bytes()) =>
             {
+                // And Fabric's common packets, to say which channels are taken in play.
                 reply(cfg::Serverbound::CustomPayload(cfg::CustomPayload {
                     channel: "minecraft:register".into(),
-                    data: fabric::REGISTRY_SYNC.as_bytes().to_vec(),
+                    data: [
+                        fabric::REGISTRY_SYNC,
+                        fabric::COMMON_VERSION,
+                        fabric::COMMON_REGISTER,
+                    ]
+                    .join("\0")
+                    .into_bytes(),
                 }))?;
+            }
+            cfg::Clientbound::CustomPayload(p)
+                if p.channel == fabric::COMMON_VERSION && reader.adapter().is_some() =>
+            {
+                match fabric::common_version_reply(&p.data) {
+                    Ok(Some(data)) => reply(cfg::Serverbound::CustomPayload(cfg::CustomPayload {
+                        channel: fabric::COMMON_VERSION.into(),
+                        data,
+                    }))?,
+                    Ok(None) => log::warn!(
+                        "Horizon: a Fabric server's common packets are of a version not spoken here"
+                    ),
+                    Err(e) => log::warn!(
+                        "Horizon: a Fabric server's {} does not decode: {e}",
+                        fabric::COMMON_VERSION
+                    ),
+                }
+            }
+            cfg::Clientbound::CustomPayload(p)
+                if p.channel == fabric::COMMON_REGISTER && reader.adapter().is_some() =>
+            {
+                let channels = crate::modded_server::accepted_channels(
+                    std::env::var(crate::modded_server::ACCEPTED)
+                        .ok()
+                        .as_deref(),
+                );
+                match fabric::common_register_reply(&p.data, &channels) {
+                    Ok(data) => {
+                        log::info!(
+                            "Horizon: a Fabric server is told {} channels are taken in play",
+                            channels.len()
+                        );
+                        reply(cfg::Serverbound::CustomPayload(cfg::CustomPayload {
+                            channel: fabric::COMMON_REGISTER.into(),
+                            data,
+                        }))?;
+                    }
+                    Err(e) => log::warn!(
+                        "Horizon: a Fabric server's {} does not decode: {e}",
+                        fabric::COMMON_REGISTER
+                    ),
+                }
             }
             cfg::Clientbound::CustomPayload(p) if p.channel == fabric::REGISTRY_SYNC => {
                 if !p.data.is_empty() {

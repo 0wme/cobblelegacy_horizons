@@ -31,6 +31,37 @@ pub const REPORT: &str = "HORIZON_SERVER_REPORT";
 /// knows which release its servers run and says so here; the server is then not asked.
 pub const VERSION: &str = "HORIZON_SERVER_VERSION";
 
+/// The variable that adds channels to those the client says it takes in play (separated by commas).
+pub const ACCEPTED: &str = "HORIZON_ACCEPT_CHANNELS";
+
+/// Channels a mod's library sends every player, and whose server turns away the player that did not
+/// say it takes them: the synchronisations of Cardinal Components API (`ComponentKey.syncWith`), which
+/// several content mods carry. What comes on them is not read: it is the state those mods keep on an
+/// entity, a block entity, a chunk, a world or a scoreboard, for a client side that is not here.
+const DROPPED: [&str; 7] = [
+    "cardinal-components:entity_sync",
+    "cardinal-components:block_entity_sync",
+    "cardinal-components:chunk_sync",
+    "cardinal-components:level_sync",
+    "cardinal-components:scoreboard_sync",
+    "cardinal-components:team_sync",
+    "cardinal-components:world_sync",
+];
+
+/// The channels the client tells a Fabric server it takes in play (`fabric::common_register_reply`):
+/// those above, and those `added` names (the value of [`ACCEPTED`]).
+pub fn accepted_channels(added: Option<&str>) -> Vec<String> {
+    let mut channels: Vec<String> = DROPPED.iter().map(|c| (*c).to_owned()).collect();
+    for channel in added.unwrap_or_default().split(',') {
+        let channel = channel.trim();
+        // An identifier: a namespace and a path. Anything else would end the connection.
+        if channel.contains(':') && !channels.iter().any(|c| c == channel) {
+            channels.push(channel.to_owned());
+        }
+    }
+    channels
+}
+
 /// The release of that name among those the adapter translates: `1.21.1`, `1.21.11`...
 pub fn version_named(name: &str) -> Option<ServerVersion> {
     let name = name.trim();
@@ -274,6 +305,18 @@ pub fn from_resources(sync: &RegistrySync, resources: &Path) -> io::Result<(Modd
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_channels_taken_in_play_are_the_libraries_and_those_added() {
+        let own = accepted_channels(None);
+        assert_eq!(own.len(), 7);
+        assert!(own.contains(&"cardinal-components:entity_sync".to_owned()));
+        let more = accepted_channels(Some(
+            " a:b , cardinal-components:entity_sync,pas-un-canal,,c:d",
+        ));
+        assert_eq!(more.len(), 9);
+        assert_eq!(more[7..], ["a:b".to_owned(), "c:d".to_owned()]);
+    }
 
     #[test]
     fn a_network_s_release_is_found_by_its_name() {

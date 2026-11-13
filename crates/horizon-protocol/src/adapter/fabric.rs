@@ -9,13 +9,67 @@
 //! The table names blocks, not their states: how many states a mod's block has is in its Java code and
 //! never on the wire. Whoever knows it (a report made on the server) turns the two into a [`Modded`],
 //! which the session then translates with (`Session::set_modded`).
-use crate::{Error, Result, buf::Reader};
+use crate::{
+    Error, Result,
+    buf::{Reader, Writer},
+};
 use std::collections::{BTreeMap, HashMap};
 
 /// `DirectRegistryPacketHandler.Payload.ID`.
 pub const REGISTRY_SYNC: &str = "fabric:registry/sync/direct";
 /// `SyncCompletePayload.ID`: the client's answer once it has the whole table.
 pub const REGISTRY_SYNC_COMPLETE: &str = "fabric:registry/sync/complete";
+
+/// `CommonVersionPayload.ID` and `CommonRegisterPayload.ID`: Fabric API's "common packets", by which a
+/// client says during configuration which channels it takes once in play. A server's mods ask Fabric
+/// whether a player takes a channel before they send on it (`ServerPlayNetworking.canSend`), and some
+/// turn away the player who does not: Cardinal Components API ends the connection with "This server
+/// requires Cardinal Components API (unhandled packet: ...)".
+///
+/// The server speaks them only to a client whose `minecraft:register` named the two: it then sends the
+/// versions it speaks on the first and waits for one back, sends its own play channels on the second
+/// and waits for the client's.
+pub const COMMON_VERSION: &str = "c:version";
+pub const COMMON_REGISTER: &str = "c:register";
+/// `CommonPacketsImpl.PACKET_VERSION_1`, the only version there is.
+const COMMON_PACKETS: i32 = 1;
+/// `CommonRegisterPayload.PLAY_PHASE`.
+const PLAY_PHASE: &str = "play";
+
+/// The answer to a server's `c:version` (`CommonVersionPayload`: the versions it speaks, a counted
+/// array of VarInts): the version spoken here. `None` when the server does not speak it: Fabric then
+/// has no answer it would take.
+pub fn common_version_reply(data: &[u8]) -> Result<Option<Vec<u8>>> {
+    let r = &mut Reader::new(data);
+    let mut spoken = false;
+    for _ in 0..r.count(64)? {
+        spoken |= r.varint()? == COMMON_PACKETS;
+    }
+    Ok(spoken.then(|| {
+        let mut w = Writer::new();
+        w.varint(1);
+        w.varint(COMMON_PACKETS);
+        w.data
+    }))
+}
+
+/// The answer to a server's `c:register` (`CommonRegisterPayload`: a version, a phase, the server's
+/// own channels of that phase): the same version and phase with `play`, the channels the client takes
+/// once in play. For another phase it names none.
+pub fn common_register_reply(data: &[u8], play: &[String]) -> Result<Vec<u8>> {
+    let r = &mut Reader::new(data);
+    let version = r.varint()?;
+    let phase = r.string(64)?;
+    let channels = if phase == PLAY_PHASE { play } else { &[] };
+    let mut w = Writer::new();
+    w.varint(version);
+    w.string(&phase);
+    w.varint(channels.len() as i32);
+    for channel in channels {
+        w.string(channel);
+    }
+    Ok(w.data)
+}
 
 /// The registries a Fabric server synced: for each (`minecraft:block`), the names of its entries by
 /// their number there, the game's own entries included.
@@ -148,7 +202,38 @@ impl Modded {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buf::Writer;
+
+    #[test]
+    fn the_common_packets_are_answered_as_fabric_reads_them() {
+        // `c:version`: the server speaks version 1.
+        assert_eq!(common_version_reply(&[1, 1]).unwrap(), Some(vec![1, 1]));
+        // A server that would only speak a later one gets no answer.
+        assert_eq!(common_version_reply(&[1, 2]).unwrap(), None);
+        assert!(common_version_reply(&[2, 1]).is_err());
+        // `c:register` for play, with one channel of the server's own: the answer names the
+        // client's, under the same version and phase.
+        let mut asked = Writer::new();
+        asked.varint(1);
+        asked.string("play");
+        asked.varint(1);
+        asked.string("fabric:x");
+        let reply =
+            common_register_reply(&asked.data, &["a:b".to_owned(), "c:d".to_owned()]).unwrap();
+        let r = &mut Reader::new(&reply);
+        assert_eq!(r.varint().unwrap(), 1);
+        assert_eq!(r.string(64).unwrap(), "play");
+        assert_eq!(r.count(8).unwrap(), 2);
+        assert_eq!(r.string(64).unwrap(), "a:b");
+        assert_eq!(r.string(64).unwrap(), "c:d");
+        assert_eq!(r.remaining(), 0);
+        // Another phase: none named.
+        let mut asked = Writer::new();
+        asked.varint(1);
+        asked.string("configuration");
+        asked.varint(0);
+        let reply = common_register_reply(&asked.data, &["a:b".to_owned()]).unwrap();
+        assert_eq!(reply.last(), Some(&0));
+    }
 
     /// Two registries of one namespace as Fabric writes them: blocks 0, 1, then 1060 and 1061 of a
     /// mod; items with a gap inside the mod's namespace.
